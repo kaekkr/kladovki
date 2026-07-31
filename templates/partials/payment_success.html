@@ -1,0 +1,29 @@
+<div class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" id="success-modal">
+    <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center">
+        <div class="text-5xl mb-3">✅</div>
+        <h2 class="text-xl font-bold mb-2">Оплата прошла успешно</h2>
+        <p class="text-slate-600 text-sm mb-4">
+            Кладовка <strong>{{.StorageID}}</strong> закреплена за вами.<br>
+            (stub Kaspi — реальная оплата будет здесь)
+        </p>
+        <button onclick="location.reload()"
+                class="w-full bg-indigo-600 text-white font-medium py-2.5 rounded-lg hover:bg-indigo-700">
+            Вернуться к схеме
+        </button>
+    </div>
+</div>
+<script>
+    // Обновить карточку кладовки (visual stub)
+    const el = document.getElementById('storage-{{.StorageID}}');
+    if (el) {
+        el.className = 'rounded-xl border-2 p-3 text-center storage-occupied';
+        el.removeAttribute('hx-post');
+        el.removeAttribute('hx-target');
+        el.removeAttribute('hx-swap');
+        const status = el.querySelector('.text-emerald-700, .text-red-700');
+        if (status) {
+            status.className = 'text-red-700 font-medium';
+            status.textContent = 'Занято';
+        }
+    }
+</script>

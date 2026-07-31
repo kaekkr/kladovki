@@ -1,0 +1,28 @@
+<div class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" id="occupy-modal">
+    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 relative">
+        <button onclick="document.getElementById('occupy-modal').remove()"
+                class="absolute top-3 right-3 text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+
+        <h2 class="text-xl font-bold mb-1">Забронировать кладовку {{.StorageID}}</h2>
+        <p class="text-sm text-amber-600 mb-4">
+            ⏱ Бронь действует до {{.ExpiresAt}} (2 минуты)
+        </p>
+
+        <div class="bg-slate-50 rounded-lg p-4 mb-4 text-sm space-y-1">
+            <div class="flex justify-between"><span>Тариф / мес</span><span class="font-medium">15 000 ₸</span></div>
+            <div class="flex justify-between"><span>Период</span><span class="font-medium">1 месяц</span></div>
+            <div class="flex justify-between border-t pt-2 mt-2"><span class="font-semibold">К оплате</span><span class="font-bold text-indigo-600">15 000 ₸</span></div>
+        </div>
+
+        <p class="text-xs text-slate-500 mb-4">
+            Оплата через Kaspi (реальная интеграция — stub). После оплаты бронь станет постоянной.
+        </p>
+
+        <form hx-post="/client/pay/{{.StorageID}}" hx-target="#modal-root" hx-swap="innerHTML">
+            <button type="submit"
+                    class="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-3 rounded-xl transition flex items-center justify-center gap-2">
+                <span>Оплатить через Kaspi</span>
+            </button>
+        </form>
+    </div>
+</div>

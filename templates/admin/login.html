@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800">
+    <nav class="bg-white border-b border-slate-200">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <a href="/" class="font-bold text-xl text-indigo-600">📦 Кладовки</a>
+            <a href="/admin/register" class="text-sm hover:text-indigo-600">Регистрация ЖК</a>
+        </div>
+    </nav>
+
+    <main class="max-w-md mx-auto px-4 py-12">
+        <h1 class="text-2xl font-bold mb-6">Вход для УК / ЖК</h1>
+
+        <form hx-post="/admin/login" hx-target="body" hx-swap="outerHTML"
+              class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Email или БИН</label>
+                <input type="text" name="login" required
+                       class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Пароль</label>
+                <input type="password" name="password" required
+                       class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+            </div>
+            <button type="submit"
+                    class="w-full bg-indigo-600 text-white font-medium py-2.5 rounded-lg hover:bg-indigo-700 transition">
+                Войти
+            </button>
+        </form>
+    </main>
+</body>
+</html>

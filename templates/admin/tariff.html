@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800">
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <a href="/" class="font-bold text-xl text-indigo-600">📦 Кладовки</a>
+            <div class="flex items-center gap-4 text-sm">
+                <span class="text-slate-600">{{.JKName}}</span>
+                <a href="/admin/tariff" class="text-indigo-600 font-medium">Тарифы</a>
+                <a href="/admin/reports" class="hover:text-indigo-600">Отчёты</a>
+                <a href="/admin/dashboard" class="hover:text-indigo-600">Мониторинг</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-2xl mx-auto px-4 py-8">
+        <h1 class="text-2xl font-bold mb-2">Глобальный тариф</h1>
+        <p class="text-slate-500 text-sm mb-6">Изменения тарифа фиксируются с датой и временем. При изменении — перерасчёт для предоплативших / возврат.</p>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+            <div class="text-sm text-slate-500 mb-1">Текущий тариф</div>
+            <div class="text-3xl font-bold text-indigo-600 mb-6">{{.CurrentTariff}} ₸ <span class="text-base font-normal text-slate-500">/ мес</span></div>
+
+            <form hx-post="/admin/tariff" hx-target="#toast-container" hx-swap="beforeend" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Новый тариф (₸)</label>
+                    <input type="number" name="tariff" min="0" step="100" required
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                           placeholder="{{.CurrentTariff}}">
+                </div>
+                <button type="submit"
+                        class="w-full bg-indigo-600 text-white font-medium py-2.5 rounded-lg hover:bg-indigo-700">
+                    Сохранить и зафиксировать изменение
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-4 py-3 border-b font-medium text-sm">История изменений тарифа</div>
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="text-left px-4 py-2 font-medium">Дата и время</th>
+                        <th class="text-right px-4 py-2 font-medium">Сумма</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .History}}
+                    <tr class="border-t">
+                        <td class="px-4 py-2.5">{{.Date}}</td>
+                        <td class="px-4 py-2.5 text-right font-medium">{{.Amount}} ₸</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+</body>
+</html>

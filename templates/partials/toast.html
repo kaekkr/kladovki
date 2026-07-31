@@ -1,0 +1,11 @@
+<div class="bg-{{if eq .Type "success"}}emerald{{else}}red{{end}}-600 text-white px-4 py-3 rounded-lg shadow-lg text-sm flex items-center gap-2"
+     id="toast-msg">
+    {{if eq .Type "success"}}✓{{else}}!{{end}}
+    {{.Message}}
+</div>
+<script>
+    setTimeout(() => {
+        const t = document.getElementById('toast-msg');
+        if (t) t.remove();
+    }, 3500);
+</script>
