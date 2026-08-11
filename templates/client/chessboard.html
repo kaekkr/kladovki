@@ -1,3 +1,4 @@
+{{define "client/chessboard.html"}}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -60,4 +61,10 @@
 
     <div id="modal-root"></div>
 </body>
+{{if .Error}}
+<div class="max-w-xl mx-auto my-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+    <strong>Ошибка:</strong> {{.Error}}
+</div>
+{{end}}
 </html>
+{{end}}
