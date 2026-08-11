@@ -5,12 +5,19 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/kaekkr/kladovki/internal/models"
 )
 
 func (s *Service) RegisterJK(ctx context.Context, name, bin, contact, phone, email, password string) (*models.JK, *models.User, error) {
 	if _, err := s.repo.GetUserByEmail(ctx, email); err == nil {
-		return nil, nil, fmt.Errorf("%w: email", ErrAlreadyExists)
+		return nil, nil, fmt.Errorf("%w: email already in use", ErrAlreadyExists)
+	}
+	if _, err := s.repo.GetUserByPhone(ctx, phone); err == nil {
+		return nil, nil, fmt.Errorf("%w: phone number already in use", ErrAlreadyExists)
+	}
+	if _, err := s.repo.GetUserByBIN(ctx, bin); err == nil {
+		return nil, nil, fmt.Errorf("%w: BIN already registered", ErrAlreadyExists)
 	}
 
 	hash, err := HashPassword(password)
@@ -19,12 +26,14 @@ func (s *Service) RegisterJK(ctx context.Context, name, bin, contact, phone, ema
 	}
 
 	u := &models.User{
-		Role:         models.RoleAdmin,
+		ID:           uuid.New().String(),
+		Roles:        []models.Role{models.RoleAdmin},
 		FullName:     contact,
 		Phone:        phone,
 		Email:        email,
 		BIN:          &bin,
 		PasswordHash: hash,
+		CreatedAt:    time.Now(),
 	}
 
 	if err := s.repo.CreateUser(ctx, u); err != nil {
@@ -32,12 +41,14 @@ func (s *Service) RegisterJK(ctx context.Context, name, bin, contact, phone, ema
 	}
 
 	jk := &models.JK{
-		Name:    name,
-		BIN:     bin,
-		Contact: contact,
-		Phone:   phone,
-		Email:   email,
-		OwnerID: u.ID,
+		ID:        uuid.New().String(),
+		Name:      name,
+		BIN:       bin,
+		Contact:   contact,
+		Phone:     phone,
+		Email:     email,
+		OwnerID:   u.ID,
+		CreatedAt: time.Now(),
 	}
 
 	if err := s.repo.CreateJK(ctx, jk); err != nil {
@@ -46,7 +57,6 @@ func (s *Service) RegisterJK(ctx context.Context, name, bin, contact, phone, ema
 
 	u.JKID = &jk.ID
 	_ = s.repo.UpdateUserJKID(ctx, u.ID, jk.ID)
-	_ = s.repo.SetTariff(ctx, jk.ID, 15000)
 
 	return jk, u, nil
 }

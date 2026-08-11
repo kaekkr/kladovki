@@ -13,12 +13,11 @@ var (
 	ErrExpiredToken = errors.New("token expired")
 )
 
-// Claims — payload JWT
 type Claims struct {
-	UserID string `json:"uid"`
-	Role   string `json:"role"`
-	JKID   string `json:"jk_id,omitempty"`
-	Email  string `json:"email,omitempty"`
+	UserID string   `json:"uid"`
+	Roles  []string `json:"roles"` // Changed from Role string
+	JKID   string   `json:"jk_id,omitempty"`
+	Email  string   `json:"email,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -36,19 +35,18 @@ func NewTokenService(secret string, ttl time.Duration) *TokenService {
 	}
 }
 
-func (ts *TokenService) Generate(userID, role, jkID, email string) (string, time.Time, error) {
+func (ts *TokenService) Generate(userID string, roles []string, jkID, email string) (string, time.Time, error) {
 	now := time.Now()
 	expiresAt := now.Add(ts.ttl)
 
 	claims := Claims{
 		UserID: userID,
-		Role:   role,
+		Roles:  roles,
 		JKID:   jkID,
 		Email:  email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(now),
-			// Отнимаем 5 секунд buffer-time на случай минимальной рассинхронизации часов
 			NotBefore: jwt.NewNumericDate(now.Add(-5 * time.Second)),
 			Issuer:    ts.issuer,
 			Subject:   userID,
@@ -83,8 +81,7 @@ func (ts *TokenService) Parse(tokenStr string) (*Claims, error) {
 		return nil, ErrInvalidToken
 	}
 
-	// Проверяем наличие ключевых полей
-	if claims.UserID == "" || claims.Role == "" {
+	if claims.UserID == "" || len(claims.Roles) == 0 {
 		return nil, ErrInvalidToken
 	}
 

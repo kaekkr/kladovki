@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -9,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kaekkr/kladovki/internal/auth"
-	"github.com/kaekkr/kladovki/internal/service"
 )
 
 func (h *Handler) ShowIndex(c *gin.Context) {
@@ -33,18 +31,24 @@ func (h *Handler) ClientRegister(c *gin.Context) {
 	if err != nil {
 		log.Printf("[Register Error]: %v", err)
 
-		// Map raw errors to clean, user-facing UI messages
 		errMsg := "Ошибка при регистрации. Проверьте введенные данные."
-		if errors.Is(err, service.ErrAlreadyExists) || strings.Contains(err.Error(), "email") {
+		if strings.Contains(err.Error(), "email") {
 			errMsg = "Пользователь с таким Email уже зарегистрирован."
+		} else if strings.Contains(err.Error(), "phone") {
+			errMsg = "Пользователь с таким номером телефона уже зарегистрирован."
+		} else if strings.Contains(err.Error(), "IIN") || strings.Contains(err.Error(), "iin") {
+			errMsg = "Пользователь с таким ИИН уже зарегистрирован."
 		} else if strings.Contains(err.Error(), "users_pkey") || strings.Contains(err.Error(), "duplicate key") {
 			errMsg = "Ошибка базы данных: пользователь уже существует."
 		}
 
-		// Use http.StatusOK (200) so HTMX updates the form with the error message
-		c.HTML(http.StatusOK, "client/register.html", gin.H{
-			"Title": "Регистрация жителя",
-			"Error": errMsg,
+		c.HTML(http.StatusBadRequest, "client/register.html", gin.H{
+			"Title":    "Регистрация жителя",
+			"Error":    errMsg,
+			"FullName": fullName,
+			"Phone":    phone,
+			"Email":    email,
+			"IIN":      iin,
 		})
 		return
 	}
@@ -55,7 +59,12 @@ func (h *Handler) ClientRegister(c *gin.Context) {
 		jkID = jks[0].ID
 	}
 
-	token, _, err := h.tokens.Generate(u.ID, string(u.Role), jkID, u.Email)
+	roles := make([]string, len(u.Roles))
+	for i, r := range u.Roles {
+		roles[i] = string(r)
+	}
+
+	token, _, err := h.tokens.Generate(u.ID, roles, jkID, u.Email)
 	if err == nil {
 		setCookie(c, h.cfg, token)
 	}
@@ -79,7 +88,11 @@ func (h *Handler) ClientLogin(c *gin.Context) {
 
 	u, err := h.svc.Login(c.Request.Context(), login, password)
 	if err != nil {
-		c.HTML(http.StatusUnauthorized, "client/login.html", gin.H{"Error": "Неверный логин или пароль"})
+		log.Printf("[Login Error]: %v", err)
+		c.HTML(http.StatusOK, "client/login.html", gin.H{
+			"Title": "Вход для жителей",
+			"Error": "Неверный логин или пароль",
+		})
 		return
 	}
 
@@ -91,10 +104,33 @@ func (h *Handler) ClientLogin(c *gin.Context) {
 		}
 	}
 
-	token, _, err := h.tokens.Generate(u.ID, string(u.Role), jkID, u.Email)
+	if jkID == "" {
+		if jks, dbErr := h.svc.Repo().ListJKs(c.Request.Context()); dbErr == nil && len(jks) > 0 {
+			jkID = jks[0].ID
+		}
+	}
 
-	if err == nil {
-		setCookie(c, h.cfg, token)
+	roles := make([]string, len(u.Roles))
+	for i, r := range u.Roles {
+		roles[i] = string(r)
+	}
+
+	token, _, err := h.tokens.Generate(u.ID, roles, jkID, u.Email)
+	if err != nil {
+		log.Printf("[Login Error] Token generation failed: %v", err)
+		c.HTML(http.StatusOK, "client/login.html", gin.H{
+			"Title": "Вход для жителей",
+			"Error": "Ошибка авторизации. Попробуйте позже.",
+		})
+		return
+	}
+
+	setCookie(c, h.cfg, token)
+
+	if c.GetHeader("HX-Request") == "true" {
+		c.Header("HX-Redirect", "/client/chessboard")
+		c.Status(http.StatusOK)
+		return
 	}
 
 	c.Redirect(http.StatusSeeOther, "/client/chessboard")
@@ -116,7 +152,6 @@ func (h *Handler) Chessboard(c *gin.Context) {
 		}
 	}
 
-	// 1. Try EgovStub if claims didn't supply a JKID
 	if jkID == "" {
 		jks, _ := h.svc.EgovStub(c.Request.Context(), "")
 		if len(jks) > 0 {
@@ -124,7 +159,6 @@ func (h *Handler) Chessboard(c *gin.Context) {
 		}
 	}
 
-	// 2. Fallback: Query all JKs directly from the DB if EgovStub returns empty
 	if jkID == "" {
 		jks, err := h.svc.Repo().ListJKs(c.Request.Context())
 		if err == nil && len(jks) > 0 {
@@ -132,7 +166,6 @@ func (h *Handler) Chessboard(c *gin.Context) {
 		}
 	}
 
-	// 3. Fail gracefully only if the database has 0 JKs configured
 	if jkID == "" {
 		log.Printf("[Chessboard Error] No JKs found in database")
 		c.HTML(http.StatusOK, "client/chessboard.html", gin.H{

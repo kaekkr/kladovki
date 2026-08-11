@@ -2,14 +2,10 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"html/template"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -19,17 +15,18 @@ import (
 	"github.com/kaekkr/kladovki/internal/database"
 	"github.com/kaekkr/kladovki/internal/handlers"
 	"github.com/kaekkr/kladovki/internal/middleware"
+	"github.com/kaekkr/kladovki/internal/render"
 	"github.com/kaekkr/kladovki/internal/repository"
 	"github.com/kaekkr/kladovki/internal/service"
 )
 
 func main() {
 	cfg := config.Load()
-
 	if cfg.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
+	// 1. Database & Repositories
 	db, err := database.Open(cfg.DBPath)
 	if err != nil {
 		log.Fatalf("failed to open database: %v", err)
@@ -42,22 +39,24 @@ func main() {
 		log.Println("seed info:", err)
 	}
 
+	// 2. Auth & Middleware
 	tokens := auth.NewTokenService(cfg.JWTSecret, cfg.JWTAccessTTL)
 	mw := middleware.NewAuth(tokens, cfg)
 
+	// 3. Router & Handlers
 	r := gin.Default()
-	r.SetHTMLTemplate(loadTemplates())
+	r.SetHTMLTemplate(render.LoadTemplates())
 	r.Static("/static", "./static")
 
 	h := handlers.New(svc, tokens, cfg, mw)
 	h.Register(r)
 
+	// 4. HTTP Server Setup
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,
 		Handler: r,
 	}
 
-	// Запуск сервера в отдельной горутине для Graceful Shutdown
 	go func() {
 		log.Printf("Server listening on http://localhost:%s (%s mode)", cfg.Port, cfg.Env)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -65,7 +64,7 @@ func main() {
 		}
 	}()
 
-	// Ожидание сигнала завершения (Ctrl+C, SIGTERM)
+	// 5. Graceful Shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
@@ -79,47 +78,4 @@ func main() {
 	}
 
 	log.Println("Server exiting")
-}
-
-func loadTemplates() *template.Template {
-	// Создаем FuncMap для форматирования сумм int64 и дат в шаблонах HTMX/HTML
-	funcMap := template.FuncMap{
-		"formatMoney": func(amount int64) string {
-			return fmt.Sprintf("%d ₸", amount)
-		},
-		"formatDate": func(t *time.Time) string {
-			if t == nil {
-				return "-"
-			}
-			return t.Format("02.01.2006")
-		},
-	}
-
-	t := template.New("").Funcs(funcMap)
-	patterns := []string{
-		"templates/layouts/*.html",
-		"templates/client/*.html",
-		"templates/admin/*.html",
-		"templates/partials/*.html",
-	}
-
-	for _, p := range patterns {
-		files, err := filepath.Glob(p)
-		if err != nil {
-			continue
-		}
-		for _, f := range files {
-			name := strings.TrimPrefix(f, "templates/")
-			name = filepath.ToSlash(name)
-			content, err := os.ReadFile(f)
-			if err != nil {
-				log.Printf("read %s: %v", f, err)
-				continue
-			}
-			if _, err := t.New(name).Parse(string(content)); err != nil {
-				log.Printf("parse %s: %v", name, err)
-			}
-		}
-	}
-	return t
 }

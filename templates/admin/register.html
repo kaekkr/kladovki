@@ -1,70 +1,96 @@
 <!DOCTYPE html>
 <html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.Title}}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-</head>
-<body class="bg-slate-50 min-h-screen text-slate-800">
-    <nav class="bg-white border-b border-slate-200">
-        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-            <a href="/" class="font-bold text-xl text-indigo-600">📦 Кладовки</a>
-            <a href="/admin/login" class="text-sm hover:text-indigo-600">Уже зарегистрированы</a>
-        </div>
-    </nav>
-
-    <main class="max-w-md mx-auto px-4 py-12">
-        <h1 class="text-2xl font-bold mb-2">Регистрация ЖК</h1>
-        <p class="text-slate-500 text-sm mb-6">Платная регистрация управляющей компании / ЖК</p>
-
-        <form hx-post="/admin/register" hx-target="body" hx-swap="outerHTML"
-              class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-            <div>
-                <label class="block text-sm font-medium mb-1">Название ЖК</label>
-                <input type="text" name="jk_name" required value="ЖК Сыганак"
-                       class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{{.Title}}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+        <script>
+          document.addEventListener("DOMContentLoaded", function() {
+            document.body.addEventListener('htmx:beforeSwap', function(evt) {
+              if (evt.detail.xhr.status === 400 || evt.detail.xhr.status === 422) {
+                evt.detail.shouldSwap = true;
+                evt.detail.isError = false;
+              }
+            });
+          });
+        </script>
+    </head>
+    <body class="bg-slate-50 min-h-screen text-slate-800">
+        <nav class="bg-white border-b border-slate-200">
+            <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+                <a href="/" class="font-bold text-xl text-indigo-600">📦 Кладовки</a>
+                <a href="/admin/login" class="text-sm hover:text-indigo-600">Уже зарегистрированы</a>
             </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">БИН / ИИН</label>
-                <input type="text" name="bin" required
-                       class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">Контактное лицо</label>
-                <input type="text" name="contact" required
-                       class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">Телефон</label>
-                <input type="tel" name="phone" required
-                       class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">Email</label>
-                <input type="email" name="email" required
-                       class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">Пароль</label>
-                <input type="password" name="password" required minlength="6"
-                       class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-                       placeholder="минимум 6 символов">
-            </div>
-
-            {{if .Error}}
-            <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">{{.Error}}</div>
-            {{end}}
-            <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-                💳 После регистрации будет оплата (stub). Затем — таблица для ввода кладовок.
-            </div>
-
-            <button type="submit"
-                    class="w-full bg-indigo-600 text-white font-medium py-2.5 rounded-lg hover:bg-indigo-700 transition">
-                Зарегистрировать ЖК
-            </button>
-        </form>
-    </main>
-</body>
+        </nav>
+        <main class="max-w-md mx-auto px-4 py-12">
+            <h1 class="text-2xl font-bold mb-2">Регистрация ЖК</h1>
+            <p class="text-slate-500 text-sm mb-6">Платная регистрация управляющей компании / ЖК</p>
+            <form hx-post="/admin/register"
+                  hx-target="body"
+                  hx-swap="outerHTML"
+                  class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Название ЖК</label>
+                    <input type="text"
+                           name="jk_name"
+                           required
+                           value="{{if .JKName}}{{.JKName}}{{else}}ЖК Сыганак{{end}}"
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">БИН / ИИН</label>
+                    <input type="text"
+                           name="bin"
+                           required
+                           value="{{.BIN}}"
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Контактное лицо</label>
+                    <input type="text"
+                           name="contact"
+                           required
+                           value="{{.Contact}}"
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Телефон</label>
+                    <input type="tel"
+                           name="phone"
+                           required
+                           value="{{.Phone}}"
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Email</label>
+                    <input type="email"
+                           name="email"
+                           required
+                           value="{{.Email}}"
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Пароль</label>
+                    <input type="password"
+                           name="password"
+                           required
+                           minlength="6"
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                           placeholder="минимум 6 символов">
+                </div>
+                {{if .Error}}
+                    <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">{{.Error}}</div>
+                {{end}}
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                    💳 После регистрации будет оплата (stub). Затем — таблица для ввода кладовок.
+                </div>
+                <button type="submit"
+                        class="w-full bg-indigo-600 text-white font-medium py-2.5 rounded-lg hover:bg-indigo-700 transition">
+                    Зарегистрировать ЖК
+                </button>
+            </form>
+        </main>
+    </body>
 </html>

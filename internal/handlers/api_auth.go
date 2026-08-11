@@ -60,7 +60,7 @@ func (h *Handler) APIRegisterResident(c *gin.Context) {
 		"token_type":   "Bearer",
 		"user": gin.H{
 			"id":        u.ID,
-			"role":      u.Role,
+			"roles":     u.Roles,
 			"email":     u.Email,
 			"full_name": u.FullName,
 			"jk_id":     u.JKID,
@@ -91,7 +91,7 @@ func (h *Handler) APIRegisterJK(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"access_token": token,
 		"token_type":   "Bearer",
-		"user":         gin.H{"id": u.ID, "role": u.Role, "email": u.Email, "jk_id": jk.ID},
+		"user":         gin.H{"id": u.ID, "roles": u.Roles, "email": u.Email, "jk_id": jk.ID},
 		"jk":           gin.H{"id": jk.ID, "name": jk.Name},
 	})
 }
@@ -109,7 +109,7 @@ func (h *Handler) APILogin(c *gin.Context) {
 		return
 	}
 
-	if u.Role == models.RoleAdmin && (u.JKID == nil || *u.JKID == "") {
+	if u.HasRole(models.RoleAdmin) && (u.JKID == nil || *u.JKID == "") {
 		jks, _ := h.svc.Repo().ListJKs(c.Request.Context())
 		for _, j := range jks {
 			if j.OwnerID == u.ID {
@@ -120,7 +120,7 @@ func (h *Handler) APILogin(c *gin.Context) {
 		}
 	}
 
-	if u.Role == models.RoleResident && (u.JKID == nil || *u.JKID == "") && u.IIN != nil {
+	if u.HasRole(models.RoleResident) && (u.JKID == nil || *u.JKID == "") && u.IIN != nil {
 		jks, _ := h.svc.EgovStub(c.Request.Context(), *u.IIN)
 		if len(jks) == 1 {
 			u.JKID = &jks[0].ID
@@ -139,7 +139,7 @@ func (h *Handler) APILogin(c *gin.Context) {
 		"token_type":   "Bearer",
 		"user": gin.H{
 			"id":        u.ID,
-			"role":      u.Role,
+			"roles":     u.Roles,
 			"email":     u.Email,
 			"full_name": u.FullName,
 			"jk_id":     u.JKID,
@@ -150,7 +150,7 @@ func (h *Handler) APILogin(c *gin.Context) {
 func (h *Handler) APIMe(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"id":    middleware.UserID(c),
-		"role":  middleware.Role(c),
+		"roles": middleware.Roles(c),
 		"jk_id": middleware.JKID(c),
 		"email": c.GetString(middleware.ContextEmail),
 	})

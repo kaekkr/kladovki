@@ -43,7 +43,13 @@ func (h *Handler) issueToken(c *gin.Context, u *models.User) (string, error) {
 		jkID = *u.JKID
 	}
 
-	token, exp, err := h.tokens.Generate(u.ID, string(u.Role), jkID, u.Email)
+	// Convert []models.Role to []string for token generation
+	roles := make([]string, len(u.Roles))
+	for i, r := range u.Roles {
+		roles[i] = string(r)
+	}
+
+	token, exp, err := h.tokens.Generate(u.ID, roles, jkID, u.Email)
 	if err != nil {
 		return "", err
 	}
