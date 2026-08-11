@@ -28,7 +28,7 @@ func (s *Service) EnsureSeed(ctx context.Context) error {
 	// 1. Create Admin User (FK to JKID will be populated right after)
 	u := &models.User{
 		ID:           adminID,
-		Role:         models.RoleAdmin,
+		Roles:        []models.Role{models.RoleAdmin}, // Updated to slice
 		FullName:     "Админ Сыганак",
 		Phone:        "+77001112233",
 		Email:        "admin@syganak.kz",

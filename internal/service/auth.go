@@ -11,7 +11,13 @@ import (
 
 func (s *Service) RegisterResident(ctx context.Context, fullName, phone, email, iin, password string) (*models.User, error) {
 	if _, err := s.repo.GetUserByEmail(ctx, email); err == nil {
-		return nil, fmt.Errorf("%w: email", ErrAlreadyExists)
+		return nil, fmt.Errorf("%w: email already in use", ErrAlreadyExists)
+	}
+	if _, err := s.repo.GetUserByPhone(ctx, phone); err == nil {
+		return nil, fmt.Errorf("%w: phone number already in use", ErrAlreadyExists)
+	}
+	if _, err := s.repo.GetUserByIIN(ctx, iin); err == nil {
+		return nil, fmt.Errorf("%w: IIN already registered", ErrAlreadyExists)
 	}
 
 	hash, err := HashPassword(password)
@@ -20,20 +26,14 @@ func (s *Service) RegisterResident(ctx context.Context, fullName, phone, email, 
 	}
 
 	u := &models.User{
-		ID:           uuid.New().String(), // <-- Primary Key fix for Postgres
-		Role:         models.RoleResident,
+		ID:           uuid.New().String(),
+		Roles:        []models.Role{models.RoleResident},
 		FullName:     fullName,
 		Phone:        phone,
 		Email:        email,
 		IIN:          &iin,
 		PasswordHash: hash,
 		CreatedAt:    time.Now(),
-	}
-
-	// Fetch stubbed JK and link it to the new user
-	jks, err := s.EgovStub(ctx, iin)
-	if err == nil && len(jks) > 0 {
-		u.JKID = &jks[0].ID
 	}
 
 	if err := s.repo.CreateUser(ctx, u); err != nil {

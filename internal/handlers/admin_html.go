@@ -3,11 +3,13 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kaekkr/kladovki/internal/middleware"
 	"github.com/kaekkr/kladovki/internal/models"
+	"github.com/kaekkr/kladovki/internal/service"
 )
 
 func (h *Handler) AdminRegisterPage(c *gin.Context) {
@@ -15,25 +17,102 @@ func (h *Handler) AdminRegisterPage(c *gin.Context) {
 }
 
 func (h *Handler) AdminRegister(c *gin.Context) {
+	jkName := c.PostForm("jk_name")
+	bin := c.PostForm("bin")
+	contact := c.PostForm("contact")
+	phone := c.PostForm("phone")
+	email := c.PostForm("email")
 	password := c.PostForm("password")
+
+	formData := gin.H{
+		"Title":   "Регистрация ЖК",
+		"JKName":  jkName,
+		"BIN":     bin,
+		"Contact": contact,
+		"Phone":   phone,
+		"Email":   email,
+	}
+
 	if password == "" || len(password) < 6 {
-		c.HTML(http.StatusOK, "admin/register.html", gin.H{"Title": "Регистрация ЖК", "Error": "Пароль минимум 6 символов"})
+		formData["Error"] = "Пароль минимум 6 символов"
+		c.HTML(http.StatusBadRequest, "admin/register.html", formData)
 		return
 	}
 
+	// 1. Check if user already exists
+	existingUser, err := h.svc.Repo().GetUserByEmail(c.Request.Context(), email)
+	if err == nil && existingUser != nil {
+		// Use PasswordHash instead of Password
+		if !service.CheckPassword(existingUser.PasswordHash, password) {
+			formData["Error"] = "Пользователь с таким Email уже существует, но пароль неверный."
+			c.HTML(http.StatusBadRequest, "admin/register.html", formData)
+			return
+		}
+
+		// Ensure user has admin role
+		if !existingUser.HasRole(models.RoleAdmin) {
+			existingUser.AddRole(models.RoleAdmin)
+			// Update user directly via Repo or Service
+			if err := h.svc.Repo().UpdateUserRoles(c.Request.Context(), existingUser.ID, existingUser.Roles); err != nil {
+				formData["Error"] = "Не удалось обновить роль пользователя"
+				c.HTML(http.StatusInternalServerError, "admin/register.html", formData)
+				return
+			}
+		}
+
+		// Pass a pointer (&models.JK) and handle single or double return values
+		jk := &models.JK{
+			Name:    jkName,
+			BIN:     bin,
+			Phone:   phone,
+			OwnerID: existingUser.ID,
+		}
+
+		if err := h.svc.Repo().CreateJK(c.Request.Context(), jk); err != nil {
+			formData["Error"] = "Ошибка при создании ЖК: " + err.Error()
+			c.HTML(http.StatusBadRequest, "admin/register.html", formData)
+			return
+		}
+
+		existingUser.JKID = &jk.ID
+		_ = h.svc.Repo().UpdateUserJKID(c.Request.Context(), existingUser.ID, jk.ID)
+
+		if _, err := h.issueToken(c, existingUser); err != nil {
+			formData["Error"] = "Ошибка создания сессии"
+			c.HTML(http.StatusInternalServerError, "admin/register.html", formData)
+			return
+		}
+
+		c.HTML(http.StatusOK, "admin/storages_setup.html", gin.H{
+			"Title": "Настройка кладовок", "JKName": jk.Name, "JKID": jk.ID,
+		})
+		return
+	}
+
+	// 2. Fallback to normal registration for brand-new users
 	jk, u, err := h.svc.RegisterJK(
 		c.Request.Context(),
-		c.PostForm("jk_name"), c.PostForm("bin"), c.PostForm("contact"),
-		c.PostForm("phone"), c.PostForm("email"), password,
+		jkName, bin, contact, phone, email, password,
 	)
 	if err != nil {
-		c.HTML(http.StatusOK, "admin/register.html", gin.H{"Title": "Регистрация ЖК", "Error": err.Error()})
+		errMsg := "Ошибка при регистрации. Проверьте введенные данные."
+		if strings.Contains(err.Error(), "bin") {
+			errMsg = "Пользователь или ЖК с таким БИН уже зарегистрирован."
+		} else if strings.Contains(err.Error(), "phone") {
+			errMsg = "Пользователь с таким номером телефона уже зарегистрирован."
+		} else if strings.Contains(err.Error(), "email") {
+			errMsg = "Пользователь с таким Email уже зарегистрирован."
+		}
+
+		formData["Error"] = errMsg
+		c.HTML(http.StatusBadRequest, "admin/register.html", formData)
 		return
 	}
 
 	u.JKID = &jk.ID
 	if _, err := h.issueToken(c, u); err != nil {
-		c.HTML(http.StatusOK, "admin/register.html", gin.H{"Title": "Регистрация ЖК", "Error": "Ошибка создания сессии"})
+		formData["Error"] = "Ошибка создания сессии"
+		c.HTML(http.StatusInternalServerError, "admin/register.html", formData)
 		return
 	}
 
@@ -48,8 +127,10 @@ func (h *Handler) AdminLoginPage(c *gin.Context) {
 
 func (h *Handler) AdminLogin(c *gin.Context) {
 	u, err := h.svc.Login(c.Request.Context(), c.PostForm("login"), c.PostForm("password"))
-	if err != nil || u.Role != models.RoleAdmin {
-		c.HTML(http.StatusOK, "admin/login.html", gin.H{"Title": "Вход", "Error": "Неверный логин или пароль"})
+
+	// Check multi-role membership instead of single equality check
+	if err != nil || !u.HasRole(models.RoleAdmin) {
+		c.HTML(http.StatusOK, "admin/login.html", gin.H{"Title": "Вход", "Error": "Неверный логин или доступ запрещён"})
 		return
 	}
 
@@ -59,13 +140,14 @@ func (h *Handler) AdminLogin(c *gin.Context) {
 	}
 
 	if jkID == "" {
-		jks, _ := h.svc.Repo().ListJKs(c.Request.Context())
-		for _, j := range jks {
-			if j.OwnerID == u.ID {
-				jkID = j.ID
-				_ = h.svc.Repo().UpdateUserJKID(c.Request.Context(), u.ID, jkID)
-				u.JKID = &jkID
-				break
+		if jks, dbErr := h.svc.Repo().ListJKs(c.Request.Context()); dbErr == nil {
+			for _, j := range jks {
+				if j.OwnerID == u.ID {
+					jkID = j.ID
+					_ = h.svc.Repo().UpdateUserJKID(c.Request.Context(), u.ID, jkID)
+					u.JKID = &jkID
+					break
+				}
 			}
 		}
 	}

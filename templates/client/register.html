@@ -1,77 +1,96 @@
 <!DOCTYPE html>
 <html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.Title}}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-</head>
-<body class="bg-slate-50 min-h-screen text-slate-800">
-    <nav class="bg-white border-b border-slate-200">
-        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-            <a href="/" class="font-bold text-xl text-indigo-600">📦 Кладовки</a>
-            <a href="/client/login" class="text-sm hover:text-indigo-600">Уже есть аккаунт</a>
-        </div>
-    </nav>
-
-    <main class="max-w-md mx-auto px-4 py-12">
-        <h1 class="text-2xl font-bold mb-2">Регистрация жителя</h1>
-        <p class="text-slate-500 text-sm mb-8">Бесплатно. Данные домов подтянутся из eGov (сейчас stub).</p>
-
-        <form hx-post="/client/register" 
-              hx-target="body" 
-              hx-swap="outerHTML"
-              class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-            
-            {{if .Error}}
-            <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3 flex items-center space-x-2">
-                <span>⚠️</span>
-                <span>{{.Error}}</span>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{{.Title}}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+        <script>
+      document.addEventListener("DOMContentLoaded", function() {
+        document.body.addEventListener('htmx:beforeSwap', function(evt) {
+          if (evt.detail.xhr.status === 400 || evt.detail.xhr.status === 422) {
+            evt.detail.shouldSwap = true;
+            evt.detail.isError = false;
+          }
+        });
+      });
+        </script>
+    </head>
+    <body class="bg-slate-50 min-h-screen text-slate-800">
+        <nav class="bg-white border-b border-slate-200">
+            <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+                <a href="/" class="font-bold text-xl text-indigo-600">📦 Кладовки</a>
+                <a href="/client/login" class="text-sm hover:text-indigo-600">Уже есть аккаунт</a>
             </div>
-            {{end}}
-
-            <div>
-                <label class="block text-sm font-medium mb-1">ФИО</label>
-                <input type="text" name="full_name" required
-                       class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                       placeholder="Иванов Иван Иванович">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">Телефон</label>
-                <input type="tel" name="phone" required
-                       class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                       placeholder="+7 700 123 45 67">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">Email</label>
-                <input type="email" name="email" required
-                       class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                       placeholder="you@example.com">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">ИИН (для eGov)</label>
-                <input type="text" name="iin" required maxlength="12"
-                       class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                       placeholder="000000000000">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">Пароль</label>
-                <input type="password" name="password" required minlength="6"
-                       class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                       placeholder="минимум 6 символов">
-            </div>
-
-            <div class="pt-2">
-                <button type="submit"
-                        class="w-full bg-indigo-600 text-white font-medium py-2.5 rounded-lg hover:bg-indigo-700 transition">
-                    Зарегистрироваться и получить дома
-                </button>
-            </div>
-            <p class="text-xs text-slate-400 text-center">
-                Stub eGov: всегда возвращает «ЖК Сыганак» → сразу схема кладовок
-            </p>
-        </form>
-    </main>
-</body>
+        </nav>
+        <main class="max-w-md mx-auto px-4 py-12">
+            <h1 class="text-2xl font-bold mb-2">Регистрация жителя</h1>
+            <p class="text-slate-500 text-sm mb-8">Бесплатно. Данные домов подтянутся из eGov (сейчас stub).</p>
+            <form hx-post="/client/register"
+                  hx-target="body"
+                  hx-swap="outerHTML"
+                  class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                {{if .Error}}
+                    <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3 flex items-center space-x-2">
+                        <span>⚠️</span>
+                        <span>{{.Error}}</span>
+                    </div>
+                {{end}}
+                <div>
+                    <label class="block text-sm font-medium mb-1">ФИО</label>
+                    <input type="text"
+                           name="full_name"
+                           required
+                           value="{{.FullName}}"
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                           placeholder="Иванов Иван Иванович">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Телефон</label>
+                    <input type="tel"
+                           name="phone"
+                           required
+                           value="{{.Phone}}"
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                           placeholder="+7 700 123 45 67">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Email</label>
+                    <input type="email"
+                           name="email"
+                           required
+                           value="{{.Email}}"
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                           placeholder="you@example.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">ИИН (для eGov)</label>
+                    <input type="text"
+                           name="iin"
+                           required
+                           maxlength="12"
+                           value="{{.IIN}}"
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                           placeholder="000000000000">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Пароль</label>
+                    <input type="password"
+                           name="password"
+                           required
+                           minlength="6"
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                           placeholder="минимум 6 символов">
+                </div>
+                <div class="pt-2">
+                    <button type="submit"
+                            class="w-full bg-indigo-600 text-white font-medium py-2.5 rounded-lg hover:bg-indigo-700 transition">
+                        Зарегистрироваться и получить дома
+                    </button>
+                </div>
+                <p class="text-xs text-slate-400 text-center">Stub eGov: всегда возвращает «ЖК Сыганак» → сразу схема кладовок</p>
+            </form>
+        </main>
+    </body>
 </html>
