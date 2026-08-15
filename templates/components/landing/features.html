@@ -1,0 +1,78 @@
+{{ define "components/landing/features" }}
+    <section id="features" class="px-4 sm:px-8 pb-16 sm:pb-24 max-w-7xl mx-auto">
+        <div class="mb-10 sm:mb-16 text-center max-w-2xl mx-auto">
+            <h2 class="text-3xl sm:text-5xl font-bold mb-4 sm:mb-6">Возможности платформы</h2>
+            <p class="text-gray-400 text-sm sm:text-base">Все необходимые инструменты для эффективного управления складскими помещениями в одном месте.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6">
+            <!-- Feature 1: Interactive Maps -->
+            <div class="md:col-span-2 bg-surface rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-line overflow-hidden relative group">
+                <div class="relative z-10">
+                    <h3 class="text-xl sm:text-2xl font-bold mb-2 sm:mb-4">Интерактивные карты</h3>
+                    <p class="text-gray-400 text-sm sm:text-base mb-6 sm:mb-8">Визуальное управление шахматкой этажей в реальном времени.</p>
+                </div>
+                <img class="w-full h-40 sm:h-48 object-cover rounded-xl mt-2 grayscale group-hover:grayscale-0 transition-all"
+                     src="https://storage.googleapis.com/uxpilot-auth.appspot.com/gen_72782c5204_755d41da7cc2a550.png"
+                     alt="Interactive floor plan map" />
+            </div>
+            <!-- Feature 2: Digital Key -->
+            <div class="bg-surface rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-line flex flex-col justify-between">
+                <div>
+                    <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 sm:mb-6">
+                        <i class="fa-solid fa-mobile-screen-button text-lg sm:text-xl text-primary"></i>
+                    </div>
+                    <h3 class="text-lg sm:text-xl font-bold mb-2">Digital Key</h3>
+                    <p class="text-xs sm:text-sm text-gray-400">Доступ к кладовке через смартфон 24/7.</p>
+                </div>
+            </div>
+            <!-- Feature 3: Kaspi Billing -->
+            <div class="bg-surface rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-line flex flex-col justify-between">
+                <div>
+                    <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 sm:mb-6">
+                        <i class="fa-solid fa-receipt text-lg sm:text-xl text-primary"></i>
+                    </div>
+                    <h3 class="text-lg sm:text-xl font-bold mb-2">Kaspi Billing</h3>
+                    <p class="text-xs sm:text-sm text-gray-400">Автоматическое выставление счетов.</p>
+                </div>
+            </div>
+            <!-- Feature 4: Debts -->
+            <div class="md:col-span-1 bg-surface rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-line flex flex-col justify-between">
+                <div>
+                    <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 sm:mb-6">
+                        <i class="fa-solid fa-chart-pie text-lg sm:text-xl text-primary"></i>
+                    </div>
+                    <h3 class="text-lg sm:text-xl font-bold mb-2">Долги</h3>
+                    <p class="text-xs sm:text-sm text-gray-400">Контроль дебиторской задолженности.</p>
+                </div>
+            </div>
+            <!-- Feature 5: Transparent Reporting (Fixed Responsive Vector Graph) -->
+            <div class="md:col-span-3 bg-surface rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-line flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden">
+                <div class="max-w-md">
+                    <h3 class="text-xl sm:text-2xl font-bold mb-2 sm:mb-4">Прозрачная отчетность</h3>
+                    <p class="text-gray-400 text-sm sm:text-base">Детальная аналитика по доходам, заполняемости и популярности тарифов в вашем ЖК.</p>
+                </div>
+                <!-- Scalable Native Analytics Vector UI -->
+                <div class="w-full md:w-72 h-32 bg-ink/60 rounded-xl p-4 border border-line/50 flex flex-col justify-between shrink-0">
+                    <div class="flex items-center justify-between text-xs text-gray-400 font-mono">
+                        <span>ДОХОДНОСТЬ</span>
+                        <span class="text-primary font-bold">+34.2% ↑</span>
+                    </div>
+                    <div class="w-full h-16 relative flex items-end">
+                        <svg class="w-full h-full overflow-visible"
+                             viewBox="0 0 200 50"
+                             preserveAspectRatio="none">
+                            <defs>
+                            <linearGradient id="chartGlow" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#10B981" stop-opacity="0.4" />
+                            <stop offset="100%" stop-color="#10B981" stop-opacity="0.0" />
+                            </linearGradient>
+                            </defs>
+                            <path d="M 0,45 Q 30,35 60,38 T 120,20 T 200,5 L 200,50 L 0,50 Z" fill="url(#chartGlow)" />
+                            <path d="M 0,45 Q 30,35 60,38 T 120,20 T 200,5" fill="none" stroke="#10B981" stroke-width="3" stroke-linecap="round" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+{{ end }}

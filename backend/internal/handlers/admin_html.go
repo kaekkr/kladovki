@@ -1,0 +1,406 @@
+package handlers
+
+import (
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/kaekkr/kladovki/internal/middleware"
+	"github.com/kaekkr/kladovki/internal/models"
+	"github.com/kaekkr/kladovki/internal/service"
+)
+
+func (h *Handler) AdminRegisterPage(c *gin.Context) {
+	c.HTML(http.StatusOK, "admin/register.html", gin.H{"Title": "Регистрация ЖК (платно)"})
+}
+
+func (h *Handler) AdminRegister(c *gin.Context) {
+	jkName := c.PostForm("jk_name")
+	bin := c.PostForm("bin")
+	contact := c.PostForm("contact")
+	phone := c.PostForm("phone")
+	email := c.PostForm("email")
+	password := c.PostForm("password")
+
+	formData := gin.H{
+		"Title":   "Регистрация ЖК",
+		"JKName":  jkName,
+		"BIN":     bin,
+		"Contact": contact,
+		"Phone":   phone,
+		"Email":   email,
+	}
+
+	if password == "" || len(password) < 6 {
+		formData["Error"] = "Пароль минимум 6 символов"
+		c.HTML(http.StatusBadRequest, "admin/register.html", formData)
+		return
+	}
+
+	// 1. Check if user already exists
+	existingUser, err := h.svc.Repo().GetUserByEmail(c.Request.Context(), email)
+	if err == nil && existingUser != nil {
+		// Use PasswordHash instead of Password
+		if !service.CheckPassword(existingUser.PasswordHash, password) {
+			formData["Error"] = "Пользователь с таким Email уже существует, но пароль неверный."
+			c.HTML(http.StatusBadRequest, "admin/register.html", formData)
+			return
+		}
+
+		// Ensure user has admin role
+		if !existingUser.HasRole(models.RoleAdmin) {
+			existingUser.AddRole(models.RoleAdmin)
+			// Update user directly via Repo or Service
+			if err := h.svc.Repo().UpdateUserRoles(c.Request.Context(), existingUser.ID, existingUser.Roles); err != nil {
+				formData["Error"] = "Не удалось обновить роль пользователя"
+				c.HTML(http.StatusInternalServerError, "admin/register.html", formData)
+				return
+			}
+		}
+
+		// Pass a pointer (&models.JK) and handle single or double return values
+		jk := &models.JK{
+			Name:    jkName,
+			BIN:     bin,
+			Phone:   phone,
+			OwnerID: existingUser.ID,
+		}
+
+		if err := h.svc.Repo().CreateJK(c.Request.Context(), jk); err != nil {
+			formData["Error"] = "Ошибка при создании ЖК: " + err.Error()
+			c.HTML(http.StatusBadRequest, "admin/register.html", formData)
+			return
+		}
+
+		existingUser.JKID = &jk.ID
+		_ = h.svc.Repo().UpdateUserJKID(c.Request.Context(), existingUser.ID, jk.ID)
+
+		if _, err := h.issueToken(c, existingUser); err != nil {
+			formData["Error"] = "Ошибка создания сессии"
+			c.HTML(http.StatusInternalServerError, "admin/register.html", formData)
+			return
+		}
+
+		c.HTML(http.StatusOK, "admin/storages_setup.html", gin.H{
+			"Title": "Настройка кладовок", "JKName": jk.Name, "JKID": jk.ID,
+		})
+		return
+	}
+
+	// 2. Fallback to normal registration for brand-new users
+	jk, u, err := h.svc.RegisterJK(
+		c.Request.Context(),
+		jkName, bin, contact, phone, email, password,
+	)
+	if err != nil {
+		errMsg := "Ошибка при регистрации. Проверьте введенные данные."
+		if strings.Contains(err.Error(), "bin") {
+			errMsg = "Пользователь или ЖК с таким БИН уже зарегистрирован."
+		} else if strings.Contains(err.Error(), "phone") {
+			errMsg = "Пользователь с таким номером телефона уже зарегистрирован."
+		} else if strings.Contains(err.Error(), "email") {
+			errMsg = "Пользователь с таким Email уже зарегистрирован."
+		}
+
+		formData["Error"] = errMsg
+		c.HTML(http.StatusBadRequest, "admin/register.html", formData)
+		return
+	}
+
+	u.JKID = &jk.ID
+	if _, err := h.issueToken(c, u); err != nil {
+		formData["Error"] = "Ошибка создания сессии"
+		c.HTML(http.StatusInternalServerError, "admin/register.html", formData)
+		return
+	}
+
+	c.HTML(http.StatusOK, "admin/storages_setup.html", gin.H{
+		"Title": "Настройка кладовок", "JKName": jk.Name, "JKID": jk.ID,
+	})
+}
+
+func (h *Handler) AdminLoginPage(c *gin.Context) {
+	c.HTML(http.StatusOK, "admin/login.html", gin.H{"Title": "Вход для УК"})
+}
+
+func (h *Handler) AdminLogin(c *gin.Context) {
+	u, err := h.svc.Login(c.Request.Context(), c.PostForm("login"), c.PostForm("password"))
+
+	// Check multi-role membership instead of single equality check
+	if err != nil || !u.HasRole(models.RoleAdmin) {
+		c.HTML(http.StatusOK, "admin/login.html", gin.H{"Title": "Вход", "Error": "Неверный логин или доступ запрещён"})
+		return
+	}
+
+	var jkID string
+	if u.JKID != nil {
+		jkID = *u.JKID
+	}
+
+	if jkID == "" {
+		if jks, dbErr := h.svc.Repo().ListJKs(c.Request.Context()); dbErr == nil {
+			for _, j := range jks {
+				if j.OwnerID == u.ID {
+					jkID = j.ID
+					_ = h.svc.Repo().UpdateUserJKID(c.Request.Context(), u.ID, jkID)
+					u.JKID = &jkID
+					break
+				}
+			}
+		}
+	}
+
+	if _, err := h.issueToken(c, u); err != nil {
+		c.HTML(http.StatusOK, "admin/login.html", gin.H{"Title": "Вход", "Error": "Ошибка сессии"})
+		return
+	}
+
+	h.renderDashboard(c, jkID)
+}
+
+func (h *Handler) Dashboard(c *gin.Context) {
+	jkID := middleware.JKID(c)
+	if jkID == "" {
+		c.Redirect(http.StatusFound, "/admin/login")
+		return
+	}
+	h.renderDashboard(c, jkID)
+}
+
+func (h *Handler) renderDashboard(c *gin.Context, jkID string) {
+	jk, _ := h.svc.Repo().GetJKByID(c.Request.Context(), jkID)
+	name := "ЖК"
+	if jk != nil {
+		name = jk.Name
+	}
+
+	views, _ := h.svc.StorageViews(c.Request.Context(), jkID)
+	tariff, _ := h.svc.Repo().GetTariff(c.Request.Context(), jkID)
+
+	c.HTML(http.StatusOK, "admin/dashboard.html", gin.H{
+		"Title": "Панель " + name, "JKName": name, "Storages": views, "Tariff": tariff,
+	})
+}
+
+func (h *Handler) StorageSetupPage(c *gin.Context) {
+	jkID := middleware.JKID(c)
+	if jkID == "" {
+		c.Redirect(http.StatusFound, "/admin/login")
+		return
+	}
+
+	jk, _ := h.svc.Repo().GetJKByID(c.Request.Context(), jkID)
+	name := "ЖК"
+	if jk != nil {
+		name = jk.Name
+	}
+
+	c.HTML(http.StatusOK, "admin/storages_setup.html", gin.H{
+		"Title":  "Настройка кладовок",
+		"JKName": name,
+		"JKID":   jkID,
+	})
+}
+
+func (h *Handler) StorageInventoryPage(c *gin.Context) {
+	jkID := middleware.JKID(c)
+	if jkID == "" {
+		c.Redirect(http.StatusFound, "/admin/login")
+		return
+	}
+
+	jk, _ := h.svc.Repo().GetJKByID(c.Request.Context(), jkID)
+	name := "ЖК"
+	if jk != nil {
+		name = jk.Name
+	}
+
+	// Uses StorageViews service method instead of direct repo access
+	views, _ := h.svc.StorageViews(c.Request.Context(), jkID)
+
+	c.HTML(http.StatusOK, "admin/storages_inventory.html", gin.H{
+		"Title":    "Управление кладовками",
+		"JKName":   name,
+		"Storages": views,
+	})
+}
+
+func (h *Handler) GetStorageDrawer(c *gin.Context) {
+	id := c.Query("id")
+	if id == "" {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	storage, err := h.svc.GetStorageByID(c.Request.Context(), id)
+	if err != nil || storage == nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	c.HTML(http.StatusOK, "partials/storage_drawer.html", gin.H{
+		"Storage": storage,
+	})
+}
+
+func (h *Handler) UpdateStorage(c *gin.Context) {
+	id := c.PostForm("id")
+	if id == "" {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	number := c.PostForm("number")
+	area, _ := strconv.ParseFloat(c.PostForm("area"), 64)
+	floor, _ := strconv.Atoi(c.PostForm("floor"))
+	entrance, _ := strconv.Atoi(c.PostForm("entrance"))
+	status := c.PostForm("status")
+
+	storage := models.Storage{
+		ID:       id,
+		Number:   number,
+		Area:     area,
+		Floor:    floor,
+		Entrance: entrance,
+		Status:   models.StorageStatus(status),
+	}
+
+	if err := h.svc.UpdateStorage(c.Request.Context(), &storage); err != nil {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+
+	c.HTML(http.StatusOK, "partials/inventory_row.html", storage)
+}
+
+func (h *Handler) DeleteStorage(c *gin.Context) {
+	id := c.Query("id")
+	if id == "" {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	if err := h.svc.DeleteStorage(c.Request.Context(), id); err != nil {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (h *Handler) AddStorageRow(c *gin.Context) {
+	c.HTML(http.StatusOK, "partials/storage_row.html", gin.H{"Index": time.Now().UnixNano() % 10000})
+}
+
+func (h *Handler) SaveStorages(c *gin.Context) {
+	jkID := middleware.JKID(c)
+	if jkID == "" {
+		h.renderToastError(c, "Нет сессии")
+		return
+	}
+
+	numbers := c.PostFormArray("number[]")
+	areas := c.PostFormArray("area[]")
+	floors := c.PostFormArray("floor[]")
+	entrances := c.PostFormArray("entrance[]")
+
+	var items []models.Storage
+	for i := range numbers {
+		if numbers[i] == "" {
+			continue
+		}
+		area, _ := strconv.ParseFloat(areas[i], 64)
+		floor, _ := strconv.Atoi(floors[i])
+		ent, _ := strconv.Atoi(entrances[i])
+		items = append(items, models.Storage{
+			Number: numbers[i], Area: area, Floor: floor, Entrance: ent,
+		})
+	}
+
+	if err := h.svc.AddStorages(c.Request.Context(), jkID, items); err != nil {
+		h.renderToastError(c, err.Error())
+		return
+	}
+
+	h.renderToastSuccess(c, "Кладовки сохранены")
+}
+
+func (h *Handler) TariffPage(c *gin.Context) {
+	jkID := middleware.JKID(c)
+	jk, _ := h.svc.Repo().GetJKByID(c.Request.Context(), jkID)
+	name := "ЖК"
+	if jk != nil {
+		name = jk.Name
+	}
+
+	tariff, _ := h.svc.Repo().GetTariff(c.Request.Context(), jkID)
+	hist, _ := h.svc.Repo().TariffHistory(c.Request.Context(), jkID)
+
+	var history []map[string]any
+	for _, hitem := range hist {
+		history = append(history, map[string]any{
+			"Date":   hitem.ChangedAt.Format("02.01.2006 15:04"),
+			"Amount": hitem.Amount,
+		})
+	}
+
+	c.HTML(http.StatusOK, "admin/tariff.html", gin.H{
+		"Title": "Тарифы", "JKName": name, "CurrentTariff": tariff, "History": history,
+	})
+}
+
+func (h *Handler) UpdateTariff(c *gin.Context) {
+	jkID := middleware.JKID(c)
+
+	amount, err := strconv.ParseInt(c.PostForm("tariff"), 10, 64)
+	if err != nil || amount < 0 {
+		h.renderToastError(c, "Некорректная сумма")
+		return
+	}
+
+	old, rentals, err := h.svc.ChangeTariff(c.Request.Context(), jkID, amount)
+	if err != nil {
+		h.renderToastError(c, err.Error())
+		return
+	}
+
+	msg := "Тариф обновлён"
+	if amount < old && len(rentals) > 0 {
+		msg += ". Есть предоплатившие — доступен перерасчёт"
+	}
+
+	h.renderToastSuccess(c, msg)
+}
+
+func (h *Handler) Reports(c *gin.Context) {
+	jkID := middleware.JKID(c)
+	jk, _ := h.svc.Repo().GetJKByID(c.Request.Context(), jkID)
+	name := "ЖК"
+	if jk != nil {
+		name = jk.Name
+	}
+
+	views, _ := h.svc.StorageViews(c.Request.Context(), jkID)
+	free, occupied := 0, 0
+	var debtors []map[string]any
+
+	for _, v := range views {
+		if v.Status == models.StatusFree {
+			free++
+		} else {
+			occupied++
+		}
+		if v.Debt > 0 {
+			debtors = append(debtors, map[string]any{
+				"Storage": v.Number, "Owner": v.Owner, "Debt": v.Debt, "Days": v.DaysOver,
+			})
+		}
+	}
+
+	c.HTML(http.StatusOK, "admin/reports.html", gin.H{
+		"Title": "Отчёты", "JKName": name,
+		"Free": free, "Occupied": occupied, "Total": free + occupied, "Debtors": debtors,
+	})
+}

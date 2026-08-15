@@ -1,0 +1,16 @@
+{{ define "components/footer" }}
+    <footer class="border-t border-brand-border bg-brand-bg py-12 px-6 text-slate-400 text-sm">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+            <div>
+                <span class="text-white font-bold text-lg tracking-wide">КЛАДОВКИ<span class="text-brand-500">.</span></span>
+                <p class="text-xs text-slate-500 mt-1">Первая специализированная платформа для управления кладовыми в ЖК.</p>
+            </div>
+            <div class="flex gap-8 text-xs">
+                <a href="#features" class="hover:text-white transition">Возможности</a>
+                <a href="/client/login" class="hover:text-white transition">Жителям</a>
+                <a href="/admin/login" class="hover:text-white transition">Управляющим компаниям</a>
+            </div>
+            <div class="text-xs text-slate-500">&copy; 2026 КЛАДОВКИ. Все права защищены.</div>
+        </div>
+    </footer>
+{{ end }}

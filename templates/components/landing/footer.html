@@ -1,0 +1,23 @@
+{{ define "components/landing/footer" }}
+    <footer class="border-t border-line px-4 sm:px-8 py-12 bg-ink text-gray-400">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+            <!-- Logo & Copyright -->
+            <div class="flex flex-col sm:flex-row items-center gap-4">
+                <a href="/" class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-primary"></span>
+                    <span class="font-bold text-lg tracking-tighter text-white">КЛАДОВКИ<span class="text-primary">.</span></span>
+                </a>
+                <span class="hidden sm:inline text-gray-600">|</span>
+                <span class="text-xs sm:text-sm">© КЛАДОВКИ. All rights reserved.</span>
+            </div>
+            <!-- Links -->
+            <div class="flex flex-wrap justify-center gap-6 text-xs sm:text-sm">
+                <a href="#features" class="hover:text-white transition-colors">Преимущества</a>
+                <a href="#solutions" class="hover:text-white transition-colors">Решения</a>
+                <a href="#contacts" class="hover:text-white transition-colors">Контакты</a>
+                <a href="/client/login" class="hover:text-white transition-colors">Вход для жильцов</a>
+                <a href="/admin/login" class="hover:text-white transition-colors">Вход для УК</a>
+            </div>
+        </div>
+    </footer>
+{{ end }}

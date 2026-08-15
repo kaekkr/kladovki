@@ -1,0 +1,51 @@
+{{define "partials/storage_modal.html"}}
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm"
+         id="modal">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6 relative">
+            <button type="button"
+                    onclick="document.getElementById('modal').remove()"
+                    class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+            <h3 class="text-xl font-bold text-slate-800 mb-1">Кладовка {{.Storage.Number}}</h3>
+            <p class="text-sm text-slate-500 mb-4">Площадь: {{.Storage.Area}} м² · Этаж {{.Storage.Floor}}</p>
+            <form hx-post="/client/occupy/{{.Storage.ID}}"
+                  hx-target="#modal-root"
+                  hx-swap="innerHTML"
+                  class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Срок аренды</label>
+                    <select name="months"
+                            class="w-full border border-slate-300 rounded-lg p-2.5 bg-slate-50 focus:ring-2 focus:ring-indigo-500 text-sm">
+                        <option value="1">1 месяц</option>
+                        <option value="3">3 месяца</option>
+                        <option value="6" selected>6 месяцев</option>
+                        <option value="12">12 месяцев (1 год)</option>
+                    </select>
+                </div>
+                <div class="bg-indigo-50 p-3 rounded-lg flex justify-between items-center text-sm text-indigo-900">
+                    <span>Базовый тариф:</span>
+                    <span class="font-semibold">
+                        {{if gt .Tariff 0}}
+                            {{.Tariff}} ₸/месяц
+                        {{else}}
+                            <span class="text-amber-600 font-medium">Не установлен</span>
+                        {{end}}
+                    </span>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="button"
+                            onclick="document.getElementById('modal').remove()"
+                            class="w-1/2 px-4 py-2.5 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-100 font-medium text-sm transition-colors">
+                        Отмена
+                    </button>
+                    <button type="submit"
+                            {{if le .Tariff 0}}disabled
+                            title="Забронировать невозможно: тариф не задан"
+                            {{end}}
+                            class="w-1/2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-medium text-sm shadow transition-colors">
+                        К оплате
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+{{end}}

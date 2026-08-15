@@ -1,0 +1,13 @@
+{{ define "layouts/base" }}
+    <!DOCTYPE html>
+    <html lang="ru" class="scroll-smooth">
+        <head>{{ template "components/head" . }}</head>
+        <body id="top"
+              class="bg-ink text-white antialiased min-h-screen flex flex-col justify-between"
+              x-data="{ leadModalOpen: false }">
+            <main class="flex-grow">
+                {{ block "content" . }}{{ end }}
+            </main>
+        </body>
+    </html>
+{{ end }}

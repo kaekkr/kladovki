@@ -1,0 +1,82 @@
+{{ template "layouts/base" . }}
+{{ define "content" }}
+    <div class="min-h-screen flex items-center justify-center p-6">
+        <div class="w-full max-w-md login-card">
+            <!-- Logo & Header -->
+            <div class="text-center mb-10">
+                <a href="/" class="inline-block mb-8">
+                    <span class="font-bold text-3xl tracking-tighter text-white">КЛАДОВКИ<span class="text-primary">.</span></span>
+                </a>
+                <h1 class="text-2xl font-bold text-white">Вход для бизнеса</h1>
+                <p class="text-gray-400 mt-2">Управление вашими объектами в одной системе</p>
+            </div>
+            <!-- Login Form Card -->
+            <div class="bg-surface p-8 rounded-[2rem] border border-line shadow-2xl">
+                <form hx-post="/client/login"
+                      hx-target="body"
+                      hx-swap="outerHTML"
+                      class="space-y-6">
+                    <!-- Error Alert -->
+                    {{ if .Error }}
+                        <div class="bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-xl p-3 flex items-center gap-3">
+                            <i class="fa-solid fa-circle-exclamation shrink-0"></i>
+                            <span>{{ .Error }}</span>
+                        </div>
+                    {{ end }}
+                    <!-- Email / Phone Input -->
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-gray-400 ml-1">Email или телефон</label>
+                        <div class="relative">
+                            <span class="absolute left-5 top-1/2 -translate-y-1/2 text-gray-500">
+                                <i class="fa-solid fa-user"></i>
+                            </span>
+                            <input type="text"
+                                   name="login"
+                                   placeholder="example@mail.kz"
+                                   required
+                                   class="w-full bg-ink border border-line rounded-2xl pl-12 pr-6 py-4 outline-none focus:border-primary transition-colors text-white">
+                        </div>
+                    </div>
+                    <!-- Password Input -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center px-1">
+                            <label class="text-sm font-medium text-gray-400">Пароль</label>
+                            <a href="/client/forgot-password"
+                               class="text-xs text-primary hover:underline">Забыли пароль?</a>
+                        </div>
+                        <div class="relative">
+                            <span class="absolute left-5 top-1/2 -translate-y-1/2 text-gray-500">
+                                <i class="fa-solid fa-lock"></i>
+                            </span>
+                            <input type="password"
+                                   name="password"
+                                   placeholder="••••••••"
+                                   required
+                                   class="w-full bg-ink border border-line rounded-2xl pl-12 pr-6 py-4 outline-none focus:border-primary transition-colors text-white">
+                        </div>
+                    </div>
+                    <!-- Submit Button -->
+                    <div class="pt-2">
+                        <button type="submit"
+                                class="w-full bg-primary text-ink flex items-center justify-center gap-2 py-4 rounded-2xl font-bold hover:brightness-110 active:scale-[0.98] transition-all text-lg">
+                            <span>Войти в кабинет</span>
+                        </button>
+                    </div>
+                </form>
+                <!-- Bottom Link -->
+                <div class="mt-8 pt-8 border-t border-line text-center">
+                    <p class="text-sm text-gray-400">Вашего ЖК еще нет в системе?</p>
+                    <a href="/#contacts"
+                       class="inline-block mt-2 text-primary font-bold hover:underline">Отправить заявку на подключение</a>
+                </div>
+            </div>
+            <!-- Return Home Link -->
+            <div class="mt-10 text-center">
+                <a href="/"
+                   class="text-sm text-gray-500 hover:text-white transition-colors">
+                    <i class="fa-solid fa-arrow-left mr-2"></i> Вернуться на главную
+                </a>
+            </div>
+        </div>
+    </div>
+{{ end }}

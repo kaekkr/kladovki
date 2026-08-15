@@ -1,0 +1,137 @@
+<section id="contacts" class="px-6 md:px-8 py-32 bg-[#0B1120]">
+  <!-- Container -->
+  <div class="max-w-7xl mx-auto flex flex-col lg:flex-row gap-20 items-center">
+    <!-- Left content -->
+    <div class="lg:w-2/5">
+      <span class="font-mono text-xs uppercase tracking-widest text-[#22D3EE] mb-5 block"
+        >Заявка на подключение</span
+      >
+      <h2
+        class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-8 leading-[1.1] tracking-tighter"
+      >
+        Готовы оцифровать
+        <br />
+        свой ЖК?
+      </h2>
+      <p class="text-gray-400 text-lg md:text-xl leading-relaxed max-w-lg">
+        Оставьте заявку, и наша команда подготовит персональный сценарий интеграции для вашего
+        объекта.
+      </p>
+
+      <!-- Feature list -->
+      <div class="mt-16 space-y-6">
+        <div class="flex items-center gap-5">
+          <div
+            class="w-12 h-12 rounded-full border border-[#374151] flex items-center justify-center shrink-0"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-6 h-6 text-[#22D3EE]"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="1.5"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+          </div>
+          <span class="text-gray-300 text-lg">Подключение за 48 часов</span>
+        </div>
+
+        <div class="flex items-center gap-5">
+          <div
+            class="w-12 h-12 rounded-full border border-[#374151] flex items-center justify-center shrink-0"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-6 h-6 text-[#22D3EE]"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="1.5"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+          </div>
+          <span class="text-gray-300 text-lg">Полная поддержка Kaspi Pay</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <div class="lg:w-3/5 w-full max-w-2xl">
+      <form
+        [formGroup]="form"
+        (ngSubmit)="submit()"
+        class="relative bg-[#111827] p-10 md:p-12 rounded-[2.5rem] border border-[#374151] space-y-8 shadow-2xl shadow-black/30"
+      >
+        <!-- Full Name -->
+        <div class="space-y-3">
+          <label class="block text-sm font-medium text-gray-400 ml-1">Как к вам обращаться?</label>
+          <input
+            type="text"
+            formControlName="full_name"
+            placeholder="ФИО"
+            [class.border-red-500]="
+              form.controls.full_name.touched && form.controls.full_name.invalid
+            "
+            class="w-full bg-[#0B1120] border border-[#374151] rounded-2xl px-7 py-5 text-lg text-white placeholder-gray-600 outline-none focus:border-[#22D3EE] transition-colors"
+          />
+          @if (form.controls.full_name.touched && form.controls.full_name.errors?.['required']) {
+            <p class="text-red-400 text-sm ml-1">Пожалуйста, укажите ваше имя</p>
+          }
+        </div>
+
+        <!-- Phone + Email grid -->
+        <div class="grid md:grid-cols-2 gap-6">
+          <div class="space-y-3">
+            <label class="block text-sm font-medium text-gray-400 ml-1">Телефон</label>
+            <input
+              type="tel"
+              formControlName="phone"
+              placeholder="+7 (___) ___ __ __"
+              [class.border-red-500]="form.controls.phone.touched && form.controls.phone.invalid"
+              class="w-full bg-[#0B1120] border border-[#374151] rounded-2xl px-7 py-5 text-lg text-white placeholder-gray-600 outline-none focus:border-[#22D3EE] transition-colors"
+            />
+            @if (form.controls.phone.touched && form.controls.phone.errors?.['required']) {
+              <p class="text-red-400 text-sm ml-1">Укажите номер телефона</p>
+            }
+          </div>
+
+          <div class="space-y-3">
+            <label class="block text-sm font-medium text-gray-400 ml-1">Email</label>
+            <input
+              type="email"
+              formControlName="email"
+              placeholder="email@example.com"
+              class="w-full bg-[#0B1120] border border-[#374151] rounded-2xl px-7 py-5 text-lg text-white placeholder-gray-600 outline-none focus:border-[#22D3EE] transition-colors"
+            />
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button
+          type="submit"
+          [disabled]="loading() || form.invalid"
+          class="w-full bg-[#22D3EE] text-[#0B1120] py-6 rounded-2xl text-xl font-bold tracking-tight hover:bg-[#1bc5e0] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#22D3EE]/20 active:scale-[0.98]"
+        >
+          @if (loading()) {
+            Отправка...
+          } @else {
+            Отправить заявку
+          }
+        </button>
+
+        @if (success()) {
+          <p class="text-[#22D3EE] text-center mt-6 font-medium text-lg">
+            Заявка успешно отправлена!
+          </p>
+        }
+
+        @if (error()) {
+          <p class="text-red-400 text-center mt-6 font-medium">{{ error() }}</p>
+        }
+      </form>
+    </div>
+  </div>
+</section>
