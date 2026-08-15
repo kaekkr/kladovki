@@ -1,0 +1,23 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+# Command to build your binary
+cmd = "go build -o ./tmp/main ./cmd/server/main.go"
+# Binary executable path
+bin = "./tmp/main"
+# Include extensions to watch
+include_ext = ["go", "html", "tmpl", "css", "js"]
+# Exclude directories you don't need to watch
+exclude_dir = ["assets", "tmp", "vendor"]
+# Delay in milliseconds before triggering build after a file change (helps with Vim write cycles)
+delay = 500
+
+[log]
+time = false
+
+[color]
+main = "magenta"
+watcher = "cyan"
+build = "yellow"
+runner = "green"

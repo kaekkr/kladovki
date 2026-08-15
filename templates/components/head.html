@@ -1,0 +1,53 @@
+{{ define "components/head" }}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .Title }} — КЛАДОВКИ</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+          rel="stylesheet">
+    <!-- Icons & CDNs -->
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                colors: {
+                    primary: '#10B981',
+                    ink: '#0F172A',
+                    surface: '#1E293B',
+                    elevated: '#334155',
+                    line: '#475569',
+                },
+                fontFamily: {
+                    sans: ['Inter', 'sans-serif'],
+                    mono: ['JetBrains Mono', 'monospace'],
+                },
+                borderRadius: { jumbo: '4rem' },
+                boxShadow: { soft: 'rgba(0, 0, 0, 0.12) 0px 0px 1px 0px, rgba(0, 0, 0, 0.24) 0px 24px 60px' },
+                keyframes: {
+                    fadeUp: { from: { opacity: '0', transform: 'translateY(10px)' }, to: { opacity: '1', transform: 'none' } },
+                },
+                animation: { fadeUp: 'fadeUp .5s ease-out both' },
+            },
+        },
+    }
+    </script>
+    <!-- HTMX & AlpineJS -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0F172A; color: #fff; overflow-x: hidden; }
+        h1, h2, h3 { letter-spacing: -0.02em; }
+        .nav-link::after { content: ''; position: absolute; bottom: -2px; left: 0; width: 100%; height: 1px; background: currentColor; transform: scaleX(0); transition: transform 0.3s ease; transform-origin: right; }
+        .nav-link:hover::after { transform: scaleX(1); transform-origin: left; }
+        .hero-gradient { background: radial-gradient(circle at 30% 20%, #1e293b 0%, #0f172a 60%); }
+        .card-hover-effect:hover .card-bg { opacity: 1; transform: scale(1); }
+        .card-bg { opacity: 0; transform: scale(0.95); transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .ticker-text { display: inline-block; animation: ticker-type 3s steps(12) infinite; }
+        @keyframes ticker-type { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
+    </style>
+{{ end }}

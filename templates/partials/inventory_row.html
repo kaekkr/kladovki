@@ -1,0 +1,27 @@
+{{define "partials/inventory_row.html"}}
+    <tr id="storage-row-{{.ID}}"
+        class="hover:bg-slate-50 border-b border-slate-100 transition">
+        <td class="p-4 font-semibold text-slate-800">№ {{.Number}}</td>
+        <td class="p-4 text-slate-600">{{.Area}} м²</td>
+        <td class="p-4 text-slate-600">{{.Floor}} этаж</td>
+        <td class="p-4 text-slate-600">Подъезд {{.Entrance}}</td>
+        <td class="p-4">
+            {{if or (eq .Status "available") (eq .Status "free")}}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">Свободна</span>
+            {{else if eq .Status "occupied"}}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Сдана</span>
+            {{else}}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Обслуживание</span>
+            {{end}}
+        </td>
+        <td class="p-4 text-right">
+            <button type="button"
+                    hx-get="/admin/storages/drawer?id={{.ID}}"
+                    hx-target="#drawer-container"
+                    hx-swap="innerHTML"
+                    class="px-3 py-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition">
+                Редактировать
+            </button>
+        </td>
+    </tr>
+{{end}}

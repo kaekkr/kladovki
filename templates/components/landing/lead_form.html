@@ -1,0 +1,66 @@
+{{ define "components/landing/lead_form" }}
+    <section id="contacts" class="px-4 sm:px-8 py-16 sm:py-24 max-w-7xl mx-auto">
+        <div class="bg-surface rounded-3xl sm:rounded-jumbo p-6 sm:p-12 border border-line relative overflow-hidden">
+            <div class="absolute -right-20 -bottom-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 items-center relative z-10">
+                <!-- Text Content -->
+                <div>
+                    <span class="inline-block px-3 py-1 bg-primary/10 text-primary font-mono text-xs font-bold rounded-full mb-4">ПОДКЛЮЧЕНИЕ ЖК</span>
+                    <h2 class="text-3xl sm:text-5xl font-bold mb-4 sm:mb-6 leading-tight">Оставьте заявку на подключение</h2>
+                    <p class="text-gray-400 text-sm sm:text-base mb-6 sm:mb-8">
+                        Свяжитесь с нами для интеграции платформы в ваш жилой комплекс. Мы подготовим индивидуальный расчет и запустим сервис за 3 дня.
+                    </p>
+                    <div class="space-y-4 text-sm sm:text-base">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-xl bg-elevated flex items-center justify-center shrink-0">
+                                <i class="fa-solid fa-phone text-primary"></i>
+                            </div>
+                            <span class="text-gray-300 font-mono">+7 (700) 000-00-00</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-xl bg-elevated flex items-center justify-center shrink-0">
+                                <i class="fa-solid fa-envelope text-primary"></i>
+                            </div>
+                            <span class="text-gray-300 font-mono">info@kladovki.kz</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- HTMX-Enabled Form -->
+                <form id="lead-form"
+                      hx-post="/api/v1/leads"
+                      hx-target="#lead-form"
+                      hx-swap="outerHTML"
+                      class="space-y-4 bg-ink/50 p-6 sm:p-8 rounded-2xl border border-line/50 backdrop-blur-sm">
+                    <div>
+                        <label class="block text-xs font-mono text-gray-400 mb-2 uppercase">Ваше имя</label>
+                        <input type="text"
+                               name="name"
+                               placeholder="Аскар Иванов"
+                               required
+                               class="w-full bg-elevated border border-line rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-primary transition-colors">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-mono text-gray-400 mb-2 uppercase">Номер телефона</label>
+                        <input type="tel"
+                               name="phone"
+                               placeholder="+7 (700) 000-00-00"
+                               required
+                               class="w-full bg-elevated border border-line rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-primary transition-colors">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-mono text-gray-400 mb-2 uppercase">Название ЖК / ОСИ</label>
+                        <input type="text"
+                               name="company"
+                               placeholder="ЖК Триумф"
+                               required
+                               class="w-full bg-elevated border border-line rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-primary transition-colors">
+                    </div>
+                    <button type="submit"
+                            class="w-full bg-primary text-ink py-4 rounded-xl font-bold hover:brightness-110 transition-all text-sm sm:text-base mt-2">
+                        Отправить заявку
+                    </button>
+                </form>
+            </div>
+        </div>
+    </section>
+{{ end }}

@@ -1,0 +1,67 @@
+{{define "client/chessboard.html"}}
+    <!DOCTYPE html>
+    <html lang="ru">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>{{.Title}}</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+            <style>
+        .storage-free { background: linear-gradient(135deg, #d1fae5, #a7f3d0); border-color: #10b981; }
+        .storage-occupied { background: linear-gradient(135deg, #fee2e2, #fecaca); border-color: #ef4444; cursor: not-allowed; }
+        .storage-locked { background: linear-gradient(135deg, #fef3c7, #fde68a); border-color: #f59e0b; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.75; } }
+            </style>
+        </head>
+        <body class="bg-slate-50 min-h-screen text-slate-800">
+            <nav class="bg-white border-b border-slate-200 sticky top-0 z-40">
+                <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+                    <a href="/" class="font-bold text-xl text-indigo-600">📦 Кладовки</a>
+                    <div class="text-sm text-slate-600">{{.JKName}}</div>
+                </div>
+            </nav>
+            <main class="max-w-5xl mx-auto px-4 py-8">
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h1 class="text-2xl font-bold">Схема кладовок</h1>
+                        <p class="text-slate-500 text-sm">{{.JKName}} · eGov stub: один ЖК → сразу шахматная доска</p>
+                    </div>
+                    <div class="flex gap-4 text-sm">
+                        <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-400"></span> Свободно</span>
+                        <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-400"></span> Занято</span>
+                        <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-amber-400"></span> Бронь (2 мин)</span>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"
+                     id="chessboard">
+                    {{range .Storages}}
+                    <div id="storage-{{.ID}}"
+                         class="rounded-xl border-2 p-3 text-center transition {{if eq .Status "free"}}storage-free hover:shadow-md cursor-pointer{{else}}storage-occupied{{end}}"
+                         {{if eq .Status "free"}}
+                         hx-get="/client/storage/{{.ID}}/preview"
+                         hx-target="#modal-root"
+                         hx-swap="innerHTML"
+                         {{end}}>
+                        <div class="font-bold text-lg">{{.Number}}</div>
+                        <div class="text-xs text-slate-600 mt-1">{{.Area}} м² · эт. {{.Floor}}</div>
+                        <div class="text-xs mt-1">
+                            {{if eq .Status "free"}}
+                                <span class="text-emerald-700 font-medium">Свободно</span>
+                            {{else}}
+                                <span class="text-red-700 font-medium">Занято</span>
+                            {{end}}
+                        </div>
+                        </div>
+                    {{end}}
+                </div>
+            </main>
+            <div id="modal-root"></div>
+        </body>
+        {{if .Error}}
+            <div class="max-w-xl mx-auto my-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                <strong>Ошибка:</strong> {{.Error}}
+            </div>
+        {{end}}
+    </html>
+{{end}}

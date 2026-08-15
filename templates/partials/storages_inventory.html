@@ -1,0 +1,53 @@
+{{define "admin/storages_inventory.html"}}
+    <!DOCTYPE html>
+    <html lang="ru">
+        <head>
+            <meta charset="UTF-8">
+            <title>{{.Title}}</title>
+            <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+            <script src="https://cdn.tailwindcss.com"></script>
+        </head>
+        <body class="bg-slate-50 text-slate-800 antialiased">
+            {{template "components/navbar.html" .}}
+            <main class="max-w-6xl mx-auto px-4 py-8">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h1 class="text-2xl font-bold text-slate-900">Управление кладовками</h1>
+                        <p class="text-sm text-slate-500">Список зарегистрированных объектов ЖК {{.JKName}}</p>
+                    </div>
+                    <a href="/admin/storages/setup"
+                       class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+                        + Массовое добавление
+                    </a>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-100 border-b border-slate-200 text-slate-600 font-semibold">
+                            <tr>
+                                <th class="p-4 w-1/6">Номер</th>
+                                <th class="p-4 w-1/6">Площадь (м²)</th>
+                                <th class="p-4 w-1/6">Этаж</th>
+                                <th class="p-4 w-1/6">Подъезд</th>
+                                <th class="p-4 w-1/6">Статус</th>
+                                <th class="p-4 w-1/6">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200">
+                            {{range .Storages}}
+                                {{template "partials/inventory_row.html" .}}
+                            {{else}}
+                                <tr>
+                                    <td colspan="6" class="p-8 text-center text-slate-400">
+                                        Кладовки пока не добавлены. <a href="/admin/storages/setup" class="text-indigo-600 underline">Добавить?</a>
+                                    </td>
+                                </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+            <!-- Drawer container for HTMX target -->
+            <div id="drawer-container"></div>
+        </body>
+    </html>
+{{end}}
