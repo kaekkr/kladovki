@@ -11,7 +11,6 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/kaekkr/kladovki/internal/auth"
 	"github.com/kaekkr/kladovki/internal/config"
 	"github.com/kaekkr/kladovki/internal/database"
 	"github.com/kaekkr/kladovki/internal/handlers"
@@ -40,7 +39,7 @@ func main() {
 	}
 
 	// 2. Auth & Middleware
-	tokens := auth.NewTokenService(cfg.JWTSecret, cfg.JWTAccessTTL)
+	tokens := service.NewTokenService(cfg.JWTSecret, cfg.JWTAccessTTL)
 	mw := middleware.NewAuth(tokens, cfg)
 
 	// 3. Router & Handlers

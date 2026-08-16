@@ -5,24 +5,24 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kaekkr/kladovki/internal/auth"
 	"github.com/kaekkr/kladovki/internal/config"
+	"github.com/kaekkr/kladovki/internal/service"
 )
 
 const (
 	ContextUserID = "user_id"
-	ContextRoles  = "roles"
+	ContextRole   = "role"
 	ContextJKID   = "jk_id"
 	ContextEmail  = "email"
 	ContextClaims = "claims"
 )
 
 type Auth struct {
-	tokens *auth.TokenService
+	tokens *service.TokenService
 	cfg    config.Config
 }
 
-func NewAuth(tokens *auth.TokenService, cfg config.Config) *Auth {
+func NewAuth(tokens *service.TokenService, cfg config.Config) *Auth {
 	return &Auth{tokens: tokens, cfg: cfg}
 }
 
@@ -65,7 +65,7 @@ func (a *Auth) Require() gin.HandlerFunc {
 	}
 }
 
-// RequireRole verifies if the user has AT LEAST ONE of the allowed roles
+// RequireRole checks if the user's single role matches any of the allowed roles
 func (a *Auth) RequireRole(allowedRoles ...string) gin.HandlerFunc {
 	allowedSet := make(map[string]struct{}, len(allowedRoles))
 	for _, r := range allowedRoles {
@@ -84,15 +84,7 @@ func (a *Auth) RequireRole(allowedRoles ...string) gin.HandlerFunc {
 			return
 		}
 
-		hasAccess := false
-		for _, userRole := range claims.Roles {
-			if _, ok := allowedSet[userRole]; ok {
-				hasAccess = true
-				break
-			}
-		}
-
-		if !hasAccess {
+		if _, ok := allowedSet[claims.Role]; !ok {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "forbidden"})
 			return
 		}
@@ -102,9 +94,9 @@ func (a *Auth) RequireRole(allowedRoles ...string) gin.HandlerFunc {
 	}
 }
 
-func setClaims(c *gin.Context, claims *auth.Claims) {
+func setClaims(c *gin.Context, claims *service.Claims) {
 	c.Set(ContextUserID, claims.UserID)
-	c.Set(ContextRoles, claims.Roles)
+	c.Set(ContextRole, claims.Role)
 	c.Set(ContextJKID, claims.JKID)
 	c.Set(ContextEmail, claims.Email)
 	c.Set(ContextClaims, claims)
@@ -119,16 +111,18 @@ func abortAuth(c *gin.Context) {
 	c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 }
 
+// Context Context Helpers
+
 func UserID(c *gin.Context) string {
 	v, _ := c.Get(ContextUserID)
 	s, _ := v.(string)
 	return s
 }
 
-func Roles(c *gin.Context) []string {
-	v, _ := c.Get(ContextRoles)
-	roles, _ := v.([]string)
-	return roles
+func Role(c *gin.Context) string {
+	v, _ := c.Get(ContextRole)
+	s, _ := v.(string)
+	return s
 }
 
 func JKID(c *gin.Context) string {
