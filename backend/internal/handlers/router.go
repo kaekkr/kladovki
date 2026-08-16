@@ -9,17 +9,15 @@ func (h *Handler) Register(r *gin.Engine) {
 
 	api := r.Group(h.cfg.APIPrefix)
 	{
-		// === Public / Marketing ===
-		api.POST("/lead", h.CreateLead)
+		// === Auth (shared) ===
+		auth := api.Group("/auth")
+		{
+			auth.POST("/login", h.Login) // Handles both admin & resident authentication
+			// auth.POST("/register", h.Register)    // Resident registration (accepts JK ID from QR code)
+			auth.POST("/logout", h.Logout)
+			auth.GET("/me", h.mw.Require(), h.Me)
+		}
 
-		// // === Auth (shared) ===
-		// auth := api.Group("/auth")
-		// {
-		// 	auth.POST("/login", h.Login) // can handle both client & admin
-		// 	auth.POST("/register", h.Register)
-		// 	auth.POST("/logout", h.Logout)
-		// 	auth.GET("/me", h.mw.Require(), h.Me)
-		// }
 		//
 		// // === Client area ===
 		// client := api.Group("/client")

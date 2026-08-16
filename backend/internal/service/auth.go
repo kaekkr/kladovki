@@ -2,88 +2,66 @@ package service
 
 import (
 	"context"
-	"fmt"
-	"time"
+	"errors"
+	"strings"
 
-	"github.com/google/uuid"
 	"github.com/kaekkr/kladovki/internal/models"
+	"github.com/kaekkr/kladovki/internal/repository"
+	"golang.org/x/crypto/bcrypt"
 )
 
-func (s *Service) RegisterResident(ctx context.Context, fullName, phone, email, iin, password, jkID string) (*models.User, error) {
-	if _, err := s.repo.GetUserByEmail(ctx, email); err == nil {
-		return nil, fmt.Errorf("%w: email already in use", ErrAlreadyExists)
-	}
-	if _, err := s.repo.GetUserByPhone(ctx, phone); err == nil {
-		return nil, fmt.Errorf("%w: phone number already in use", ErrAlreadyExists)
-	}
-	if _, err := s.repo.GetUserByIIN(ctx, iin); err == nil {
-		return nil, fmt.Errorf("%w: IIN already registered", ErrAlreadyExists)
-	}
-
-	hash, err := HashPassword(password)
-	if err != nil {
-		return nil, err
-	}
-
-	var targetJKID *string
-	if jkID != "" {
-		targetJKID = &jkID
-	}
-
-	u := &models.User{
-		ID:           uuid.New().String(),
-		Roles:        []models.Role{models.RoleResident},
-		FullName:     fullName,
-		Phone:        phone,
-		Email:        email,
-		IIN:          &iin,
-		JKID:         targetJKID,
-		PasswordHash: hash,
-		CreatedAt:    time.Now(),
-	}
-
-	if err := s.repo.CreateUser(ctx, u); err != nil {
-		return nil, err
-	}
-	return u, nil
+type LoginInput struct {
+	Login    string
+	Password string
 }
 
-func (s *Service) Login(ctx context.Context, login, password string) (*models.User, error) {
-	u, err := s.repo.GetUserByEmail(ctx, login)
+func (s *Service) Login(ctx context.Context, in LoginInput) (*models.User, error) {
+	login := strings.TrimSpace(in.Login)
+	password := strings.TrimSpace(in.Password)
+
+	if login == "" || password == "" {
+		return nil, ErrInvalid
+	}
+
+	user, err := s.GetUserByLogin(ctx, login)
 	if err != nil {
-		u, err = s.repo.GetUserByPhone(ctx, login)
-		if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrInvalidCredentials
+		}
+		return nil, err
+	}
+
+	if !CheckPassword(user.PasswordHash, password) {
+		return nil, ErrInvalidCredentials
+	}
+
+	return user, nil
+}
+
+func (s *Service) Me(ctx context.Context, userID string) (*models.User, error) {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return nil, ErrInvalid
+	}
+
+	user, err := s.GetUserByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
 			return nil, ErrNotFound
 		}
+		return nil, err
 	}
 
-	if !CheckPassword(u.PasswordHash, password) {
-		return nil, ErrForbidden
-	}
-	return u, nil
+	return user, nil
 }
 
-func (s *Service) EgovStub(ctx context.Context, iin string) ([]models.JK, error) {
-	var targetJKName string
-	switch iin {
-	case "123456789012":
-		targetJKName = "ЖК Сыганак"
-	default:
-		return []models.JK{}, nil
-	}
+// ---------- Password Helpers ----------
 
-	jk, err := s.repo.GetJKByName(ctx, targetJKName)
-	if err != nil {
-		return []models.JK{}, nil
-	}
-
-	return []models.JK{*jk}, nil
+func HashPassword(pw string) (string, error) {
+	b, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
+	return string(b), err
 }
 
-func (s *Service) ListJKs(ctx context.Context) ([]*models.JK, error) {
-	return s.repo.ListJKs(ctx)
-}
-
-func (s *Service) UpdateUserJKID(ctx context.Context, userID, jkID string) error {
-	return s.repo.UpdateUserJKID(ctx, userID, jkID)
+func CheckPassword(hash, pw string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(pw)) == nil
 }

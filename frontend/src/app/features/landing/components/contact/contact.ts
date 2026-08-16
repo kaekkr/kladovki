@@ -1,6 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { LeadService } from '../../../core/services/lead'; // adjust path
+import { LeadService } from '../../../../core/services/lead';
 
 @Component({
   selector: 'app-contact',
