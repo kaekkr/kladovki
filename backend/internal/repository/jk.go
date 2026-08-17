@@ -5,35 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
 
-	"github.com/google/uuid"
 	"github.com/kaekkr/kladovki/internal/models"
 )
 
 const jkColumns = `id, name, created_at`
-
-func (r *Repo) CreateJK(ctx context.Context, jk *models.JK) error {
-	if jk.ID == "" {
-		jk.ID = uuid.NewString()
-	}
-
-	query := `
-		INSERT INTO jks (id, name, created_at)
-		VALUES ($1, $2, $3)
-		RETURNING created_at
-	`
-
-	now := time.Now().UTC()
-
-	return r.db.QueryRowContext(
-		ctx,
-		query,
-		jk.ID,
-		jk.Name,
-		now,
-	).Scan(&jk.CreatedAt)
-}
 
 func (r *Repo) GetJKByID(ctx context.Context, id string) (*models.JK, error) {
 	query := fmt.Sprintf(`SELECT %s FROM jks WHERE id = $1`, jkColumns)

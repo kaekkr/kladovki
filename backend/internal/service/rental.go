@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"math"
+	"strings"
 	"time"
 
 	"github.com/kaekkr/kladovki/internal/models"
@@ -10,79 +12,93 @@ import (
 
 const LockDuration = 2 * time.Minute
 
-func (s *Service) LockStorage(ctx context.Context, storageID, userID string, months int) (*models.Rental, models.PriceQuote, error) {
-	_ = s.repo.ExpireLocks(ctx)
-
-	st, err := s.repo.GetStorage(ctx, storageID)
-	if err != nil {
-		return nil, models.PriceQuote{}, ErrNotFound
-	}
-	if st.Status != models.StatusFree {
-		return nil, models.PriceQuote{}, ErrLocked
-	}
-
-	tariff, err := s.repo.GetTariff(ctx, st.JKID)
-	if err != nil || tariff == 0 {
-		return nil, models.PriceQuote{}, fmt.Errorf("tariff not set")
-	}
-
-	if months < 1 {
-		months = 1
-	}
-
-	quote := CalcPrice(st.Area, tariff, months)
-	until := time.Now().Add(LockDuration)
-
-	rt := &models.Rental{
-		StorageID:     storageID,
-		UserID:        userID,
-		JKID:          st.JKID,
-		Months:        months,
-		PricePerMonth: quote.PricePerMonth,
-		TotalPaid:     0,
-		LockedUntil:   &until,
-		Status:        models.RentalStatusLocked,
-	}
-
-	if err := s.repo.CreateRental(ctx, rt); err != nil {
-		return nil, models.PriceQuote{}, err
-	}
-
-	if err := s.repo.UpdateStorageStatus(ctx, storageID, models.StatusLocked); err != nil {
-		return nil, models.PriceQuote{}, err
-	}
-
-	return rt, quote, nil
+type LockStorageInput struct {
+	StorageID string `json:"storage_id"`
+	UserID    string `json:"user_id"`
+	Months    int    `json:"months"`
 }
 
-func (s *Service) ConfirmPayment(ctx context.Context, rentalID, userID string) (*models.Rental, error) {
-	rt, err := s.repo.GetRental(ctx, rentalID)
+type ConfirmPaymentInput struct {
+	RentalID string `json:"rental_id"`
+	UserID   string `json:"user_id"`
+}
+
+func (s *Service) LockStorage(ctx context.Context, in LockStorageInput) (*models.Rental, error) {
+	storageID := strings.TrimSpace(in.StorageID)
+	userID := strings.TrimSpace(in.UserID)
+
+	if storageID == "" || userID == "" {
+		return nil, ErrInvalid
+	}
+
+	months := max(in.Months, 1)
+
+	st, err := s.repo.GetStorageByID(ctx, storageID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, err
+	}
+
+	tariffAmount, err := s.repo.GetTariff(ctx, st.JKID)
+	if err != nil || tariffAmount == 0 {
+		return nil, fmt.Errorf("service.LockStorage: tariff not set for jk_id %s", st.JKID)
+	}
+
+	// Dynamic monthly price calculation
+	pricePerMonth := int64(math.Round(st.Area * float64(tariffAmount)))
+
+	// Delegate transactional locking and row creation to the repository
+	rt, err := s.repo.LockStorage(ctx, storageID, userID, st.JKID, LockDuration)
+	if err != nil {
+		return nil, err
+	}
+
+	rt.Months = months
+	rt.PricePerMonth = pricePerMonth
+
+	if err := s.repo.UpdateRental(ctx, rt); err != nil {
+		return nil, fmt.Errorf("service.LockStorage update price info: %w", err)
+	}
+
+	return rt, nil
+}
+
+func (s *Service) ConfirmPayment(ctx context.Context, in ConfirmPaymentInput) (*models.Rental, error) {
+	rentalID := strings.TrimSpace(in.RentalID)
+	userID := strings.TrimSpace(in.UserID)
+
+	if rentalID == "" || userID == "" {
+		return nil, ErrInvalid
+	}
+
+	rt, err := s.repo.GetRentalByID(ctx, rentalID)
+	if err != nil {
+		return nil, err
 	}
 	if rt.UserID != userID {
 		return nil, ErrForbidden
 	}
-	if rt.Status != models.RentalStatusLocked {
-		return nil, ErrInvalid
-	}
-	if rt.LockedUntil != nil && time.Now().After(*rt.LockedUntil) {
-		_ = s.repo.ExpireLocks(ctx)
+
+	now := time.Now().UTC()
+
+	// Check if the lock period has expired
+	if rt.Status == "locked" && now.After(rt.EndsAt) {
 		return nil, ErrLocked
 	}
 
-	now := time.Now()
 	ends := now.AddDate(0, rt.Months, 0)
+
 	rt.StartsAt = now
 	rt.EndsAt = ends
 	rt.TotalPaid = rt.PricePerMonth * int64(rt.Months)
 	rt.Status = models.RentalStatusActive
-	rt.LockedUntil = nil
 
 	if err := s.repo.UpdateRental(ctx, rt); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("service.ConfirmPayment update rental: %w", err)
 	}
-	_ = s.repo.UpdateStorageStatus(ctx, rt.StorageID, models.StatusOccupied)
+
+	if err := s.repo.UpdateStorageStatus(ctx, rt.StorageID, models.StatusOccupied); err != nil {
+		return nil, fmt.Errorf("service.ConfirmPayment update storage status: %w", err)
+	}
 
 	p := &models.Payment{
 		RentalID: rentalID,
@@ -91,68 +107,36 @@ func (s *Service) ConfirmPayment(ctx context.Context, rentalID, userID string) (
 		Provider: "kaspi",
 		Status:   models.PaymentStatusSuccess,
 	}
-	_ = s.repo.CreatePayment(ctx, p)
+	if err := s.repo.CreatePayment(ctx, p); err != nil {
+		return nil, fmt.Errorf("service.ConfirmPayment create payment: %w", err)
+	}
 
 	return rt, nil
 }
 
-func (s *Service) ChangeTariff(ctx context.Context, jkID string, newAmount int64) (int64, []models.Rental, error) {
-	old, _ := s.repo.GetTariff(ctx, jkID)
-	if err := s.repo.SetTariff(ctx, jkID, newAmount); err != nil {
-		return 0, nil, err
+func (s *Service) GetRentalByID(ctx context.Context, id string) (*models.Rental, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, ErrInvalid
 	}
-	rentals, err := s.repo.ListActiveRentalsByJK(ctx, jkID)
-	return old, rentals, err
+
+	return s.repo.GetRentalByID(ctx, id)
 }
 
-func (s *Service) ApplyTariffAction(ctx context.Context, rentalID string, action models.TariffAction, newTariffPerM2 int64) error {
-	rt, err := s.repo.GetRental(ctx, rentalID)
-	if err != nil {
-		return ErrNotFound
-	}
-	st, err := s.repo.GetStorage(ctx, rt.StorageID)
-	if err != nil {
-		return err
+func (s *Service) GetActiveRentalByStorage(ctx context.Context, storageID string) (*models.Rental, error) {
+	storageID = strings.TrimSpace(storageID)
+	if storageID == "" {
+		return nil, ErrInvalid
 	}
 
-	oldPerMonth := rt.PricePerMonth
-	newPerMonth := CalcPrice(st.Area, newTariffPerM2, 1).PricePerMonth
+	return s.repo.GetActiveRentalByStorage(ctx, storageID)
+}
 
-	remaining := 0.0
-	if !rt.EndsAt.IsZero() {
-		remaining = rt.EndsAt.Sub(time.Now()).Hours() / (24 * 30)
-	}
-	if remaining < 0 {
-		remaining = 0
+func (s *Service) ListActiveRentalsByJK(ctx context.Context, jkID string) ([]*models.Rental, error) {
+	jkID = strings.TrimSpace(jkID)
+	if jkID == "" {
+		return nil, ErrInvalid
 	}
 
-	opts := CalcTariffChangeOptions(rt.TotalPaid, oldPerMonth, newPerMonth, remaining)
-	if len(opts) == 0 {
-		return nil
-	}
-
-	switch action {
-	case models.TariffActionRefund:
-		for _, o := range opts {
-			if o.Action == models.TariffActionRefund {
-				rt.TotalPaid -= o.RefundAmount
-				if rt.TotalPaid < 0 {
-					rt.TotalPaid = 0
-				}
-			}
-		}
-		rt.PricePerMonth = newPerMonth
-	case models.TariffActionKeep:
-		for _, o := range opts {
-			if o.Action == models.TariffActionKeep && !rt.EndsAt.IsZero() {
-				extraDays := int(o.ExtraMonths * 30)
-				rt.EndsAt = rt.EndsAt.AddDate(0, 0, extraDays)
-				rt.PricePerMonth = newPerMonth
-			}
-		}
-	default:
-		return ErrInvalid
-	}
-
-	return s.repo.UpdateRental(ctx, rt)
+	return s.repo.ListActiveRentalsByJK(ctx, jkID)
 }
