@@ -25,11 +25,3 @@ func (r *Repo) CreateLead(ctx context.Context, lead *models.Lead) error {
 		now,
 	).Scan(&lead.ID, &lead.CreatedAt)
 }
-
-// nullString helps store empty strings as NULL
-func nullString(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
-}

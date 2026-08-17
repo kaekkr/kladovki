@@ -63,6 +63,10 @@ func main() {
 		Handler: r,
 	}
 
+	for _, route := range r.Routes() {
+		log.Printf("%-6s %s", route.Method, route.Path)
+	}
+
 	go func() {
 		log.Printf("Server listening on http://localhost:%s (%s mode)", cfg.Port, cfg.Env)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {

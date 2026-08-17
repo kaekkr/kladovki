@@ -9,6 +9,8 @@ func (h *Handler) Register(r *gin.Engine) {
 
 	api := r.Group(h.cfg.APIPrefix)
 	{
+		api.POST("/lead", h.CreateLead)
+
 		// === Auth (shared) ===
 		auth := api.Group("/auth")
 		{
