@@ -7,69 +7,46 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/kaekkr/kladovki/internal/models"
 )
 
-const jkColumns = `id, name, bin, contact, phone, email, owner_id, address, created_at`
+const jkColumns = `id, name, created_at`
 
 func (r *Repo) CreateJK(ctx context.Context, jk *models.JK) error {
 	if jk.ID == "" {
-		jk.ID = newID()
+		jk.ID = uuid.NewString()
 	}
-	if jk.CreatedAt.IsZero() {
-		jk.CreatedAt = time.Now()
-	}
+
 	query := `
-		INSERT INTO jks (id, name, bin, contact, phone, email, owner_id, address, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	_, err := r.db.ExecContext(
-		ctx, query,
-		jk.ID, jk.Name, jk.BIN, jk.Contact, jk.Phone, jk.Email, jk.OwnerID, jk.Address, jk.CreatedAt,
-	)
-	if err != nil {
-		return fmt.Errorf("repository.CreateJK: %w", err)
-	}
-	return nil
-}
+		INSERT INTO jks (id, name, created_at)
+		VALUES ($1, $2, $3)
+		RETURNING created_at
+	`
 
-func (r *Repo) GetJK(ctx context.Context, id string) (*models.JK, error) {
-	return r.GetJKByID(ctx, id)
-}
+	now := time.Now().UTC()
 
-func (r *Repo) GetJKByName(ctx context.Context, name string) (*models.JK, error) {
-	query := fmt.Sprintf(`SELECT %s FROM jks WHERE name = $1`, jkColumns)
-	var jk models.JK
-	err := r.db.QueryRowContext(ctx, query, name).Scan(
-		&jk.ID, &jk.Name, &jk.BIN, &jk.Contact, &jk.Phone, &jk.Email, &jk.OwnerID, &jk.Address, &jk.CreatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
-		}
-		return nil, fmt.Errorf("repository.GetJKByName: %w", err)
-	}
-	return &jk, nil
+	return r.db.QueryRowContext(
+		ctx,
+		query,
+		jk.ID,
+		jk.Name,
+		now,
+	).Scan(&jk.CreatedAt)
 }
 
 func (r *Repo) GetJKByID(ctx context.Context, id string) (*models.JK, error) {
 	query := fmt.Sprintf(`SELECT %s FROM jks WHERE id = $1`, jkColumns)
+	return r.scanJK(r.db.QueryRowContext(ctx, query, id))
+}
 
-	var jk models.JK
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&jk.ID, &jk.Name, &jk.BIN, &jk.Contact, &jk.Phone, &jk.Email, &jk.OwnerID, &jk.Address, &jk.CreatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
-		}
-		return nil, fmt.Errorf("repository.GetJKByID: %w", err)
-	}
-
-	return &jk, nil
+func (r *Repo) GetJKByName(ctx context.Context, name string) (*models.JK, error) {
+	query := fmt.Sprintf(`SELECT %s FROM jks WHERE name = $1`, jkColumns)
+	return r.scanJK(r.db.QueryRowContext(ctx, query, name))
 }
 
 func (r *Repo) ListJKs(ctx context.Context) ([]*models.JK, error) {
-	query := `SELECT id, name, bin, contact, phone, email, owner_id, address, created_at FROM jks`
+	query := fmt.Sprintf(`SELECT %s FROM jks ORDER BY created_at DESC`, jkColumns)
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("repository.ListJKs query: %w", err)
@@ -78,29 +55,11 @@ func (r *Repo) ListJKs(ctx context.Context) ([]*models.JK, error) {
 
 	var jks []*models.JK
 	for rows.Next() {
-		var jk models.JK
-		var contact, email, ownerID, address sql.NullString
-
-		if err := rows.Scan(
-			&jk.ID,
-			&jk.Name,
-			&jk.BIN,
-			&contact,
-			&jk.Phone,
-			&email,
-			&ownerID, // 👈 Scans NULL safely
-			&address,
-			&jk.CreatedAt,
-		); err != nil {
+		jk, err := r.scanJK(rows)
+		if err != nil {
 			return nil, fmt.Errorf("repository.ListJKs scan: %w", err)
 		}
-
-		jk.Contact = contact.String
-		jk.Email = email.String
-		jk.OwnerID = ownerID.String
-		jk.Address = address.String
-
-		jks = append(jks, &jk)
+		jks = append(jks, jk)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -108,4 +67,22 @@ func (r *Repo) ListJKs(ctx context.Context) ([]*models.JK, error) {
 	}
 
 	return jks, nil
+}
+
+func (r *Repo) scanJK(s rowScanner) (*models.JK, error) {
+	var jk models.JK
+
+	err := s.Scan(
+		&jk.ID,
+		&jk.Name,
+		&jk.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+
+	return &jk, nil
 }

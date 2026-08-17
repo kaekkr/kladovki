@@ -88,10 +88,3 @@ func (r *Repo) scanUser(s rowScanner) (*models.User, error) {
 
 	return &u, nil
 }
-
-func nullStringPtr(s *string) any {
-	if s == nil || *s == "" {
-		return nil
-	}
-	return *s
-}
