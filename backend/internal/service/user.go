@@ -9,12 +9,11 @@ import (
 )
 
 type CreateUserInput struct {
-	FullName string
-	Phone    string
-	Email    string
-	Password string
-	Role     models.Role
-	JKID     *string
+	FullName string  `json:"full_name"`
+	Phone    string  `json:"phone"`
+	Email    string  `json:"email"`
+	Password string  `json:"password"`
+	JKID     *string `json:"jk_id,omitempty"`
 }
 
 func (s *Service) CreateUser(ctx context.Context, in CreateUserInput) (*models.User, error) {
@@ -37,7 +36,7 @@ func (s *Service) CreateUser(ctx context.Context, in CreateUserInput) (*models.U
 		Phone:        phone,
 		Email:        email,
 		PasswordHash: hash,
-		Role:         in.Role,
+		Role:         models.RoleResident,
 		JKID:         in.JKID,
 	}
 
