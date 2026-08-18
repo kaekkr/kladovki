@@ -12,7 +12,8 @@ import (
 )
 
 type loginRequest struct {
-	Login    string `json:"login" binding:"required"`
+	Email    string `json:"email"`
+	Phone    string `json:"phone"`
 	Password string `json:"password" binding:"required"`
 }
 
@@ -21,13 +22,26 @@ func (h *Handler) Login(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Заполните обязательные поля (Логин и Пароль)",
+			"error": "Заполните обязательные поля",
+		})
+		return
+	}
+
+	// Use email or phone as the login identifier
+	loginIdentifier := req.Email
+	if loginIdentifier == "" {
+		loginIdentifier = req.Phone
+	}
+
+	if loginIdentifier == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Укажите Email или номер телефона",
 		})
 		return
 	}
 
 	user, err := h.svc.Login(c.Request.Context(), service.LoginInput{
-		Login:    req.Login,
+		Login:    loginIdentifier,
 		Password: req.Password,
 	})
 	if err != nil {
@@ -55,14 +69,12 @@ func (h *Handler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"access_token": token,
 		"token_type":   "Bearer",
-		"user": gin.H{
-			"id":        user.ID,
-			"full_name": user.FullName,
-			"phone":     user.Phone,
-			"email":     user.Email,
-			"role":      user.Role,
-			"jk_id":     user.JKID,
-		},
+		"id":           user.ID,
+		"full_name":    user.FullName,
+		"phone":        user.Phone,
+		"email":        user.Email,
+		"role":         user.Role,
+		"jk_id":        user.JKID,
 	})
 }
 

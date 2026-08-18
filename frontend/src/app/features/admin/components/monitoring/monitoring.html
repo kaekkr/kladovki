@@ -1,0 +1,79 @@
+<aside class="w-64 bg-brand-bg border-r border-brand-line flex flex-col z-50 shrink-0">
+  <div class="p-8">
+    <a href="#" class="text-xl font-bold tracking-tighter text-brand-text uppercase"
+      >КЛАДОВКИ<span class="text-brand-accent">.</span></a
+    >
+  </div>
+
+  <nav class="flex-grow px-4 space-y-2">
+    <p class="px-4 text-[10px] uppercase tracking-widest text-brand-muted mb-4">УПРАВЛЕНИЕ</p>
+    <a
+      href="#"
+      class="sidebar-link active flex items-center px-4 py-3 rounded-lg text-sm font-medium text-brand-muted"
+    >
+      <i class="fas fa-th-large w-5 mr-3 text-brand-accent"></i> Мониторинг
+    </a>
+    <a
+      href="#"
+      class="sidebar-link flex items-center px-4 py-3 rounded-lg text-sm font-medium text-brand-muted"
+    >
+      <i class="fas fa-th w-5 mr-3"></i> Кладовки (Chess)
+    </a>
+    <a
+      href="#"
+      class="sidebar-link flex items-center px-4 py-3 rounded-lg text-sm font-medium text-brand-muted"
+    >
+      <i class="fas fa-tags w-5 mr-3"></i> Тарифы
+    </a>
+    <a
+      href="#"
+      class="sidebar-link flex items-center px-4 py-3 rounded-lg text-sm font-medium text-brand-muted"
+    >
+      <i class="fas fa-file-invoice-dollar w-5 mr-3"></i> Отчеты
+    </a>
+
+    <div class="pt-8">
+      <p class="px-4 text-[10px] uppercase tracking-widest text-brand-muted mb-4">СИСТЕМА</p>
+      <a
+        href="#"
+        class="sidebar-link flex items-center px-4 py-3 rounded-lg text-sm font-medium text-brand-muted"
+      >
+        <i class="fas fa-cog w-5 mr-3"></i> Настройки
+      </a>
+      <a
+        href="#"
+        class="sidebar-link flex items-center px-4 py-3 rounded-lg text-sm font-medium text-brand-muted"
+      >
+        <i class="fas fa-headset w-5 mr-3"></i> Поддержка
+      </a>
+    </div>
+  </nav>
+
+  <div class="p-6 border-t border-brand-line">
+    <div class="flex items-center space-x-3">
+      <img
+        src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg"
+        class="w-10 h-10 rounded-full border border-brand-line"
+        alt="User"
+      />
+      <div>
+        <p class="text-sm font-semibold text-brand-text">Алексей Волков</p>
+        <p class="text-[10px] text-brand-muted">Senior Manager</p>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<main class="flex-grow flex flex-col min-w-0 bg-brand-bg">
+  <app-admin-header />
+
+  <div class="flex-grow overflow-y-auto p-8 custom-scrollbar">
+    <app-admin-stats />
+    <app-admin-chessboard />
+    <app-admin-units-table />
+
+    <footer class="mt-12 text-center text-brand-muted text-[10px] uppercase tracking-widest pb-8">
+      Powered by Kladovki OS v4.2.0 • Данные зашифрованы и защищены
+    </footer>
+  </div>
+</main>

@@ -1,0 +1,159 @@
+<div class="bg-brand-surface rounded-2xl border border-brand-line overflow-hidden">
+  <div class="p-6 border-b border-brand-line flex items-center justify-between bg-brand-surface">
+    <div class="flex items-center space-x-6">
+      <h2 class="text-lg font-bold">Список помещений</h2>
+      <div
+        class="flex items-center bg-brand-bg rounded-lg border border-brand-line px-3 py-1.5 min-w-[300px]"
+      >
+        <i class="fas fa-search text-brand-muted text-xs mr-2"></i>
+        <input
+          type="text"
+          placeholder="Поиск по номеру, жителю или этажу..."
+          class="bg-transparent border-none focus:outline-none text-xs text-brand-text flex-grow"
+        />
+      </div>
+    </div>
+    <div class="flex items-center space-x-3">
+      <button
+        class="flex items-center space-x-2 px-3 py-1.5 border border-brand-line rounded-lg text-xs font-medium hover:bg-brand-bg transition-colors"
+      >
+        <i class="fas fa-filter text-brand-muted"></i>
+        <span>Фильтр</span>
+      </button>
+      <button
+        class="flex items-center space-x-2 px-3 py-1.5 border border-brand-line rounded-lg text-xs font-medium hover:bg-brand-bg transition-colors"
+      >
+        <i class="fas fa-download text-brand-muted"></i>
+        <span>Экспорт</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-left text-sm">
+      <thead>
+        <tr
+          class="bg-brand-bg/30 text-brand-muted uppercase text-[10px] tracking-widest border-b border-brand-line"
+        >
+          <th class="px-6 py-4 font-semibold">Номер</th>
+          <th class="px-6 py-4 font-semibold">Площадь (м²)</th>
+          <th class="px-6 py-4 font-semibold">Этаж</th>
+          <th class="px-6 py-4 font-semibold">Статус</th>
+          <th class="px-6 py-4 font-semibold">Арендатор</th>
+          <th class="px-6 py-4 font-semibold">Окончание</th>
+          <th class="px-6 py-4 font-semibold text-right">Действия</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-brand-line">
+        <tr class="hover:bg-brand-bg/20 transition-colors">
+          <td class="px-6 py-4 font-medium text-brand-text">A-101</td>
+          <td class="px-6 py-4">4.5</td>
+          <td class="px-6 py-4">Этаж -1</td>
+          <td class="px-6 py-4">
+            <span
+              class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-status-rented/10 text-status-rented border border-status-rented/20"
+            >
+              АРЕНДА
+            </span>
+          </td>
+          <td class="px-6 py-4">
+            <div class="flex items-center space-x-2">
+              <div
+                class="w-6 h-6 rounded-full bg-brand-line flex items-center justify-center text-[10px] font-bold"
+              >
+                ДВ
+              </div>
+              <span>Дмитрий Воронов</span>
+            </div>
+          </td>
+          <td class="px-6 py-4 text-brand-muted">12 Дек 2026</td>
+          <td class="px-6 py-4 text-right">
+            <button class="text-brand-muted hover:text-brand-text p-1">
+              <i class="fas fa-ellipsis-v"></i>
+            </button>
+          </td>
+        </tr>
+        <tr class="hover:bg-brand-bg/20 transition-colors">
+          <td class="px-6 py-4 font-medium text-brand-text">A-102</td>
+          <td class="px-6 py-4">6.0</td>
+          <td class="px-6 py-4">Этаж -1</td>
+          <td class="px-6 py-4">
+            <span
+              class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-status-free/10 text-status-free border border-status-free/20"
+            >
+              СВОБОДНО
+            </span>
+          </td>
+          <td class="px-6 py-4 text-brand-muted">—</td>
+          <td class="px-6 py-4 text-brand-muted">—</td>
+          <td class="px-6 py-4 text-right">
+            <button
+              class="text-brand-accent hover:underline text-[10px] font-bold uppercase tracking-wider"
+            >
+              Создать договор
+            </button>
+          </td>
+        </tr>
+        <tr class="hover:bg-brand-bg/20 transition-colors">
+          <td class="px-6 py-4 font-medium text-brand-text">A-103</td>
+          <td class="px-6 py-4">4.5</td>
+          <td class="px-6 py-4">Этаж -1</td>
+          <td class="px-6 py-4">
+            <span
+              class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-status-overdue/10 text-status-overdue border border-status-overdue/20"
+            >
+              ПРОСРОЧКА
+            </span>
+          </td>
+          <td class="px-6 py-4">
+            <div class="flex items-center space-x-2">
+              <div
+                class="w-6 h-6 rounded-full bg-brand-line flex items-center justify-center text-[10px] font-bold"
+              >
+                ЕК
+              </div>
+              <span>Елена Кузнецова</span>
+            </div>
+          </td>
+          <td class="px-6 py-4 text-status-overdue font-semibold">01 Ноя 2026</td>
+          <td class="px-6 py-4 text-right">
+            <button
+              class="bg-status-overdue text-brand-bg px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider"
+            >
+              Уведомление
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div
+    class="p-4 border-t border-brand-line flex items-center justify-between text-xs text-brand-muted bg-brand-surface"
+  >
+    <p>Показано 1-3 из 152 помещений</p>
+    <div class="flex space-x-2">
+      <button
+        class="w-8 h-8 flex items-center justify-center rounded border border-brand-line hover:bg-brand-bg transition-colors disabled:opacity-50"
+        disabled
+      >
+        <i class="fas fa-chevron-left"></i>
+      </button>
+      <button
+        class="w-8 h-8 flex items-center justify-center rounded border border-brand-line bg-brand-line text-brand-text font-bold"
+      >
+        1
+      </button>
+      <button
+        class="w-8 h-8 flex items-center justify-center rounded border border-brand-line hover:bg-brand-bg transition-colors"
+      >
+        2
+      </button>
+      <button
+        class="w-8 h-8 flex items-center justify-center rounded border border-brand-line hover:bg-brand-bg transition-colors"
+      >
+        <i class="fas fa-chevron-right"></i>
+      </button>
+    </div>
+  </div>
+</div>
