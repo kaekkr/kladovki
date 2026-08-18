@@ -34,9 +34,6 @@ func main() {
 
 	repo := repository.New(db)
 	svc := service.New(repo)
-	if err := svc.EnsureSeed(context.Background()); err != nil {
-		log.Println("seed info:", err)
-	}
 
 	// 2. Auth & Middleware
 	tokens := service.NewTokenService(cfg.JWTSecret, cfg.JWTAccessTTL)

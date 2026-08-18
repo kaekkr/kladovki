@@ -1,1 +1,12 @@
-<router-outlet />
+<div class="flex h-screen bg-brand-bg text-brand-text overflow-hidden font-sans antialiased">
+  <app-admin-sidebar />
+
+  <main class="flex-grow flex flex-col min-w-0 bg-brand-bg">
+    <app-admin-header />
+
+    <div class="flex-grow overflow-y-auto p-8 custom-scrollbar">
+      <router-outlet />
+      <app-admin-footer />
+    </div>
+  </main>
+</div>

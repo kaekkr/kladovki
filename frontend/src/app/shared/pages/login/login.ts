@@ -1,15 +1,15 @@
 import { Component, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { AuthService } from '../../../../core/auth/auth.service';
+import { AuthService } from '../../../core/auth/auth.service';
 
 @Component({
-  selector: 'app-admin-login',
+  selector: 'app-login',
   standalone: true,
   imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './login.html',
 })
-export class AdminLogin {
+export class Login {
   private fb = inject(FormBuilder);
   private auth = inject(AuthService);
   private router = inject(Router);
@@ -32,14 +32,19 @@ export class AdminLogin {
     this.errorMessage.set(null);
 
     const { login, password } = this.form.getRawValue();
+    const trimmed = login.trim();
 
-    this.auth.login({ email: login, password_hash: password }).subscribe({
+    const isEmail = trimmed.includes('@');
+    const payload = isEmail ? { email: trimmed, password } : { phone: trimmed, password };
+
+    this.auth.login(payload).subscribe({
       next: (user) => {
         this.isLoading.set(false);
-        if (user.role === 'admin' || user.role === 'superadmin') {
+        // Direct admins to /admin and regular users to /client
+        if (user.role === 'admin') {
           this.router.navigate(['/admin/dashboard']);
         } else {
-          this.errorMessage.set('Доступ запрещен. Требуются права администратора.');
+          this.router.navigate(['/client']);
         }
       },
       error: (err) => {
