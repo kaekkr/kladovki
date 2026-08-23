@@ -19,25 +19,14 @@ type loginRequest struct {
 
 func (h *Handler) Login(c *gin.Context) {
 	var req loginRequest
-
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Заполните обязательные поля",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Заполните обязательные поля"})
 		return
 	}
 
-	// Use email or phone as the login identifier
 	loginIdentifier := req.Email
 	if loginIdentifier == "" {
 		loginIdentifier = req.Phone
-	}
-
-	if loginIdentifier == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Укажите Email или номер телефона",
-		})
-		return
 	}
 
 	user, err := h.svc.Login(c.Request.Context(), service.LoginInput{
@@ -45,36 +34,24 @@ func (h *Handler) Login(c *gin.Context) {
 		Password: req.Password,
 	})
 	if err != nil {
-		if errors.Is(err, service.ErrInvalidCredentials) {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "Неверный логин или пароль",
-			})
-			return
-		}
-
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Не удалось выполнить вход",
-		})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Неверный логин или пароль"})
 		return
 	}
 
-	token, err := h.issueToken(c, user)
+	// issueToken internally invokes h.setAuthCookie using h.cfg properties
+	_, err = h.issueToken(c, user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Не удалось сгенерировать токен авторизации",
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось сгенерировать токен"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"access_token": token,
-		"token_type":   "Bearer",
-		"id":           user.ID,
-		"full_name":    user.FullName,
-		"phone":        user.Phone,
-		"email":        user.Email,
-		"role":         user.Role,
-		"jk_id":        user.JKID,
+		"id":        user.ID,
+		"full_name": user.FullName,
+		"phone":     user.Phone,
+		"email":     user.Email,
+		"role":      user.Role,
+		"jk_id":     user.JKID,
 	})
 }
 
@@ -114,7 +91,7 @@ func (h *Handler) Me(c *gin.Context) {
 
 func (h *Handler) Logout(c *gin.Context) {
 	h.clearAuthCookie(c)
-	c.Redirect(http.StatusFound, "/")
+	c.JSON(http.StatusOK, gin.H{"message": "Успешный выход"})
 }
 
 // ---------- Cookie & Token Helpers ----------

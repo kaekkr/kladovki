@@ -14,6 +14,10 @@ export const ADMIN_ROUTES: Routes = [
         path: 'dashboard',
         loadComponent: () => import('./pages/dashboard/dashboard').then((m) => m.AdminDashboard),
       },
+      {
+        path: 'chessboard',
+        loadComponent: () => import('./pages/chessboard/chessboard').then((m) => m.AdminChessboard),
+      },
     ],
   },
 ];

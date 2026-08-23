@@ -1,11 +1,14 @@
-<div class="flex h-screen bg-brand-bg text-brand-text overflow-hidden font-sans antialiased">
+<div class="flex h-screen overflow-hidden bg-brand-bg text-brand-text font-sans antialiased">
   <app-admin-sidebar />
 
-  <main class="flex-grow flex flex-col min-w-0 bg-brand-bg">
+  <main class="min-w-0 flex-1 flex flex-col">
     <app-admin-header />
 
-    <div class="flex-grow overflow-y-auto p-8 custom-scrollbar">
-      <router-outlet />
+    <div class="min-h-0 flex-1 overflow-y-auto custom-scrollbar">
+      <div class="w-full max-w-[1600px] mx-auto px-6 py-6 lg:px-8">
+        <router-outlet />
+      </div>
+
       <app-admin-footer />
     </div>
   </main>

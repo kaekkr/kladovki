@@ -1,0 +1,116 @@
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="flex items-end justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight text-brand-text">Обзор</h1>
+
+      <p class="mt-1 text-sm text-brand-muted">Состояние вашего ЖК за выбранный период</p>
+    </div>
+
+    <div class="flex items-center gap-1 p-1 bg-brand-surface border border-brand-line rounded-md">
+      <button
+        (click)="selectPeriod('7d')"
+        [class.bg-brand-elevated]="selectedPeriod() === '7d'"
+        [class.text-brand-text]="selectedPeriod() === '7d'"
+        [class.text-brand-muted]="selectedPeriod() !== '7d'"
+        class="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+      >
+        7 дней
+      </button>
+
+      <button
+        (click)="selectPeriod('30d')"
+        [class.bg-brand-elevated]="selectedPeriod() === '30d'"
+        [class.text-brand-text]="selectedPeriod() === '30d'"
+        [class.text-brand-muted]="selectedPeriod() !== '30d'"
+        class="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+      >
+        30 дней
+      </button>
+
+      <button
+        (click)="selectPeriod('quarter')"
+        [class.bg-brand-elevated]="selectedPeriod() === 'quarter'"
+        [class.text-brand-text]="selectedPeriod() === 'quarter'"
+        [class.text-brand-muted]="selectedPeriod() !== 'quarter'"
+        class="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+      >
+        Квартал
+      </button>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="h-32 bg-brand-surface border border-brand-line rounded-lg animate-pulse"></div>
+  } @else if (error()) {
+    <div
+      class="p-5 bg-brand-surface border border-brand-line rounded-lg text-sm text-status-overdue"
+    >
+      Не удалось загрузить статистику.
+    </div>
+  } @else if (stats(); as data) {
+    <div
+      class="grid grid-cols-2 lg:grid-cols-4 border border-brand-line rounded-lg overflow-hidden"
+    >
+      <!-- Received -->
+      <div class="bg-brand-surface p-5 border-r border-brand-line">
+        <p class="text-xs text-brand-muted">Поступило</p>
+
+        <p class="mt-2 text-2xl font-semibold tracking-tight text-brand-text">
+          {{ formatMoney(data.received) }} ₸
+        </p>
+
+        <p
+          class="mt-2 text-xs"
+          [class.text-brand-accent]="data.receivedChange >= 0"
+          [class.text-status-overdue]="data.receivedChange < 0"
+        >
+          {{ data.receivedChange >= 0 ? '↑' : '↓' }}
+          {{ Math.abs(data.receivedChange).toFixed(1) }}%
+
+          <span class="text-brand-subtle"> vs предыдущий период </span>
+        </p>
+      </div>
+
+      <!-- Active Rentals -->
+      <div class="bg-brand-surface p-5 border-r border-brand-line">
+        <p class="text-xs text-brand-muted">Активные аренды</p>
+
+        <p class="mt-2 text-2xl font-semibold tracking-tight text-brand-text">
+          {{ data.activeRentals }}
+        </p>
+
+        <p class="mt-2 text-xs text-brand-subtle">Текущие аренды</p>
+      </div>
+
+      <!-- Storages -->
+      <div class="bg-brand-surface p-5 border-r border-brand-line">
+        <p class="text-xs text-brand-muted">Кладовые</p>
+
+        <p class="mt-2 text-2xl font-semibold tracking-tight text-brand-text">
+          {{ data.occupiedStorages }} / {{ data.totalStorages }}
+        </p>
+
+        <div class="mt-3 h-1 bg-brand-bg rounded-full overflow-hidden">
+          <div
+            class="h-full bg-brand-accent rounded-full transition-all"
+            [style.width.%]="occupancyPercent()"
+          ></div>
+        </div>
+
+        <p class="mt-2 text-xs text-brand-subtle">{{ occupancyPercent() }}% занято</p>
+      </div>
+
+      <!-- New Rentals -->
+      <div class="bg-brand-surface p-5">
+        <p class="text-xs text-brand-muted">Новые аренды</p>
+
+        <p class="mt-2 text-2xl font-semibold tracking-tight text-brand-text">
+          {{ data.newRentals }}
+        </p>
+
+        <p class="mt-2 text-xs text-brand-accent">За выбранный период</p>
+      </div>
+    </div>
+  }
+</div>

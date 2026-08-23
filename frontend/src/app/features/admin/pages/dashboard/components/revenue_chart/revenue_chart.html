@@ -1,0 +1,144 @@
+<div class="bg-brand-surface border border-brand-line rounded-lg p-5">
+  <!-- Header -->
+  <div class="flex items-start justify-between gap-4">
+    <div>
+      <p class="text-xs text-brand-muted">Поступления</p>
+
+      <p class="mt-1 text-xl font-semibold tracking-tight text-brand-text">
+        {{ formatMoney(total()) }} ₸
+      </p>
+    </div>
+
+    <div class="flex items-center gap-1 p-1 bg-brand-bg border border-brand-line rounded-md">
+      <button
+        (click)="selectPeriod('7d')"
+        [class.bg-brand-elevated]="period() === '7d'"
+        [class.text-brand-text]="period() === '7d'"
+        [class.text-brand-muted]="period() !== '7d'"
+        class="px-2.5 py-1 rounded text-xs font-medium transition-colors"
+      >
+        7д
+      </button>
+
+      <button
+        (click)="selectPeriod('30d')"
+        [class.bg-brand-elevated]="period() === '30d'"
+        [class.text-brand-text]="period() === '30d'"
+        [class.text-brand-muted]="period() !== '30d'"
+        class="px-2.5 py-1 rounded text-xs font-medium transition-colors"
+      >
+        30д
+      </button>
+
+      <button
+        (click)="selectPeriod('quarter')"
+        [class.bg-brand-elevated]="period() === 'quarter'"
+        [class.text-brand-text]="period() === 'quarter'"
+        [class.text-brand-muted]="period() !== 'quarter'"
+        class="px-2.5 py-1 rounded text-xs font-medium transition-colors"
+      >
+        Квартал
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div class="mt-6 h-[280px] rounded-md bg-brand-bg animate-pulse"></div>
+  }
+
+  <!-- Error -->
+  @else if (error()) {
+    <div
+      class="mt-6 h-[280px] flex items-center justify-center rounded-md border border-brand-line"
+    >
+      <p class="text-sm text-status-overdue">Не удалось загрузить данные.</p>
+    </div>
+  }
+
+  <!-- Empty -->
+  @else if (!points().length) {
+    <div
+      class="mt-6 h-[280px] flex items-center justify-center rounded-md border border-brand-line"
+    >
+      <p class="text-sm text-brand-muted">Нет данных за выбранный период.</p>
+    </div>
+  }
+
+  <!-- Chart -->
+  @else {
+    <div class="mt-6">
+      <svg viewBox="0 0 700 280" preserveAspectRatio="none" class="w-full h-[280px]">
+        <!-- Horizontal grid -->
+        <line
+          x1="20"
+          y1="20"
+          x2="680"
+          y2="20"
+          stroke="currentColor"
+          class="text-brand-line"
+          stroke-width="1"
+        />
+
+        <line
+          x1="20"
+          y1="140"
+          x2="680"
+          y2="140"
+          stroke="currentColor"
+          class="text-brand-line"
+          stroke-width="1"
+        />
+
+        <line
+          x1="20"
+          y1="260"
+          x2="680"
+          y2="260"
+          stroke="currentColor"
+          class="text-brand-line"
+          stroke-width="1"
+        />
+
+        <!-- Area -->
+        <polygon [attr.points]="areaPoints()" class="fill-brand-accent opacity-10" />
+
+        <!-- Line -->
+        <polyline
+          [attr.points]="chartPoints()"
+          fill="none"
+          stroke="currentColor"
+          class="text-brand-accent"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+
+        <!-- Points -->
+        @for (point of points(); track point.date; let i = $index) {
+          <circle
+            [attr.cx]="points().length === 1 ? 350 : 20 + (i / (points().length - 1)) * 660"
+            [attr.cy]="260 - (point.amount / maxAmount()) * 240"
+            r="3"
+            class="fill-brand-accent"
+          />
+        }
+      </svg>
+
+      <!-- Dates -->
+      <div class="flex justify-between mt-2">
+        @if (points().length > 0) {
+          <span class="text-[11px] text-brand-subtle">
+            {{ formatDate(points()[0].date) }}
+          </span>
+        }
+
+        @if (points().length > 1) {
+          <span class="text-[11px] text-brand-subtle">
+            {{ formatDate(points()[points().length - 1].date) }}
+          </span>
+        }
+      </div>
+    </div>
+  }
+</div>

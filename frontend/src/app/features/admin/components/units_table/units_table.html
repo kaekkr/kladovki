@@ -1,7 +1,7 @@
 <div class="bg-brand-surface rounded-2xl border border-brand-line overflow-hidden">
-  <div class="p-6 border-b border-brand-line flex items-center justify-between bg-brand-surface">
+  <div class="p-6 border-b border-brand-line flex items-center justify-between">
     <div class="flex items-center space-x-6">
-      <h2 class="text-lg font-bold">Список помещений</h2>
+      <h2 class="text-lg font-bold text-brand-text">Список помещений</h2>
       <div
         class="flex items-center bg-brand-bg rounded-lg border border-brand-line px-3 py-1.5 min-w-[300px]"
       >
@@ -15,13 +15,13 @@
     </div>
     <div class="flex items-center space-x-3">
       <button
-        class="flex items-center space-x-2 px-3 py-1.5 border border-brand-line rounded-lg text-xs font-medium hover:bg-brand-bg transition-colors"
+        class="flex items-center space-x-2 px-3 py-1.5 border border-brand-line rounded-lg text-xs font-medium text-brand-text hover:bg-brand-bg transition-colors"
       >
         <i class="fas fa-filter text-brand-muted"></i>
         <span>Фильтр</span>
       </button>
       <button
-        class="flex items-center space-x-2 px-3 py-1.5 border border-brand-line rounded-lg text-xs font-medium hover:bg-brand-bg transition-colors"
+        class="flex items-center space-x-2 px-3 py-1.5 border border-brand-line rounded-lg text-xs font-medium text-brand-text hover:bg-brand-bg transition-colors"
       >
         <i class="fas fa-download text-brand-muted"></i>
         <span>Экспорт</span>
@@ -47,16 +47,15 @@
       <tbody class="divide-y divide-brand-line">
         <tr class="hover:bg-brand-bg/20 transition-colors">
           <td class="px-6 py-4 font-medium text-brand-text">A-101</td>
-          <td class="px-6 py-4">4.5</td>
-          <td class="px-6 py-4">Этаж -1</td>
+          <td class="px-6 py-4 text-brand-text">4.5</td>
+          <td class="px-6 py-4 text-brand-text">Этаж -1</td>
           <td class="px-6 py-4">
             <span
               class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-status-rented/10 text-status-rented border border-status-rented/20"
+              >АРЕНДА</span
             >
-              АРЕНДА
-            </span>
           </td>
-          <td class="px-6 py-4">
+          <td class="px-6 py-4 text-brand-text">
             <div class="flex items-center space-x-2">
               <div
                 class="w-6 h-6 rounded-full bg-brand-line flex items-center justify-center text-[10px] font-bold"
@@ -75,14 +74,13 @@
         </tr>
         <tr class="hover:bg-brand-bg/20 transition-colors">
           <td class="px-6 py-4 font-medium text-brand-text">A-102</td>
-          <td class="px-6 py-4">6.0</td>
-          <td class="px-6 py-4">Этаж -1</td>
+          <td class="px-6 py-4 text-brand-text">6.0</td>
+          <td class="px-6 py-4 text-brand-text">Этаж -1</td>
           <td class="px-6 py-4">
             <span
               class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-status-free/10 text-status-free border border-status-free/20"
+              >СВОБОДНО</span
             >
-              СВОБОДНО
-            </span>
           </td>
           <td class="px-6 py-4 text-brand-muted">—</td>
           <td class="px-6 py-4 text-brand-muted">—</td>
@@ -96,16 +94,15 @@
         </tr>
         <tr class="hover:bg-brand-bg/20 transition-colors">
           <td class="px-6 py-4 font-medium text-brand-text">A-103</td>
-          <td class="px-6 py-4">4.5</td>
-          <td class="px-6 py-4">Этаж -1</td>
+          <td class="px-6 py-4 text-brand-text">4.5</td>
+          <td class="px-6 py-4 text-brand-text">Этаж -1</td>
           <td class="px-6 py-4">
             <span
               class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-status-overdue/10 text-status-overdue border border-status-overdue/20"
+              >ПРОСРОЧКА</span
             >
-              ПРОСРОЧКА
-            </span>
           </td>
-          <td class="px-6 py-4">
+          <td class="px-6 py-4 text-brand-text">
             <div class="flex items-center space-x-2">
               <div
                 class="w-6 h-6 rounded-full bg-brand-line flex items-center justify-center text-[10px] font-bold"
@@ -126,34 +123,5 @@
         </tr>
       </tbody>
     </table>
-  </div>
-
-  <div
-    class="p-4 border-t border-brand-line flex items-center justify-between text-xs text-brand-muted bg-brand-surface"
-  >
-    <p>Показано 1-3 из 152 помещений</p>
-    <div class="flex space-x-2">
-      <button
-        class="w-8 h-8 flex items-center justify-center rounded border border-brand-line hover:bg-brand-bg transition-colors disabled:opacity-50"
-        disabled
-      >
-        <i class="fas fa-chevron-left"></i>
-      </button>
-      <button
-        class="w-8 h-8 flex items-center justify-center rounded border border-brand-line bg-brand-line text-brand-text font-bold"
-      >
-        1
-      </button>
-      <button
-        class="w-8 h-8 flex items-center justify-center rounded border border-brand-line hover:bg-brand-bg transition-colors"
-      >
-        2
-      </button>
-      <button
-        class="w-8 h-8 flex items-center justify-center rounded border border-brand-line hover:bg-brand-bg transition-colors"
-      >
-        <i class="fas fa-chevron-right"></i>
-      </button>
-    </div>
   </div>
 </div>

@@ -1,6 +1,25 @@
-/* You can add global styles to this file, and also import other style files */
-
 @import 'tailwindcss';
+
+@theme {
+  --color-brand-bg: #09090b;
+  --color-brand-surface: #0f1012;
+  --color-brand-elevated: #15171a;
+
+  --color-brand-line: #1f2328;
+  --color-brand-line-hover: #2b3036;
+
+  --color-brand-accent: #34d399;
+  --color-brand-accent-hover: #6ee7b7;
+
+  --color-brand-text: #f4f4f5;
+  --color-brand-muted: #8b919a;
+  --color-brand-subtle: #5f6670;
+
+  --color-status-free: #34d399;
+  --color-status-rented: #60a5fa;
+  --color-status-overdue: #f87171;
+  --color-status-locked: #fbbf24;
+}
 
 .nav-link::after {
   content: '';
