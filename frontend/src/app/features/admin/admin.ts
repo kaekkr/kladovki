@@ -1,8 +1,8 @@
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { AdminHeader } from './components/header/header';
-import { AdminSidebar } from './components/sidebar/sidebar';
-import { AdminFooter } from './components/footer/footer';
+import { AdminHeader } from './layout/header/header';
+import { AdminSidebar } from './layout/sidebar/sidebar';
+import { AdminFooter } from './layout/footer/footer';
 
 @Component({
   selector: 'app-admin',

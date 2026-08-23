@@ -1,3 +1,16 @@
-<app-admin-stats />
-<app-admin-chessboard />
-<app-admin-units-table />
+<div class="space-y-8">
+  <app-admin-stats class="block" />
+
+  <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+    <div class="xl:col-span-2">
+      <app-admin-revenue-chart />
+    </div>
+
+    <app-admin-attention />
+  </div>
+
+  <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+    <app-admin-recent-activity />
+    <app-admin-occupancy-summary />
+  </div>
+</div>

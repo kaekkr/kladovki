@@ -1,0 +1,82 @@
+<nav class="flex-1 overflow-y-auto px-3 py-4">
+  <div class="mb-7">
+    <p class="px-3 mb-2 text-[11px] font-medium text-brand-subtle">Основное</p>
+
+    <a
+      routerLink="/admin/dashboard"
+      routerLinkActive="bg-brand-elevated text-brand-text"
+      [routerLinkActiveOptions]="{ exact: true }"
+      class="group flex items-center gap-3 px-3 py-2 rounded-md text-[13px] text-brand-muted hover:text-brand-text hover:bg-brand-elevated transition-colors"
+    >
+      <i class="fas fa-chart-line w-4 text-center text-[12px]"></i>
+      <span>Обзор</span>
+    </a>
+
+    <a
+      routerLink="/admin/chessboard"
+      routerLinkActive="bg-brand-elevated text-brand-text"
+      class="group flex items-center gap-3 px-3 py-2 rounded-md text-[13px] text-brand-muted hover:text-brand-text hover:bg-brand-elevated transition-colors"
+    >
+      <i class="fas fa-th w-4 text-center text-[12px]"></i>
+      <span>Кладовые</span>
+    </a>
+
+    <a
+      href="#"
+      class="group flex items-center gap-3 px-3 py-2 rounded-md text-[13px] text-brand-muted hover:text-brand-text hover:bg-brand-elevated transition-colors"
+    >
+      <i class="fas fa-inbox w-4 text-center text-[12px]"></i>
+      <span>Заявки</span>
+
+      <span class="ml-auto text-[10px] text-brand-accent">7</span>
+    </a>
+  </div>
+
+  <div class="mb-7">
+    <p class="px-3 mb-2 text-[11px] font-medium text-brand-subtle">Финансы</p>
+
+    <a
+      href="#"
+      class="flex items-center gap-3 px-3 py-2 rounded-md text-[13px] text-brand-muted hover:text-brand-text hover:bg-brand-elevated transition-colors"
+    >
+      <i class="fas fa-wallet w-4 text-center text-[12px]"></i>
+      <span>Платежи</span>
+    </a>
+
+    <a
+      href="#"
+      class="flex items-center gap-3 px-3 py-2 rounded-md text-[13px] text-brand-muted hover:text-brand-text hover:bg-brand-elevated transition-colors"
+    >
+      <i class="fas fa-chart-pie w-4 text-center text-[12px]"></i>
+      <span>Начисления</span>
+    </a>
+
+    <a
+      href="#"
+      class="flex items-center gap-3 px-3 py-2 rounded-md text-[13px] text-brand-muted hover:text-brand-text hover:bg-brand-elevated transition-colors"
+    >
+      <i class="fas fa-circle-exclamation w-4 text-center text-[12px]"></i>
+      <span>Задолженности</span>
+    </a>
+  </div>
+
+  <div>
+    <p class="px-3 mb-2 text-[11px] font-medium text-brand-subtle">Система</p>
+
+    <a
+      href="#"
+      class="flex items-center gap-3 px-3 py-2 rounded-md text-[13px] text-brand-muted hover:text-brand-text hover:bg-brand-elevated transition-colors"
+    >
+      <i class="fas fa-file-lines w-4 text-center text-[12px]"></i>
+      <span>Документы</span>
+    </a>
+
+    <a
+      href="#"
+      class="flex items-center gap-3 px-3 py-2 rounded-md text-[13px] text-brand-muted hover:text-brand-text hover:bg-brand-elevated transition-colors"
+    >
+      <i class="fas fa-gear w-4 text-center text-[12px]"></i>
+      <span>Настройки</span>
+    </a>
+  </div>
+</nav>

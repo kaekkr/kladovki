@@ -1,0 +1,56 @@
+<div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex justify-end">
+  <div
+    class="w-full max-w-md bg-brand-surface border-l border-brand-line h-full p-6 flex flex-col justify-between shadow-2xl animate-in slide-in-from-right duration-200"
+  >
+    <div class="space-y-6">
+      <!-- Drawer Header -->
+      <div class="flex items-center justify-between border-b border-brand-line pb-4">
+        <div>
+          <h2 class="text-xl font-bold text-brand-text">Кладовка {{ unit().number }}</h2>
+          <p class="text-xs text-brand-muted">
+            Этаж: {{ unit().floor }} | Подъезд: {{ unit().entrance }}
+          </p>
+        </div>
+        <button (click)="close.emit()" class="text-brand-muted hover:text-brand-text text-lg">
+          ✕
+        </button>
+      </div>
+
+      <!-- Status & Specs -->
+      <div class="space-y-4">
+        <div
+          class="flex justify-between items-center bg-brand-bg p-3 rounded-lg border border-brand-line"
+        >
+          <span class="text-xs text-brand-muted">Текущий статус</span>
+          <span
+            [class]="getStatusBadgeClass(unit().status)"
+            class="text-xs font-semibold px-2.5 py-1 rounded-full border"
+          >
+            {{ getStatusName(unit().status) }}
+          </span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-brand-bg p-3 rounded-lg border border-brand-line">
+            <p class="text-[10px] text-brand-muted uppercase">Площадь</p>
+            <p class="text-base font-bold text-brand-text mt-1">{{ unit().area }} м²</p>
+          </div>
+          <div class="bg-brand-bg p-3 rounded-lg border border-brand-line">
+            <p class="text-[10px] text-brand-muted uppercase">Подъезд</p>
+            <p class="text-base font-bold text-brand-text mt-1">{{ unit().entrance }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer Actions -->
+    <div class="border-t border-brand-line pt-4 space-y-2">
+      <button
+        (click)="close.emit()"
+        class="w-full bg-brand-bg text-brand-text border border-brand-line py-2.5 rounded-lg hover:bg-brand-line/50 transition-colors text-sm font-medium"
+      >
+        Закрыть
+      </button>
+    </div>
+  </div>
+</div>

@@ -5,6 +5,7 @@ import "time"
 type RentalStatus string
 
 const (
+	RentalStatusLocked    RentalStatus = "locked"
 	RentalStatusActive    RentalStatus = "active"
 	RentalStatusExpired   RentalStatus = "expired"
 	RentalStatusCancelled RentalStatus = "cancelled"

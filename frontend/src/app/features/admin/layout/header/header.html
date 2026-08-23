@@ -1,0 +1,24 @@
+<header
+  class="h-16 shrink-0 border-b border-brand-line bg-brand-bg flex items-center justify-between px-6"
+>
+  <div class="flex items-center gap-3">
+    <div>
+      <p class="text-[13px] font-medium text-brand-text">
+        {{ currentJk()?.name ?? 'Загрузка...' }}
+      </p>
+
+      <p class="text-[11px] text-brand-subtle">Панель управления ОСИ</p>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-2">
+    <button
+      class="relative w-8 h-8 rounded-md text-brand-muted hover:text-brand-text hover:bg-brand-elevated transition-colors"
+      title="Уведомления"
+    >
+      <i class="fas fa-bell text-[13px]"></i>
+
+      <span class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-brand-accent"></span>
+    </button>
+  </div>
+</header>

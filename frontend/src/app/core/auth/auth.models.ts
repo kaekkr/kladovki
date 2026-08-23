@@ -12,3 +12,8 @@ export interface LoginPayload {
   phone?: string;
   password: string;
 }
+
+export interface LoginResponse extends User {
+  access_token: string;
+  token_type: string;
+}

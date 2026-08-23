@@ -1,25 +1,38 @@
 import { inject } from '@angular/core';
 import { Router, CanActivateFn, ActivatedRouteSnapshot } from '@angular/router';
 import { AuthService } from './auth.service';
+import { map, catchError, of } from 'rxjs';
 
 export const authGuard: CanActivateFn = (route: ActivatedRouteSnapshot) => {
   const auth = inject(AuthService);
   const router = inject(Router);
 
-  const user = auth.currentUser();
+  const checkRoleAndGrant = (userRole: string): boolean => {
+    const requiredRole = route.data['role'];
+    if (requiredRole && userRole !== requiredRole) {
+      router.navigate([userRole === 'admin' ? '/admin' : '/client']);
+      return false;
+    }
+    return true;
+  };
 
-  if (!user) {
-    router.navigate(['/login']);
-    return false;
+  const currentUser = auth.currentUser();
+
+  if (currentUser) {
+    return checkRoleAndGrant(currentUser.role);
   }
 
-  // Check if route requires a specific role (e.g. data: { role: 'admin' })
-  const requiredRole = route.data['role'];
-  if (requiredRole && user.role !== requiredRole) {
-    // Redirect residents attempting to access admin areas to their client portal
-    router.navigate([user.role === 'admin' ? '/admin' : '/client']);
-    return false;
-  }
-
-  return true;
+  return auth.getMe().pipe(
+    map((user) => {
+      if (!user) {
+        router.navigate(['/login']);
+        return false;
+      }
+      return checkRoleAndGrant(user.role);
+    }),
+    catchError(() => {
+      router.navigate(['/login']);
+      return of(false);
+    }),
+  );
 };

@@ -1,0 +1,98 @@
+<div class="h-full bg-brand-surface border border-brand-line rounded-lg overflow-hidden">
+  <!-- Header -->
+  <div class="px-5 py-4 border-b border-brand-line">
+    <h2 class="text-sm font-semibold text-brand-text">Загрузка кладовых</h2>
+
+    <p class="mt-0.5 text-xs text-brand-muted">Текущее состояние кладовых</p>
+  </div>
+
+  @if (loading()) {
+    <div class="p-5 animate-pulse">
+      <div class="w-full h-3 bg-brand-elevated rounded"></div>
+
+      <div class="grid grid-cols-3 gap-4 mt-6">
+        @for (item of [1, 2, 3]; track item) {
+          <div>
+            <div class="w-16 h-3 bg-brand-elevated rounded"></div>
+            <div class="mt-2 w-10 h-6 bg-brand-elevated rounded"></div>
+          </div>
+        }
+      </div>
+    </div>
+  } @else if (error()) {
+    <div class="p-8 text-center">
+      <p class="text-sm text-status-overdue">Не удалось загрузить данные.</p>
+    </div>
+  } @else if (occupancy(); as data) {
+    <div class="p-5">
+      <!-- Main percentage -->
+      <div class="flex items-end justify-between">
+        <div>
+          <p class="text-xs text-brand-muted">Занято</p>
+
+          <p class="mt-1 text-3xl font-semibold tracking-tight text-brand-text">
+            {{ occupiedPercent() }}%
+          </p>
+        </div>
+
+        <p class="text-sm text-brand-muted">{{ data.occupied }} из {{ data.total }}</p>
+      </div>
+
+      <!-- Progress -->
+      <div class="mt-5 h-2 bg-brand-bg rounded-full overflow-hidden">
+        <div
+          class="h-full bg-brand-accent rounded-full transition-all duration-500"
+          [style.width.%]="occupiedPercent()"
+        ></div>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-cols-3 gap-4 mt-6">
+        <!-- Free -->
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-brand-muted"></span>
+
+            <p class="text-xs text-brand-muted">Свободно</p>
+          </div>
+
+          <p class="mt-2 text-lg font-semibold text-brand-text">
+            {{ data.free }}
+          </p>
+
+          <p class="mt-0.5 text-xs text-brand-subtle">{{ freePercent() }}%</p>
+        </div>
+
+        <!-- Occupied -->
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-brand-accent"></span>
+
+            <p class="text-xs text-brand-muted">Занято</p>
+          </div>
+
+          <p class="mt-2 text-lg font-semibold text-brand-text">
+            {{ data.occupied }}
+          </p>
+
+          <p class="mt-0.5 text-xs text-brand-subtle">{{ occupiedPercent() }}%</p>
+        </div>
+
+        <!-- Locked -->
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-status-overdue"></span>
+
+            <p class="text-xs text-brand-muted">Заблокировано</p>
+          </div>
+
+          <p class="mt-2 text-lg font-semibold text-brand-text">
+            {{ data.locked }}
+          </p>
+
+          <p class="mt-0.5 text-xs text-brand-subtle">{{ lockedPercent() }}%</p>
+        </div>
+      </div>
+    </div>
+  }
+</div>
