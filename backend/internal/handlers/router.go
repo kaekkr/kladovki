@@ -40,5 +40,16 @@ func (h *Handler) Register(r *gin.Engine) {
 			storages.PUT("/:id", h.UpdateStorage)
 			storages.DELETE("/:id", h.DeleteStorage)
 		}
+
+		// === Rentals ===
+		rentals := api.Group("/rentals")
+		rentals.Use(h.mw.Require())
+		{
+			rentals.GET("/jk/:jk_id", h.ListRentalsByJK)
+			rentals.GET("/storage/:storage_id", h.GetActiveRentalByStorage)
+			rentals.PATCH("/:id/cancel", h.CancelRental)
+			rentals.PATCH("/:id/force-release", h.ForceReleaseLocked)
+			rentals.GET("/:id", h.GetRentalByID)
+		}
 	}
 }

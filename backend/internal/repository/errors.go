@@ -11,4 +11,8 @@ var (
 
 	// ErrStorageAlreadyLocked is returned when attempting to lock or rent a storage that is already locked or occupied.
 	ErrStorageAlreadyLocked = errors.New("storage is already locked or rented by another user")
+
+	ErrLocked = errors.New(
+		"rental lock has expired",
+	)
 )

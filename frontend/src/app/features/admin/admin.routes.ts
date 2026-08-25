@@ -15,8 +15,12 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./pages/dashboard/dashboard').then((m) => m.AdminDashboard),
       },
       {
-        path: 'chessboard',
-        loadComponent: () => import('./pages/chessboard/chessboard').then((m) => m.AdminChessboard),
+        path: 'storages',
+        loadComponent: () => import('./pages/storages/storages').then((m) => m.AdminStorages),
+      },
+      {
+        path: 'rentals',
+        loadComponent: () => import('./pages/rentals/rentals').then((m) => m.AdminRentals),
       },
     ],
   },
