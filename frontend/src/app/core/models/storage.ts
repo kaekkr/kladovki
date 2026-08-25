@@ -1,6 +1,6 @@
 export type StorageStatus = 'free' | 'occupied' | 'locked';
 
-export interface StorageUnit {
+export interface Storage {
   id: string;
   jk_id: string;
   number: string;
@@ -11,7 +11,7 @@ export interface StorageUnit {
   created_at: string;
 }
 
-export interface CreateStoragePayload {
+export interface CreateStorageRequest {
   jk_id?: string;
   number: string;
   area: number;
@@ -19,11 +19,10 @@ export interface CreateStoragePayload {
   entrance: number;
 }
 
-export interface BulkCreateStoragePayload {
-  jk_id: string;
-  startNum: number;
-  count: number;
+export interface UpdateStorageRequest {
+  number: string;
+  area: number;
   floor: number;
   entrance: number;
-  area: number;
+  status: StorageStatus;
 }

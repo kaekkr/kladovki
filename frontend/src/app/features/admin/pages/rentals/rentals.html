@@ -1,0 +1,167 @@
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="flex items-end justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight text-brand-text">Аренды</h1>
+
+      <p class="mt-1 text-sm text-brand-muted">Управление арендой кладовых вашего ЖК</p>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="flex flex-col gap-3 sm:flex-row">
+    <div class="flex-1">
+      <input
+        type="text"
+        placeholder="Поиск по аренде, кладовке или пользователю..."
+        [value]="search()"
+        (input)="setSearch($any($event.target).value)"
+        class="w-full px-3 py-2 bg-brand-surface border border-brand-line rounded-md text-sm text-brand-text placeholder:text-brand-muted outline-none focus:border-brand-accent"
+      />
+    </div>
+
+    <select
+      [value]="statusFilter()"
+      (change)="setStatusFilter($any($event.target).value)"
+      class="px-3 py-2 bg-brand-surface border border-brand-line rounded-md text-sm text-brand-text outline-none"
+    >
+      <option value="all">Все статусы</option>
+      <option value="active">Активные</option>
+      <option value="locked">Ожидают оплаты</option>
+      <option value="expired">Истекшие</option>
+      <option value="cancelled">Отменённые</option>
+    </select>
+  </div>
+
+  @if (actionError()) {
+    <div
+      class="px-4 py-3 rounded-lg border border-brand-line bg-brand-surface text-sm text-status-overdue"
+    >
+      {{ actionError() }}
+    </div>
+  }
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div class="bg-brand-surface border border-brand-line rounded-lg overflow-hidden">
+      <div class="h-12 animate-pulse border-b border-brand-line"></div>
+
+      @for (item of [1, 2, 3, 4, 5]; track item) {
+        <div class="h-14 animate-pulse border-b border-brand-line"></div>
+      }
+    </div>
+  }
+
+  <!-- Error -->
+  @else if (error()) {
+    <div
+      class="p-5 bg-brand-surface border border-brand-line rounded-lg text-sm text-status-overdue"
+    >
+      Не удалось загрузить список аренд.
+    </div>
+  }
+
+  <!-- Table -->
+  @else {
+    <div class="bg-brand-surface border border-brand-line rounded-lg overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-brand-line text-left">
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted">Кладовка</th>
+
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted">Пользователь</th>
+
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted">Срок</th>
+
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted">Цена / месяц</th>
+
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted">Период</th>
+
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted">Статус</th>
+
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted text-right">Действия</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            @for (rental of filteredRentals(); track rental.id) {
+              <tr
+                class="border-b border-brand-line last:border-b-0 hover:bg-brand-elevated/40 transition-colors"
+              >
+                <td class="px-5 py-4">
+                  <span class="font-medium text-brand-text"> № {{ rental.storage_number }} </span>
+                </td>
+
+                <td class="px-5 py-4">
+                  <div class="text-brand-text">
+                    {{ rental.user_name }}
+                  </div>
+
+                  <div class="mt-0.5 text-xs text-brand-muted">
+                    {{ rental.user_phone }}
+                  </div>
+                </td>
+
+                <td class="px-5 py-4 text-brand-muted">{{ rental.months }} мес.</td>
+
+                <td class="px-5 py-4">
+                  <div class="text-brand-text">
+                    {{ formatMoney(rental.price_per_month) }}
+                  </div>
+
+                  <div class="mt-0.5 text-xs text-brand-muted">
+                    {{ formatMoney(rental.total_paid) }} всего
+                  </div>
+                </td>
+
+                <td class="px-5 py-4 text-brand-muted whitespace-nowrap">
+                  {{ rental.starts_at | date: 'dd.MM.yy' }}
+                  —
+                  {{ rental.ends_at | date: 'dd.MM.yy' }}
+                </td>
+
+                <td class="px-5 py-4">
+                  <span
+                    class="inline-flex items-center px-2 py-1 rounded text-xs font-medium"
+                    [class.bg-brand-accent]="rental.status === 'active'"
+                    [class.text-brand-bg]="rental.status === 'active'"
+                    [class.bg-brand-elevated]="rental.status !== 'active'"
+                    [class.text-brand-muted]="rental.status !== 'active'"
+                  >
+                    {{ statusLabel(rental.status) }}
+                  </span>
+                </td>
+
+                <td class="px-5 py-4 text-right">
+                  <button
+                    type="button"
+                    (click)="openRental(rental)"
+                    class="text-xs text-brand-muted hover:text-brand-text transition-colors"
+                  >
+                    Открыть
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="7" class="px-5 py-12 text-center text-sm text-brand-muted">
+                  Аренды не найдены.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>
+
+@if (selectedRental(); as rental) {
+  <app-admin-rental-details
+    [rental]="rental"
+    (closed)="closeRental()"
+    (cancelled)="cancelRental($event)"
+    (forceReleased)="forceReleaseRental($event)"
+  />
+}

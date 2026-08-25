@@ -21,6 +21,7 @@ import (
 
 func main() {
 	cfg := config.Load()
+
 	if cfg.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -36,17 +37,37 @@ func main() {
 	svc := service.New(repo)
 
 	// 2. Auth & Middleware
-	tokens := service.NewTokenService(cfg.JWTSecret, cfg.JWTAccessTTL)
+	tokens := service.NewTokenService(
+		cfg.JWTSecret,
+		cfg.JWTAccessTTL,
+	)
+
 	mw := middleware.NewAuth(tokens, cfg)
 
 	// 3. Router & Handlers
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:4200"}, // Angular dev server address
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
+		AllowOrigins: []string{
+			"http://localhost:4200",
+		},
+		AllowMethods: []string{
+			"GET",
+			"POST",
+			"PUT",
+			"PATCH",
+			"DELETE",
+			"OPTIONS",
+		},
+		AllowHeaders: []string{
+			"Origin",
+			"Content-Type",
+			"Accept",
+			"Authorization",
+		},
+		ExposeHeaders: []string{
+			"Content-Length",
+		},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
@@ -54,34 +75,74 @@ func main() {
 	h := handlers.New(svc, tokens, cfg, mw)
 	h.Register(r)
 
-	// 4. HTTP Server Setup
+	// 4. HTTP Server
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,
 		Handler: r,
 	}
 
+	// 5. Background workers
+	workerCtx, workerCancel := context.WithCancel(
+		context.Background(),
+	)
+	defer workerCancel()
+
+	go svc.StartRentalWorker(workerCtx)
+
+	// 6. Routes
 	for _, route := range r.Routes() {
-		log.Printf("%-6s %s", route.Method, route.Path)
+		log.Printf(
+			"%-6s %s",
+			route.Method,
+			route.Path,
+		)
 	}
 
+	// 7. HTTP Server
 	go func() {
-		log.Printf("Server listening on http://localhost:%s (%s mode)", cfg.Port, cfg.Env)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen error: %s\n", err)
+		log.Printf(
+			"Server listening on http://localhost:%s (%s mode)",
+			cfg.Port,
+			cfg.Env,
+		)
+
+		if err := srv.ListenAndServe(); err != nil &&
+			err != http.ErrServerClosed {
+			log.Fatalf(
+				"listen error: %s\n",
+				err,
+			)
 		}
 	}()
 
-	// 5. Graceful Shutdown
+	// 8. Graceful Shutdown
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	signal.Notify(
+		quit,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+	)
+
 	<-quit
+
 	log.Println("Shutting down server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// Stop background workers.
+	workerCancel()
+
+	// Shutdown HTTP server.
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		5*time.Second,
+	)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("Server forced to shutdown:", err)
+		log.Fatal(
+			"Server forced to shutdown:",
+			err,
+		)
 	}
 
 	log.Println("Server exiting")
