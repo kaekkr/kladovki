@@ -50,6 +50,12 @@ func (a *Auth) Optional() gin.HandlerFunc {
 
 func (a *Auth) Require() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Bypass preflight checks
+		if c.Request.Method == http.MethodOptions {
+			c.Next()
+			return
+		}
+
 		tok := a.extractToken(c)
 		if tok == "" {
 			abortAuth(c)
@@ -65,7 +71,6 @@ func (a *Auth) Require() gin.HandlerFunc {
 	}
 }
 
-// RequireRole checks if the user's single role matches any of the allowed roles
 func (a *Auth) RequireRole(allowedRoles ...string) gin.HandlerFunc {
 	allowedSet := make(map[string]struct{}, len(allowedRoles))
 	for _, r := range allowedRoles {
@@ -73,6 +78,12 @@ func (a *Auth) RequireRole(allowedRoles ...string) gin.HandlerFunc {
 	}
 
 	return func(c *gin.Context) {
+		// Bypass preflight checks
+		if c.Request.Method == http.MethodOptions {
+			c.Next()
+			return
+		}
+
 		tok := a.extractToken(c)
 		if tok == "" {
 			abortAuth(c)
