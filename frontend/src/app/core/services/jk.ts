@@ -1,7 +1,8 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { tap, catchError, of } from 'rxjs';
-import { environment } from '../../../environments/environment.development';
+// import { environment } from '../../../environments/environment.development';
+import { environment } from '../../../environments/environment';
 import { JK } from '../models/jk';
 
 @Injectable({ providedIn: 'root' })

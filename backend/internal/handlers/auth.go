@@ -98,11 +98,41 @@ func (h *Handler) Logout(c *gin.Context) {
 
 func (h *Handler) setAuthCookie(c *gin.Context, token string, expires time.Time) {
 	maxAge := max(int(time.Until(expires).Seconds()), 0)
-	c.SetCookie(h.cfg.CookieName, token, maxAge, "/", "", h.cfg.CookieSecure, true)
+
+	// Cross-site subdomains require SameSite=None + Secure=true
+	if h.cfg.Env == "production" {
+		c.SetSameSite(http.SameSiteNoneMode)
+	} else {
+		c.SetSameSite(http.SameSiteLaxMode)
+	}
+
+	c.SetCookie(
+		h.cfg.CookieName,
+		token,
+		maxAge,
+		"/",
+		"",                 // Empty string binds the cookie to the backend host
+		h.cfg.CookieSecure, // Must be true in production for SameSite=None
+		true,               // HttpOnly = true
+	)
 }
 
 func (h *Handler) clearAuthCookie(c *gin.Context) {
-	c.SetCookie(h.cfg.CookieName, "", -1, "/", "", h.cfg.CookieSecure, true)
+	if h.cfg.Env == "production" {
+		c.SetSameSite(http.SameSiteNoneMode)
+	} else {
+		c.SetSameSite(http.SameSiteLaxMode)
+	}
+
+	c.SetCookie(
+		h.cfg.CookieName,
+		"",
+		-1,
+		"/",
+		"",
+		h.cfg.CookieSecure,
+		true,
+	)
 }
 
 func (h *Handler) issueToken(c *gin.Context, u *models.User) (string, error) {
@@ -111,6 +141,7 @@ func (h *Handler) issueToken(c *gin.Context, u *models.User) (string, error) {
 		jkID = *u.JKID
 	}
 
+	// Pass u.Role directly as a string
 	token, exp, err := h.tokens.Generate(u.ID, string(u.Role), jkID, u.Email)
 	if err != nil {
 		return "", err

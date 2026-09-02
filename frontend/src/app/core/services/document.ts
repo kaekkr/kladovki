@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { map } from 'rxjs/operators';
 import { RentalService } from './rental';
 import { Rental } from '../models/rental';
-import { AdminDocument, DocumentType } from '../models/document';
+import { AdminDocument } from '../models/document';
 
 @Injectable({ providedIn: 'root' })
 export class DocumentService {
