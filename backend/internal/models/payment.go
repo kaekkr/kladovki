@@ -19,3 +19,9 @@ type Payment struct {
 	Status    PaymentStatus `json:"status"`
 	CreatedAt time.Time     `json:"created_at"`
 }
+
+type PaymentResponse struct {
+	Payment
+	UserName      string `json:"user_name"`
+	StorageNumber string `json:"storage_number"`
+}

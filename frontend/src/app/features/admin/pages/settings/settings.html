@@ -1,0 +1,151 @@
+<div class="space-y-6 max-w-2xl">
+  <!-- Header -->
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight text-brand-text">Настройки</h1>
+    <p class="mt-1 text-sm text-brand-muted">Параметры ЖК, тариф и аренда</p>
+  </div>
+
+  @if (loading()) {
+    <div class="space-y-4">
+      <div class="h-32 animate-pulse rounded-lg border border-brand-line bg-brand-surface"></div>
+      <div class="h-32 animate-pulse rounded-lg border border-brand-line bg-brand-surface"></div>
+    </div>
+  } @else if (error()) {
+    <div
+      class="p-5 bg-brand-surface border border-brand-line rounded-lg text-sm text-status-overdue"
+    >
+      Не удалось загрузить настройки.
+    </div>
+  } @else {
+    <!-- Feedback -->
+    @if (saveMessage()) {
+      <div
+        class="px-4 py-3 rounded-lg border border-brand-line bg-brand-surface text-sm text-brand-text"
+      >
+        {{ saveMessage() }}
+      </div>
+    }
+    @if (saveError()) {
+      <div
+        class="px-4 py-3 rounded-lg border border-brand-line bg-brand-surface text-sm text-status-overdue"
+      >
+        {{ saveError() }}
+      </div>
+    }
+
+    <!-- ЖК -->
+    <section class="rounded-lg border border-brand-line bg-brand-surface overflow-hidden">
+      <div class="px-5 py-4 border-b border-brand-line">
+        <h2 class="text-sm font-medium text-brand-text">Жилой комплекс</h2>
+        <p class="mt-0.5 text-xs text-brand-muted">Основные данные вашего ЖК</p>
+      </div>
+      <div class="px-5 py-4 space-y-4">
+        <div>
+          <label class="block text-xs text-brand-muted mb-1.5">Название</label>
+          <input
+            type="text"
+            [ngModel]="jkName()"
+            (ngModelChange)="jkName.set($event)"
+            class="w-full px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent"
+          />
+        </div>
+        <div>
+          <label class="block text-xs text-brand-muted mb-1.5">Адрес</label>
+          <input
+            type="text"
+            [ngModel]="jkAddress()"
+            (ngModelChange)="jkAddress.set($event)"
+            placeholder="Не указан"
+            class="w-full px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-sm text-brand-text placeholder:text-brand-muted outline-none focus:border-brand-accent"
+          />
+        </div>
+      </div>
+    </section>
+
+    <!-- Тариф -->
+    <section class="rounded-lg border border-brand-line bg-brand-surface overflow-hidden">
+      <div class="px-5 py-4 border-b border-brand-line">
+        <h2 class="text-sm font-medium text-brand-text">Тариф</h2>
+        <p class="mt-0.5 text-xs text-brand-muted">
+          Цена за м² в месяц. Цена кладовки = площадь × тариф
+        </p>
+      </div>
+      <div class="px-5 py-4 space-y-4">
+        <div>
+          <label class="block text-xs text-brand-muted mb-1.5">Тариф, ₸ / м² / мес.</label>
+          <input
+            type="number"
+            min="0"
+            step="100"
+            [ngModel]="tariffAmount()"
+            (ngModelChange)="tariffAmount.set(+$event)"
+            class="w-full max-w-xs px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent"
+          />
+        </div>
+        <p class="text-xs text-brand-muted">
+          Пример: кладовка 3.5 м² →
+          <span class="text-brand-text font-medium">
+            {{ formatMoney(Math.round(3.5 * tariffAmount())) }}
+          </span>
+          / мес.
+        </p>
+      </div>
+    </section>
+
+    <!-- Аренда -->
+    <section class="rounded-lg border border-brand-line bg-brand-surface overflow-hidden">
+      <div class="px-5 py-4 border-b border-brand-line">
+        <h2 class="text-sm font-medium text-brand-text">Аренда</h2>
+        <p class="mt-0.5 text-xs text-brand-muted">Параметры бронирования и оплаты</p>
+      </div>
+      <div class="px-5 py-4 space-y-4">
+        <div>
+          <label class="block text-xs text-brand-muted mb-1.5">
+            Время блокировки кладовки (минуты)
+          </label>
+          <input
+            type="number"
+            min="1"
+            max="60"
+            [ngModel]="lockMinutes()"
+            (ngModelChange)="lockMinutes.set(+$event)"
+            class="w-full max-w-xs px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent"
+          />
+          <p class="mt-1.5 text-xs text-brand-muted">
+            Сколько минут кладовка остаётся зарезервированной до оплаты
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Аккаунт -->
+    <section class="rounded-lg border border-brand-line bg-brand-surface overflow-hidden">
+      <div class="px-5 py-4 border-b border-brand-line">
+        <h2 class="text-sm font-medium text-brand-text">Аккаунт</h2>
+        <p class="mt-0.5 text-xs text-brand-muted">Текущий администратор</p>
+      </div>
+      <div class="px-5 py-4 space-y-3">
+        <div class="flex justify-between text-sm">
+          <span class="text-brand-muted">Имя</span>
+          <span class="text-brand-text">{{ userName() }}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+          <span class="text-brand-muted">Телефон</span>
+          <span class="text-brand-text">{{ userPhone() }}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Save -->
+    <div class="flex items-center gap-3">
+      <button
+        type="button"
+        (click)="save()"
+        [disabled]="saving()"
+        class="px-4 py-2.5 rounded-md bg-brand-accent text-brand-bg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+      >
+        {{ saving() ? 'Сохранение…' : 'Сохранить' }}
+      </button>
+    </div>
+  }
+</div>
