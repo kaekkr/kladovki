@@ -1,0 +1,127 @@
+<div class="space-y-6">
+  <!-- Header & Stats -->
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight text-brand-text">Платежи</h1>
+      <p class="mt-1 text-sm text-brand-muted">Финансовая история вашего ЖК</p>
+    </div>
+
+    <div
+      class="bg-brand-surface border border-brand-line p-4 rounded-lg flex items-center gap-4 min-w-[240px]"
+    >
+      <div
+        class="w-10 h-10 rounded-full bg-brand-accent/10 flex items-center justify-center text-brand-accent"
+      >
+        <i class="fas fa-wallet text-lg"></i>
+      </div>
+      <div>
+        <p class="text-[10px] uppercase tracking-wider text-brand-muted font-bold">Общая выручка</p>
+        <p class="text-xl font-bold text-brand-text">{{ formatMoney(totalRevenue()) }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="flex flex-col gap-3 sm:flex-row">
+    <div class="flex-1">
+      <input
+        type="text"
+        placeholder="Поиск по жильцу или номеру кладовки..."
+        [value]="search()"
+        (input)="search.set($any($event.target).value)"
+        class="w-full px-3 py-2 bg-brand-surface border border-brand-line rounded-md text-sm text-brand-text placeholder:text-brand-muted outline-none focus:border-brand-accent"
+      />
+    </div>
+
+    <select
+      [value]="statusFilter()"
+      (change)="statusFilter.set($any($event.target).value)"
+      class="px-3 py-2 bg-brand-surface border border-brand-line rounded-md text-sm text-brand-text outline-none"
+    >
+      <option value="all">Все статусы</option>
+      <option value="success">Оплачено</option>
+      <option value="pending">В обработке</option>
+      <option value="failed">Ошибка</option>
+    </select>
+  </div>
+
+  @if (loading()) {
+    <div class="bg-brand-surface border border-brand-line rounded-lg animate-pulse h-64"></div>
+  } @else if (error()) {
+    <div
+      class="p-5 bg-brand-surface border border-brand-line rounded-lg text-sm text-status-overdue"
+    >
+      Не удалось загрузить историю платежей.
+    </div>
+  } @else {
+    <div class="bg-brand-surface border border-brand-line rounded-lg overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-brand-line text-left">
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted uppercase">Дата</th>
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted uppercase">Жилец</th>
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted uppercase">Кладовка</th>
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted uppercase">Сумма</th>
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted uppercase">Провайдер</th>
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted uppercase text-right">
+                Статус
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            @for (payment of filteredPayments(); track payment.id) {
+              <tr
+                class="border-b border-brand-line last:border-b-0 hover:bg-brand-elevated/40 transition-colors"
+              >
+                <td class="px-5 py-4 text-brand-muted">
+                  {{ payment.created_at | date: 'dd.MM.yy HH:mm' }}
+                </td>
+
+                <td class="px-5 py-4 font-medium text-brand-text">
+                  {{ payment.user_name }}
+                </td>
+
+                <td class="px-5 py-4 text-brand-text">№{{ payment.storage_number }}</td>
+
+                <td class="px-5 py-4 font-bold text-brand-text">
+                  {{ formatMoney(payment.amount) }}
+                </td>
+
+                <td class="px-5 py-4">
+                  <span class="inline-flex items-center gap-1.5 text-brand-muted italic">
+                    @if (payment.provider === 'kaspi') {
+                      <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                    }
+                    {{ payment.provider | uppercase }}
+                  </span>
+                </td>
+
+                <td class="px-5 py-4 text-right">
+                  <span
+                    class="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold uppercase tracking-tighter"
+                    [class.bg-green-500/10]="payment.status === 'success'"
+                    [class.text-green-600]="payment.status === 'success'"
+                    [class.bg-yellow-500/10]="payment.status === 'pending'"
+                    [class.text-yellow-600]="payment.status === 'pending'"
+                    [class.bg-red-500/10]="payment.status === 'failed'"
+                    [class.text-red-600]="payment.status === 'failed'"
+                  >
+                    {{ statusLabel(payment.status) }}
+                  </span>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="6" class="px-5 py-12 text-center text-brand-muted">
+                  Платежей не найдено.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>

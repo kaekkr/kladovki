@@ -51,5 +51,11 @@ func (h *Handler) Register(r *gin.Engine) {
 			rentals.PATCH("/:id/force-release", h.ForceReleaseLocked)
 			rentals.GET("/:id", h.GetRentalByID)
 		}
+
+		payments := api.Group("/payments")
+		payments.Use(h.mw.Require())
+		{
+			payments.GET("/jk/:jk_id", h.ListPaymentsByJK)
+		}
 	}
 }

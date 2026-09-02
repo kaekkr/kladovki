@@ -92,6 +92,41 @@ func (r *Repo) ListPaymentsByRentalID(ctx context.Context, rentalID string) ([]*
 	return payments, nil
 }
 
+func (r *Repo) ListPaymentsByJK(ctx context.Context, jkID string) ([]*models.PaymentResponse, error) {
+	query := `
+		SELECT 
+			p.id, p.rental_id, p.user_id, p.amount, p.provider, p.status, p.created_at,
+			u.full_name,
+			s.number
+		FROM payments p
+		JOIN users u ON p.user_id = u.id
+		JOIN rentals r ON p.rental_id = r.id
+		JOIN storages s ON r.storage_id = s.id
+		WHERE s.jk_id = $1
+		ORDER BY p.created_at DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, jkID)
+	if err != nil {
+		return nil, fmt.Errorf("repository.ListPaymentsByJK: %w", err)
+	}
+	defer rows.Close()
+
+	var payments []*models.PaymentResponse
+	for rows.Next() {
+		p := &models.PaymentResponse{}
+		err := rows.Scan(
+			&p.ID, &p.RentalID, &p.UserID, &p.Amount, &p.Provider, &p.Status, &p.CreatedAt,
+			&p.UserName, &p.StorageNumber,
+		)
+		if err != nil {
+			return nil, err
+		}
+		payments = append(payments, p)
+	}
+	return payments, nil
+}
+
 func (r *Repo) scanPayment(s rowScanner) (*models.Payment, error) {
 	var p models.Payment
 

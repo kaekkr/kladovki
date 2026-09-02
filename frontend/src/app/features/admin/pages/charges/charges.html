@@ -1,0 +1,155 @@
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="flex items-end justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight text-brand-text">Начисления</h1>
+      <p class="mt-1 text-sm text-brand-muted">Начисленные суммы по арендам вашего ЖК</p>
+    </div>
+  </div>
+
+  <!-- Summary cards -->
+  @if (!loading() && !error()) {
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div class="rounded-lg border border-brand-line bg-brand-surface px-4 py-3">
+        <p class="text-xs text-brand-muted">Начислено</p>
+        <p class="mt-1 text-lg font-semibold text-brand-text">
+          {{ formatMoney(totals().accrued) }}
+        </p>
+      </div>
+      <div class="rounded-lg border border-brand-line bg-brand-surface px-4 py-3">
+        <p class="text-xs text-brand-muted">Оплачено</p>
+        <p class="mt-1 text-lg font-semibold text-brand-text">
+          {{ formatMoney(totals().paid) }}
+        </p>
+      </div>
+      <div class="rounded-lg border border-brand-line bg-brand-surface px-4 py-3">
+        <p class="text-xs text-brand-muted">Остаток</p>
+        <p
+          class="mt-1 text-lg font-semibold"
+          [class.text-status-overdue]="totals().balance > 0"
+          [class.text-brand-text]="totals().balance <= 0"
+        >
+          {{ formatMoney(totals().balance) }}
+        </p>
+      </div>
+    </div>
+  }
+
+  <!-- Filters -->
+  <div class="flex flex-col gap-3 sm:flex-row">
+    <div class="flex-1">
+      <input
+        type="text"
+        placeholder="Поиск по кладовке или арендатору..."
+        [value]="search()"
+        (input)="setSearch($any($event.target).value)"
+        class="w-full px-3 py-2 bg-brand-surface border border-brand-line rounded-md text-sm text-brand-text placeholder:text-brand-muted outline-none focus:border-brand-accent"
+      />
+    </div>
+    <select
+      [value]="statusFilter()"
+      (change)="setStatusFilter($any($event.target).value)"
+      class="px-3 py-2 bg-brand-surface border border-brand-line rounded-md text-sm text-brand-text outline-none"
+    >
+      <option value="all">Все статусы</option>
+      <option value="paid">Оплачено</option>
+      <option value="partial">Частично</option>
+      <option value="pending">Ожидает</option>
+      <option value="overdue">Просрочено</option>
+    </select>
+  </div>
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div class="bg-brand-surface border border-brand-line rounded-lg overflow-hidden">
+      <div class="h-12 animate-pulse border-b border-brand-line"></div>
+      @for (item of [1, 2, 3, 4, 5]; track item) {
+        <div class="h-14 animate-pulse border-b border-brand-line"></div>
+      }
+    </div>
+  }
+
+  <!-- Error -->
+  @else if (error()) {
+    <div
+      class="p-5 bg-brand-surface border border-brand-line rounded-lg text-sm text-status-overdue"
+    >
+      Не удалось загрузить начисления.
+    </div>
+  }
+
+  <!-- Table -->
+  @else {
+    <div class="bg-brand-surface border border-brand-line rounded-lg overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-brand-line text-left">
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted">Кладовка</th>
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted">Арендатор</th>
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted">Период</th>
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted">Срок</th>
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted">Начислено</th>
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted">Оплачено</th>
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted">Остаток</th>
+              <th class="px-5 py-3 text-xs font-medium text-brand-muted">Статус</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (charge of filteredCharges(); track charge.id) {
+              <tr
+                class="border-b border-brand-line last:border-b-0 hover:bg-brand-elevated/40 transition-colors"
+              >
+                <td class="px-5 py-4">
+                  <span class="font-medium text-brand-text">№ {{ charge.storage_number }}</span>
+                </td>
+                <td class="px-5 py-4">
+                  <div class="text-brand-text">{{ charge.user_name }}</div>
+                  <div class="mt-0.5 text-xs text-brand-muted">{{ charge.user_phone }}</div>
+                </td>
+                <td class="px-5 py-4 text-brand-muted whitespace-nowrap">
+                  {{ charge.starts_at | date: 'dd.MM.yy' }}
+                  —
+                  {{ charge.ends_at | date: 'dd.MM.yy' }}
+                </td>
+                <td class="px-5 py-4 text-brand-muted">{{ charge.months }} мес.</td>
+                <td class="px-5 py-4 text-brand-text">
+                  {{ formatMoney(charge.accrued) }}
+                </td>
+                <td class="px-5 py-4 text-brand-text">
+                  {{ formatMoney(charge.paid) }}
+                </td>
+                <td class="px-5 py-4">
+                  <span
+                    [class.text-status-overdue]="charge.balance > 0"
+                    [class.text-brand-text]="charge.balance <= 0"
+                  >
+                    {{ formatMoney(charge.balance) }}
+                  </span>
+                </td>
+                <td class="px-5 py-4">
+                  <span
+                    class="inline-flex items-center px-2 py-1 rounded text-xs font-medium"
+                    [class.bg-brand-accent]="charge.status === 'paid'"
+                    [class.text-brand-bg]="charge.status === 'paid'"
+                    [class.bg-brand-elevated]="charge.status !== 'paid'"
+                    [class.text-brand-muted]="charge.status !== 'paid'"
+                    [class.text-status-overdue]="charge.status === 'overdue'"
+                  >
+                    {{ statusLabel(charge.status) }}
+                  </span>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="8" class="px-5 py-12 text-center text-sm text-brand-muted">
+                  Начисления не найдены.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>

@@ -22,6 +22,26 @@ export const ADMIN_ROUTES: Routes = [
         path: 'rentals',
         loadComponent: () => import('./pages/rentals/rentals').then((m) => m.AdminRentals),
       },
+      {
+        path: 'payments',
+        loadComponent: () => import('./pages/payments/payments').then((m) => m.AdminPayments),
+      },
+      {
+        path: 'charges',
+        loadComponent: () => import('./pages/charges/charges').then((m) => m.AdminCharges),
+      },
+      {
+        path: 'debts',
+        loadComponent: () => import('./pages/debts/debts').then((m) => m.AdminDebts),
+      },
+      {
+        path: 'documents',
+        loadComponent: () => import('./pages/documents/documents').then((m) => m.AdminDocuments),
+      },
+      {
+        path: 'settings',
+        loadComponent: () => import('./pages/settings/settings').then((m) => m.AdminSettingsPage),
+      },
     ],
   },
 ];
