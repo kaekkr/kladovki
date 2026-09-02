@@ -50,6 +50,7 @@ func main() {
 	r.Use(cors.New(cors.Config{
 		AllowOrigins: []string{
 			"http://localhost:4200",
+			"https://kladovki-frontend.onrender.com",
 		},
 		AllowMethods: []string{
 			"GET",
