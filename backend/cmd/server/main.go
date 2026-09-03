@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -62,6 +63,26 @@ func main() {
 
 	h := handlers.New(svc, tokens, cfg, mw)
 	h.Register(r)
+
+	staticPath := "./frontend/dist/browser"
+
+	r.NoRoute(func(c *gin.Context) {
+		// Pass through API 404s cleanly
+		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "route not found"})
+			return
+		}
+
+		// Check if requested file exists (js, css, images, etc.)
+		filePath := filepath.Join(staticPath, filepath.Clean(c.Request.URL.Path))
+		if _, err := os.Stat(filePath); err == nil {
+			c.File(filePath)
+			return
+		}
+
+		// Fallback to index.html for Single Page Application (SPA) client-side routing
+		c.File(filepath.Join(staticPath, "index.html"))
+	})
 
 	// 4. HTTP Server
 	srv := &http.Server{

@@ -99,20 +99,16 @@ func (h *Handler) Logout(c *gin.Context) {
 func (h *Handler) setAuthCookie(c *gin.Context, token string, expires time.Time) {
 	maxAge := max(int(time.Until(expires).Seconds()), 0)
 
-	// Cross-site subdomains require SameSite=None + Secure=true
-	if h.cfg.Env == "production" {
-		c.SetSameSite(http.SameSiteNoneMode)
-	} else {
-		c.SetSameSite(http.SameSiteLaxMode)
-	}
+	// Standard Lax mode works perfectly for same-origin requests
+	c.SetSameSite(http.SameSiteLaxMode)
 
 	c.SetCookie(
 		h.cfg.CookieName,
 		token,
 		maxAge,
 		"/",
-		"",                 // Empty string binds the cookie to the backend host
-		h.cfg.CookieSecure, // Must be true in production for SameSite=None
+		"",                 // Empty string defaults to host
+		h.cfg.CookieSecure, // true on HTTPS in prod
 		true,               // HttpOnly = true
 	)
 }
