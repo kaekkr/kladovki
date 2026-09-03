@@ -64,7 +64,7 @@ func main() {
 	h := handlers.New(svc, tokens, cfg, mw)
 	h.Register(r)
 
-	staticPath := "./frontend/dist/browser"
+	staticPath := "./frontend/dist/frontend/browser"
 
 	r.NoRoute(func(c *gin.Context) {
 		// Pass through API 404s cleanly
