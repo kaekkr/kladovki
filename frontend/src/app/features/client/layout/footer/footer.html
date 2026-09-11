@@ -1,0 +1,31 @@
+<footer class="pointer-events-none fixed inset-x-0 bottom-0 z-40 pb-4 pt-2">
+  <nav
+    class="pointer-events-auto mx-auto flex h-14 max-w-[22rem] items-stretch justify-between rounded-2xl border border-brand-line bg-brand-surface/90 px-2 shadow-lg shadow-black/20 backdrop-blur-md"
+  >
+    <a
+      routerLink="/app"
+      routerLinkActive="text-brand-accent"
+      [routerLinkActiveOptions]="{ exact: true }"
+      class="flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] text-brand-muted transition-colors"
+    >
+      <i class="fas fa-house text-[13px]"></i>
+      <span>Главная</span>
+    </a>
+    <a
+      routerLink="/app/storages"
+      routerLinkActive="text-brand-accent"
+      class="flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] text-brand-muted transition-colors"
+    >
+      <i class="fas fa-th text-[13px]"></i>
+      <span>Кладовые</span>
+    </a>
+    <a
+      routerLink="/app/rentals"
+      routerLinkActive="text-brand-accent"
+      class="flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] text-brand-muted transition-colors"
+    >
+      <i class="fas fa-file-contract text-[13px]"></i>
+      <span>Аренды</span>
+    </a>
+  </nav>
+</footer>
