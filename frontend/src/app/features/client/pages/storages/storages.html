@@ -1,0 +1,276 @@
+<div class="space-y-5">
+  <!-- Header -->
+  <section class="rounded-3xl border border-brand-line bg-brand-surface px-5 py-5">
+    <div class="flex items-center justify-between gap-4">
+      <div class="min-w-0">
+        <p class="text-[10px] font-medium uppercase tracking-[0.14em] text-brand-subtle">Ваш ЖК</p>
+
+        <h1 class="mt-1 text-[24px] font-semibold tracking-[-0.035em] text-brand-text">Кладовки</h1>
+
+        @if (!loading()) {
+          <p class="mt-1.5 text-[11px] text-brand-muted">
+            {{ freeCount() }} свободных из {{ storages().length }}
+          </p>
+        }
+      </div>
+
+      <div
+        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-elevated"
+      >
+        <i class="fas fa-box text-xs text-brand-accent"></i>
+      </div>
+    </div>
+  </section>
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div class="space-y-5">
+      <div class="flex gap-2">
+        <div class="h-9 flex-1 animate-pulse rounded-xl bg-brand-surface"></div>
+        <div class="h-9 flex-1 animate-pulse rounded-xl bg-brand-surface"></div>
+      </div>
+
+      <section class="space-y-3">
+        <div class="h-4 w-24 animate-pulse rounded bg-brand-surface"></div>
+
+        <div class="grid grid-cols-2 gap-3">
+          @for (item of [1, 2, 3, 4]; track item) {
+            <div
+              class="h-40 animate-pulse rounded-2xl border border-brand-line bg-brand-surface"
+            ></div>
+          }
+        </div>
+      </section>
+    </div>
+  }
+
+  <!-- Error -->
+  @else if (error()) {
+    <section class="rounded-3xl border border-brand-line bg-brand-surface p-6 text-center">
+      <div
+        class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-elevated text-brand-muted"
+      >
+        <i class="fas fa-triangle-exclamation"></i>
+      </div>
+
+      <h2 class="mt-4 text-base font-semibold text-brand-text">Не удалось загрузить кладовки</h2>
+
+      <p class="mx-auto mt-1 max-w-xs text-xs leading-5 text-brand-muted">
+        Попробуйте обновить страницу немного позже.
+      </p>
+    </section>
+  }
+
+  <!-- Content -->
+  @else {
+    <!-- Filters -->
+    <section>
+      <div class="flex rounded-2xl border border-brand-line bg-brand-surface p-1">
+        <button
+          type="button"
+          (click)="setFilter('all')"
+          class="flex h-9 flex-1 items-center justify-center gap-2 rounded-xl text-[11px] font-medium transition-colors"
+          [class.bg-brand-elevated]="filter() === 'all'"
+          [class.text-brand-text]="filter() === 'all'"
+          [class.text-brand-muted]="filter() !== 'all'"
+        >
+          Все
+          <span
+            class="rounded-full px-1.5 py-0.5 text-[9px]"
+            [class.bg-brand-accent]="filter() === 'all'"
+            [class.text-brand-bg]="filter() === 'all'"
+            [class.bg-brand-elevated]="filter() !== 'all'"
+          >
+            {{ storages().length }}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          (click)="setFilter('free')"
+          class="flex h-9 flex-1 items-center justify-center gap-2 rounded-xl text-[11px] font-medium transition-colors"
+          [class.bg-brand-elevated]="filter() === 'free'"
+          [class.text-brand-text]="filter() === 'free'"
+          [class.text-brand-muted]="filter() !== 'free'"
+        >
+          Свободные
+          <span
+            class="rounded-full px-1.5 py-0.5 text-[9px]"
+            [class.bg-brand-accent]="filter() === 'free'"
+            [class.text-brand-bg]="filter() === 'free'"
+            [class.bg-brand-elevated]="filter() !== 'free'"
+          >
+            {{ freeCount() }}
+          </span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Empty -->
+    @if (!filteredStorages().length) {
+      <section class="rounded-3xl border border-brand-line bg-brand-surface p-6 text-center">
+        <div
+          class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-elevated text-brand-muted"
+        >
+          <i class="fas fa-box-open"></i>
+        </div>
+
+        @if (filter() === 'free') {
+          <h2 class="mt-4 text-base font-semibold text-brand-text">Свободных кладовок нет</h2>
+
+          <p class="mx-auto mt-1 max-w-xs text-xs leading-5 text-brand-muted">
+            Сейчас все кладовки заняты или находятся в процессе оформления.
+          </p>
+
+          <button
+            type="button"
+            (click)="setFilter('all')"
+            class="mt-5 inline-flex h-10 w-full items-center justify-center rounded-xl border border-brand-line bg-brand-elevated text-xs font-semibold text-brand-text"
+          >
+            Показать все
+          </button>
+        } @else {
+          <h2 class="mt-4 text-base font-semibold text-brand-text">Кладовок пока нет</h2>
+
+          <p class="mx-auto mt-1 max-w-xs text-xs leading-5 text-brand-muted">
+            Информация о кладовках для вашего ЖК пока недоступна.
+          </p>
+        }
+      </section>
+    }
+
+    <!-- Floor groups -->
+    @for (group of floors(); track group.floor) {
+      <section>
+        <div class="mb-3 flex items-center justify-between px-1">
+          <div>
+            <h2 class="text-sm font-semibold text-brand-text">
+              {{ floorLabel(group.floor) }}
+            </h2>
+
+            <p class="mt-0.5 text-[10px] text-brand-muted">
+              {{ group.storages.length }}
+              {{
+                group.storages.length === 1
+                  ? 'кладовка'
+                  : group.storages.length < 5
+                    ? 'кладовки'
+                    : 'кладовок'
+              }}
+            </p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          @for (storage of group.storages; track storage.id) {
+            <a
+              [routerLink]="['/app/storages', storage.id]"
+              class="group relative overflow-hidden rounded-2xl border border-brand-line bg-brand-surface p-4 transition-all active:scale-[0.98]"
+              [class.hover:bg-brand-elevated]="storage.status === 'free'"
+            >
+              <!-- Accent glow for free storage -->
+              @if (storage.status === 'free') {
+                <div
+                  class="pointer-events-none absolute -right-8 -top-8 h-20 w-20 rounded-full bg-brand-accent/10 blur-2xl"
+                ></div>
+              }
+
+              <div class="relative">
+                <!-- Number + status -->
+                <div class="flex items-start justify-between gap-2">
+                  <div>
+                    <p class="text-[9px] font-medium uppercase tracking-[0.12em] text-brand-subtle">
+                      Кладовка
+                    </p>
+
+                    <h3 class="mt-1 text-xl font-semibold tracking-tight text-brand-text">
+                      №{{ storage.number }}
+                    </h3>
+                  </div>
+
+                  @if (storage.status === 'free') {
+                    <span
+                      class="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-brand-accent"
+                      title="Свободна"
+                    ></span>
+                  } @else if (storage.status === 'locked') {
+                    <span
+                      class="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-status-locked"
+                      title="Забронирована"
+                    ></span>
+                  } @else {
+                    <span
+                      class="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-brand-muted/40"
+                      title="Занята"
+                    ></span>
+                  }
+                </div>
+
+                <!-- Area -->
+                <div class="mt-6">
+                  <p class="text-[10px] text-brand-subtle">Площадь</p>
+
+                  <p class="mt-1 text-sm font-medium text-brand-text">{{ storage.area }} м²</p>
+                </div>
+
+                <!-- Price -->
+                <div class="mt-4 border-t border-brand-line pt-3">
+                  @if (tariff() > 0) {
+                    <p class="text-sm font-semibold text-brand-text">
+                      {{ formatMoney(pricePerMonth(storage)) }}
+                    </p>
+
+                    <p class="mt-0.5 text-[9px] text-brand-muted">в месяц</p>
+                  } @else {
+                    <p class="text-[10px] text-brand-muted">Стоимость уточняется</p>
+                  }
+                </div>
+
+                <!-- Status -->
+                <div class="mt-3 flex items-center justify-between">
+                  <span
+                    class="text-[9px] font-medium"
+                    [class.text-brand-accent]="storage.status === 'free'"
+                    [class.text-status-locked]="storage.status === 'locked'"
+                    [class.text-brand-muted]="storage.status === 'occupied'"
+                  >
+                    {{ statusLabel(storage.status) }}
+                  </span>
+
+                  @if (storage.status === 'free') {
+                    <i
+                      class="fas fa-arrow-right text-[9px] text-brand-accent transition-transform group-hover:translate-x-0.5"
+                    ></i>
+                  } @else {
+                    <i class="fas fa-chevron-right text-[8px] text-brand-subtle"></i>
+                  }
+                </div>
+              </div>
+            </a>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- Bottom info -->
+    @if (storages().length) {
+      <section class="rounded-2xl border border-brand-line bg-brand-surface px-4 py-3.5">
+        <div class="flex items-center gap-3">
+          <div
+            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-elevated text-brand-muted"
+          >
+            <i class="fas fa-circle-info text-xs"></i>
+          </div>
+
+          <div class="min-w-0 flex-1">
+            <p class="text-[11px] font-medium text-brand-text">Как выбрать кладовку?</p>
+
+            <p class="mt-0.5 text-[10px] leading-4 text-brand-muted">
+              Свободные кладовки доступны для оформления аренды.
+            </p>
+          </div>
+        </div>
+      </section>
+    }
+  }
+</div>

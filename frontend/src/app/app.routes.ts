@@ -17,6 +17,18 @@ export const routes: Routes = [
     loadChildren: () => import('./features/admin/admin.routes').then((m) => m.ADMIN_ROUTES),
   },
   {
+    path: 'app',
+    canActivate: [authGuard],
+    data: { role: 'resident' },
+    loadComponent: () => import('./features/client/client').then((m) => m.Client),
+    children: [
+      {
+        path: '',
+        loadChildren: () => import('./features/client/client.routes').then((m) => m.CLIENT_ROUTES),
+      },
+    ],
+  },
+  {
     path: '**',
     redirectTo: '',
   },

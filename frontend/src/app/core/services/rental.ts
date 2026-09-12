@@ -1,7 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
-// import { environment } from '../../../environments/environment.development';
 import { environment } from '../../../environments/environment';
 import { Rental } from '../models/rental';
 
@@ -19,6 +18,19 @@ export class RentalService {
 
   getById(id: string) {
     return this.http.get<Rental>(`${this.baseUrl}/rentals/${id}`);
+  }
+
+  lockStorage(storageId: string, months: number) {
+    return this.http.post<Rental>(`${this.baseUrl}/rentals/lock`, {
+      storage_id: storageId,
+      months,
+    });
+  }
+
+  confirmPayment(rentalId: string) {
+    return this.http.post<Rental>(`${this.baseUrl}/rentals/confirm-payment`, {
+      rental_id: rentalId,
+    });
   }
 
   cancel(id: string) {

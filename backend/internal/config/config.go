@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -19,7 +21,16 @@ type Config struct {
 }
 
 func Load() Config {
+	// Attempts to load .env file from working directory
+	if err := godotenv.Load(); err != nil {
+		log.Println("Info: No .env file found, relying on system environment variables")
+	}
+
+	// Supports both APP_ENV and standard ENV variables
 	env := os.Getenv("APP_ENV")
+	if env == "" {
+		env = os.Getenv("ENV")
+	}
 	if env == "" {
 		env = "development"
 	}
@@ -55,9 +66,12 @@ func Load() Config {
 		cookieName = "access_token"
 	}
 
-	secure := os.Getenv("COOKIE_SECURE") == "true" || os.Getenv("COOKIE_SECURE") == "1" || env == "production"
+	// Auto-enforces secure cookies in production unless explicitly overridden
+	secure := os.Getenv("COOKIE_SECURE") == "true" || os.Getenv("COOKIE_SECURE") == "1"
+	if !secure && env == "production" {
+		secure = true
+	}
 
-	// API Prefix
 	apiPrefix := os.Getenv("API_PREFIX")
 	if apiPrefix == "" {
 		apiPrefix = "/api/v1"

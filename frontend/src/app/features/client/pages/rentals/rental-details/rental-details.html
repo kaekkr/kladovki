@@ -1,0 +1,221 @@
+<div class="space-y-5 pb-4">
+  <!-- Back -->
+  <div class="pt-2">
+    <a
+      routerLink="/app/rentals"
+      class="inline-flex items-center gap-2 text-xs font-medium text-brand-muted transition-colors hover:text-brand-text"
+    >
+      <i class="fas fa-arrow-left text-[10px]"></i>
+      Назад к арендам
+    </a>
+  </div>
+
+  @if (loading()) {
+    <div class="space-y-4">
+      <div class="h-48 animate-pulse rounded-3xl bg-brand-surface"></div>
+      <div class="h-48 animate-pulse rounded-2xl bg-brand-surface"></div>
+    </div>
+  } @else if (error() || !rental()) {
+    <section class="rounded-3xl border border-brand-line bg-brand-surface p-6 text-center">
+      <div
+        class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-elevated text-brand-muted"
+      >
+        <i class="fas fa-file-circle-xmark"></i>
+      </div>
+
+      <h1 class="mt-4 text-base font-semibold text-brand-text">Аренда не найдена</h1>
+
+      <p class="mx-auto mt-1 max-w-xs text-xs leading-5 text-brand-muted">
+        Возможно, аренда была удалена или больше недоступна.
+      </p>
+
+      <a
+        routerLink="/app/rentals"
+        class="mt-5 flex h-11 w-full items-center justify-center rounded-xl bg-brand-accent text-xs font-semibold text-brand-bg"
+      >
+        Вернуться к арендам
+      </a>
+    </section>
+  } @else {
+    <!-- Main -->
+    <section
+      class="relative overflow-hidden rounded-3xl border border-brand-line bg-brand-surface shadow-lg shadow-black/10"
+    >
+      @if (rental()!.status === 'active') {
+        <div
+          class="pointer-events-none absolute -right-20 -top-20 h-48 w-48 rounded-full bg-brand-accent/10 blur-3xl"
+        ></div>
+      }
+
+      <div class="relative p-5">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="text-[10px] font-medium uppercase tracking-[0.14em] text-brand-subtle">
+              Аренда
+            </p>
+
+            <h1 class="mt-2 text-[32px] font-semibold tracking-[-0.04em] text-brand-text">
+              №{{ rental()!.storage_number }}
+            </h1>
+
+            <p class="mt-1 text-xs text-brand-muted">Кладовка</p>
+          </div>
+
+          <span
+            class="rounded-full px-2.5 py-1.5 text-[10px] font-medium"
+            [class]="statusClass(rental()!.status)"
+          >
+            {{ statusLabel(rental()!.status) }}
+          </span>
+        </div>
+
+        <div class="mt-8">
+          <p class="text-[10px] text-brand-subtle">Общая стоимость</p>
+
+          <p class="mt-1 text-2xl font-semibold tracking-[-0.03em] text-brand-text">
+            {{ formatMoney(rental()!.total_paid) }}
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Rental period -->
+    <section>
+      <h2 class="mb-3 px-1 text-sm font-semibold text-brand-text">Период аренды</h2>
+
+      <div class="overflow-hidden rounded-2xl border border-brand-line bg-brand-surface">
+        <div class="flex items-center justify-between border-b border-brand-line px-4 py-3.5">
+          <span class="text-xs text-brand-muted"> Начало </span>
+
+          <span class="text-xs font-medium text-brand-text">
+            {{ formatDate(rental()!.starts_at) }}
+          </span>
+        </div>
+
+        <div class="flex items-center justify-between border-b border-brand-line px-4 py-3.5">
+          <span class="text-xs text-brand-muted"> Окончание </span>
+
+          <span class="text-xs font-medium text-brand-text">
+            {{ formatDate(rental()!.ends_at) }}
+          </span>
+        </div>
+
+        <div class="flex items-center justify-between px-4 py-3.5">
+          <span class="text-xs text-brand-muted"> Срок </span>
+
+          <span class="text-xs font-medium text-brand-text"> {{ rental()!.months }} мес. </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Price -->
+    <section>
+      <h2 class="mb-3 px-1 text-sm font-semibold text-brand-text">Оплата</h2>
+
+      <div class="overflow-hidden rounded-2xl border border-brand-line bg-brand-surface">
+        <div class="flex items-center justify-between border-b border-brand-line px-4 py-3.5">
+          <span class="text-xs text-brand-muted"> В месяц </span>
+
+          <span class="text-xs font-medium text-brand-text">
+            {{ formatMoney(rental()!.price_per_month) }}
+          </span>
+        </div>
+
+        <div class="flex items-center justify-between px-4 py-3.5">
+          <span class="text-xs text-brand-muted"> Оплачено </span>
+
+          <span class="text-xs font-semibold text-brand-accent">
+            {{ formatMoney(rental()!.total_paid) }}
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Status message -->
+    @if (rental()!.status === 'active') {
+      <section class="rounded-2xl border border-brand-accent/20 bg-brand-accent/5 px-4 py-4">
+        <div class="flex items-start gap-3">
+          <div
+            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent"
+          >
+            <i class="fas fa-check text-xs"></i>
+          </div>
+
+          <div>
+            <p class="text-xs font-semibold text-brand-text">Аренда активна</p>
+
+            <p class="mt-1 text-[10px] leading-4 text-brand-muted">
+              Кладовка закреплена за вами до
+              {{ formatDate(rental()!.ends_at) }}.
+            </p>
+          </div>
+        </div>
+      </section>
+    } @else if (rental()!.status === 'locked') {
+      <section class="rounded-2xl border border-status-locked/20 bg-status-locked/5 px-4 py-4">
+        <div class="flex items-start gap-3">
+          <div
+            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-status-locked/10 text-status-locked"
+          >
+            <i class="fas fa-clock text-xs"></i>
+          </div>
+
+          <div>
+            <p class="text-xs font-semibold text-status-locked">Аренда оформляется</p>
+
+            <p class="mt-1 text-[10px] leading-4 text-status-locked/70">
+              Кладовка временно заблокирована за вами.
+            </p>
+          </div>
+        </div>
+      </section>
+    } @else if (rental()!.status === 'expired') {
+      <section class="rounded-2xl border border-brand-line bg-brand-surface px-4 py-4">
+        <div class="flex items-start gap-3">
+          <div
+            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-elevated text-brand-muted"
+          >
+            <i class="fas fa-clock-rotate-left text-xs"></i>
+          </div>
+
+          <div>
+            <p class="text-xs font-semibold text-brand-text">Аренда завершена</p>
+
+            <p class="mt-1 text-[10px] leading-4 text-brand-muted">
+              Срок аренды этой кладовки закончился.
+            </p>
+          </div>
+        </div>
+      </section>
+    } @else {
+      <section class="rounded-2xl border border-brand-line bg-brand-surface px-4 py-4">
+        <div class="flex items-start gap-3">
+          <div
+            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-elevated text-brand-muted"
+          >
+            <i class="fas fa-ban text-xs"></i>
+          </div>
+
+          <div>
+            <p class="text-xs font-semibold text-brand-text">Аренда отменена</p>
+
+            <p class="mt-1 text-[10px] leading-4 text-brand-muted">
+              Эта аренда больше не действует.
+            </p>
+          </div>
+        </div>
+      </section>
+    }
+
+    <!-- Cancel -->
+    @if (canCancel()) {
+      <button
+        type="button"
+        (click)="cancel()"
+        class="h-12 w-full rounded-xl border border-brand-line bg-brand-surface text-xs font-semibold text-brand-muted transition-colors hover:border-red-400/30 hover:text-red-400"
+      >
+        Отменить аренду
+      </button>
+    }
+  }
+</div>

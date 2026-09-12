@@ -47,8 +47,13 @@ func (h *Handler) Register(r *gin.Engine) {
 		{
 			rentals.GET("/jk/:jk_id", h.ListRentalsByJK)
 			rentals.GET("/storage/:storage_id", h.GetActiveRentalByStorage)
+
+			rentals.POST("/lock", h.LockStorage)
+			rentals.POST("/confirm-payment", h.ConfirmPayment)
+
 			rentals.PATCH("/:id/cancel", h.CancelRental)
 			rentals.PATCH("/:id/force-release", h.ForceReleaseLocked)
+
 			rentals.GET("/:id", h.GetRentalByID)
 		}
 
