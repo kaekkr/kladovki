@@ -11,6 +11,8 @@ func (h *Handler) Register(r *gin.Engine) {
 	{
 		api.POST("/lead", h.CreateLead)
 		api.GET("/jks/:id", h.mw.Require(), h.GetJKByID)
+		api.GET("/jks/:id/tariff", h.mw.Require(), h.GetTariff)
+		api.PUT("/jks/:id/tariff", h.mw.Require(), h.SetTariff)
 
 		// === Auth ===
 		auth := api.Group("/auth")

@@ -153,21 +153,50 @@
       </section>
     } @else if (rental()!.status === 'locked') {
       <section class="rounded-2xl border border-status-locked/20 bg-status-locked/5 px-4 py-4">
-        <div class="flex items-start gap-3">
-          <div
-            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-status-locked/10 text-status-locked"
-          >
-            <i class="fas fa-clock text-xs"></i>
+        <div class="flex items-center justify-between gap-4">
+          <div class="flex items-start gap-3">
+            <div
+              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-status-locked/10 text-status-locked"
+            >
+              <i class="fas fa-clock text-xs"></i>
+            </div>
+
+            <div>
+              <p class="text-xs font-semibold text-brand-text">Кладовка забронирована</p>
+
+              <p class="mt-1 text-[10px] leading-4 text-brand-muted">
+                Завершите оплату до истечения брони.
+              </p>
+            </div>
           </div>
 
-          <div>
-            <p class="text-xs font-semibold text-status-locked">Аренда оформляется</p>
-
-            <p class="mt-1 text-[10px] leading-4 text-status-locked/70">
-              Кладовка временно заблокирована за вами.
-            </p>
+          <div class="shrink-0 text-lg font-semibold tabular-nums text-status-locked">
+            {{ formatTime(remainingSeconds()) }}
           </div>
         </div>
+
+        <button
+          type="button"
+          [disabled]="!canPay()"
+          (click)="pay()"
+          class="mt-4 flex h-12 w-full items-center justify-center rounded-xl bg-brand-accent text-sm font-semibold text-brand-bg transition hover:bg-brand-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          @if (paying()) {
+            <i class="fas fa-spinner fa-spin mr-2"></i>
+            Оплата...
+          } @else if (remainingSeconds() <= 0) {
+            Бронь истекла
+          } @else {
+            Оплатить
+            {{ formatMoney(rental()!.price_per_month * rental()!.months) }}
+          }
+        </button>
+
+        @if (paymentError()) {
+          <p class="mt-3 text-center text-sm text-status-overdue">
+            {{ paymentError() }}
+          </p>
+        }
       </section>
     } @else if (rental()!.status === 'expired') {
       <section class="rounded-2xl border border-brand-line bg-brand-surface px-4 py-4">
@@ -207,15 +236,27 @@
       </section>
     }
 
-    <!-- Cancel -->
-    @if (canCancel()) {
-      <button
-        type="button"
-        (click)="cancel()"
-        class="h-12 w-full rounded-xl border border-brand-line bg-brand-surface text-xs font-semibold text-brand-muted transition-colors hover:border-red-400/30 hover:text-red-400"
-      >
-        Отменить аренду
-      </button>
-    }
+    <!-- <!-- Cancel -->
+    -->
+    <!-- @if (canCancel()) { -->
+    <!--   <button -->
+    <!--     type="button" -->
+    <!--     (click)="cancel()" -->
+    <!--     class="h-12 w-full rounded-xl border border-brand-line bg-brand-surface text-xs font-semibold text-brand-muted transition-colors hover:border-red-400/30 hover:text-red-400" -->
+    <!--   > -->
+    <!--     Отменить аренду -->
+    <!--   </button> -->
+    <!-- } -->
+    <!-- <!-- Cancel -->
+    -->
+    <!-- @if (canCancel()) { -->
+    <!--   <button -->
+    <!--     type="button" -->
+    <!--     (click)="cancel()" -->
+    <!--     class="h-12 w-full rounded-xl border border-brand-line bg-brand-surface text-xs font-semibold text-brand-muted transition-colors hover:border-red-400/30 hover:text-red-400" -->
+    <!--   > -->
+    <!--     Отменить аренду -->
+    <!--   </button> -->
+    <!-- } -->
   }
 </div>
