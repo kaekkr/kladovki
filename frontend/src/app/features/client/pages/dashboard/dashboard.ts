@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
+
 import { AuthService } from '../../../../core/auth/auth.service';
 import { Rental } from '../../../../core/models/rental';
 import { RentalService } from '../../../../core/services/rental';
@@ -21,50 +22,34 @@ export class ClientDashboard {
 
   userName = computed(() => this.auth.currentUser()?.full_name || 'Житель');
 
+  greeting = computed(() => {
+    const hour = new Date().getHours();
+
+    if (hour >= 5 && hour < 12) {
+      return 'Доброе утро';
+    }
+
+    if (hour >= 12 && hour < 18) {
+      return 'Добрый день';
+    }
+
+    if (hour >= 18 && hour < 24) {
+      return 'Добрый вечер';
+    }
+
+    return 'Доброй ночи';
+  });
+
   activeRentals = computed(() => this.rentals().filter((r) => r.status === 'active'));
 
   lockedRentals = computed(() => this.rentals().filter((r) => r.status === 'locked'));
 
   hasDebt = computed(() =>
-    this.rentals().some(
-      (r) =>
-        (r.status === 'active' || r.status === 'locked') &&
-        r.total_paid < r.price_per_month * r.months,
-    ),
+    this.activeRentals().some((r) => r.total_paid < r.price_per_month * r.months),
   );
 
   constructor() {
     this.load();
-  }
-
-  private load(): void {
-    const user = this.auth.currentUser();
-    const jkId = user?.jk_id;
-    const userId = user?.id;
-
-    if (!jkId) {
-      this.loading.set(false);
-      this.error.set(true);
-      return;
-    }
-
-    this.loading.set(true);
-    this.error.set(false);
-
-    // Temporary: filter admin list by user.
-    // Replace with GET /rentals/me when backend is ready.
-    this.rentalService.listByJK(jkId).subscribe({
-      next: (all) => {
-        const mine = userId ? all.filter((r) => r.user_id === userId) : [];
-        this.rentals.set(mine);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.rentals.set([]);
-        this.loading.set(false);
-        // soft-fail: empty dashboard is fine without client API yet
-      },
-    });
   }
 
   statusLabel(status: string): string {
@@ -84,5 +69,40 @@ export class ClientDashboard {
 
   formatMoney(value: number): string {
     return new Intl.NumberFormat('ru-RU').format(value) + ' ₸';
+  }
+
+  private load(): void {
+    const user = this.auth.currentUser();
+    const jkId = user?.jk_id;
+    const userId = user?.id;
+
+    if (!jkId) {
+      this.loading.set(false);
+      this.error.set(true);
+      return;
+    }
+
+    this.loading.set(true);
+    this.error.set(false);
+
+    this.rentalService.listByJK(jkId).subscribe({
+      next: (all) => {
+        console.log('CURRENT USER:', user);
+        console.log('USER ID:', userId);
+        console.log('ALL RENTALS:', all);
+
+        const mine = userId ? all.filter((r) => r.user_id === userId) : [];
+
+        console.log('MY RENTALS:', mine);
+
+        this.rentals.set(mine);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.rentals.set([]);
+        this.loading.set(false);
+        this.error.set(true);
+      },
+    });
   }
 }

@@ -26,21 +26,21 @@ export const CLIENT_ROUTES: Routes = [
     loadComponent: () =>
       import('./pages/rentals/rental-details/rental-details').then((m) => m.ClientRentalDetails),
   },
-  // {
-  //   path: 'payments',
-  //   loadComponent: () => import('./pages/payments/payments').then((m) => m.ClientPayments),
-  // },
+  {
+    path: 'payments',
+    loadComponent: () => import('./pages/payments/payments').then((m) => m.ClientPayments),
+  },
   // {
   //   path: 'documents',
   //   loadComponent: () => import('./pages/documents/documents').then((m) => m.ClientDocuments),
   // },
-  // {
-  //   path: 'notifications',
-  //   loadComponent: () =>
-  //     import('./pages/notifications/notifications').then((m) => m.ClientNotifications),
-  // },
-  // {
-  //   path: 'profile',
-  //   loadComponent: () => import('./pages/profile/profile').then((m) => m.ClientProfile),
-  // },
+  {
+    path: 'notifications',
+    loadComponent: () =>
+      import('./pages/notifications/notifications').then((m) => m.ClientNotifications),
+  },
+  {
+    path: 'profile',
+    loadComponent: () => import('./pages/profile/profile').then((m) => m.ClientProfile),
+  },
 ];

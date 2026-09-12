@@ -1,0 +1,177 @@
+<div class="space-y-5 pb-4">
+  <!-- Header -->
+  <div class="pt-2">
+    <a
+      routerLink="/app"
+      class="inline-flex items-center gap-2 text-xs font-medium text-brand-muted transition-colors hover:text-brand-text"
+    >
+      <i class="fas fa-arrow-left text-[10px]"></i>
+      На главную
+    </a>
+
+    <div class="mt-5">
+      <p class="text-[10px] font-medium uppercase tracking-[0.14em] text-brand-subtle">Финансы</p>
+
+      <h1 class="mt-1 text-2xl font-semibold tracking-[-0.03em] text-brand-text">Платежи</h1>
+
+      <p class="mt-1 text-xs text-brand-muted">История оплаты ваших кладовок</p>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <!-- Loading -->
+    <div class="space-y-4">
+      <div class="h-32 animate-pulse rounded-3xl bg-brand-surface"></div>
+
+      <div class="h-20 animate-pulse rounded-2xl bg-brand-surface"></div>
+      <div class="h-20 animate-pulse rounded-2xl bg-brand-surface"></div>
+      <div class="h-20 animate-pulse rounded-2xl bg-brand-surface"></div>
+    </div>
+  } @else if (error()) {
+    <!-- Error -->
+    <section class="rounded-3xl border border-brand-line bg-brand-surface p-6 text-center">
+      <div
+        class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-elevated text-brand-muted"
+      >
+        <i class="fas fa-credit-card text-sm"></i>
+      </div>
+
+      <h2 class="mt-4 text-base font-semibold text-brand-text">Не удалось загрузить платежи</h2>
+
+      <p class="mx-auto mt-1 max-w-xs text-xs leading-5 text-brand-muted">
+        Попробуйте обновить страницу немного позже.
+      </p>
+
+      <a
+        routerLink="/app"
+        class="mt-5 flex h-11 w-full items-center justify-center rounded-xl bg-brand-accent text-xs font-semibold text-brand-bg"
+      >
+        На главную
+      </a>
+    </section>
+  } @else {
+    <!-- Summary -->
+    <section
+      class="relative overflow-hidden rounded-3xl border border-brand-line bg-brand-surface shadow-lg shadow-black/10"
+    >
+      <div
+        class="pointer-events-none absolute -right-20 -top-20 h-48 w-48 rounded-full bg-brand-accent/10 blur-3xl"
+      ></div>
+
+      <div class="relative p-5">
+        <p class="text-[10px] font-medium uppercase tracking-[0.14em] text-brand-subtle">
+          Оплачено всего
+        </p>
+
+        <p class="mt-2 text-3xl font-semibold tracking-[-0.04em] text-brand-text">
+          {{ formatMoney(totalPaid()) }}
+        </p>
+
+        <div class="mt-5 flex items-center gap-5">
+          <div>
+            <p class="text-[10px] text-brand-subtle">Платежей</p>
+            <p class="mt-0.5 text-sm font-semibold text-brand-text">
+              {{ successfulCount() }}
+            </p>
+          </div>
+
+          @if (pendingCount() > 0) {
+            <div>
+              <p class="text-[10px] text-brand-subtle">В обработке</p>
+              <p class="mt-0.5 text-sm font-semibold text-status-locked">
+                {{ pendingCount() }}
+              </p>
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+
+    @if (payments().length === 0) {
+      <!-- Empty -->
+      <section class="rounded-2xl border border-brand-line bg-brand-surface px-5 py-8 text-center">
+        <div
+          class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-elevated text-brand-muted"
+        >
+          <i class="fas fa-receipt text-sm"></i>
+        </div>
+
+        <h2 class="mt-4 text-sm font-semibold text-brand-text">Платежей пока нет</h2>
+
+        <p class="mx-auto mt-1 max-w-xs text-xs leading-5 text-brand-muted">
+          Здесь появится история ваших платежей после первой оплаты аренды.
+        </p>
+
+        <a
+          routerLink="/app/storages"
+          class="mt-5 inline-flex h-10 items-center justify-center rounded-xl bg-brand-accent px-5 text-xs font-semibold text-brand-bg"
+        >
+          Найти кладовку
+        </a>
+      </section>
+    } @else {
+      <!-- History -->
+      <section>
+        <div class="mb-3 flex items-center justify-between px-1">
+          <h2 class="text-sm font-semibold text-brand-text">История</h2>
+
+          <span class="text-[10px] text-brand-subtle">
+            {{ payments().length }}
+          </span>
+        </div>
+
+        <div class="overflow-hidden rounded-2xl border border-brand-line bg-brand-surface">
+          @for (payment of payments(); track trackByPayment($index, payment)) {
+            <div class="border-b border-brand-line px-4 py-4 last:border-b-0">
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex min-w-0 items-start gap-3">
+                  <div
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                    [class]="
+                      payment.status === 'success'
+                        ? 'bg-brand-accent/10 text-brand-accent'
+                        : payment.status === 'pending'
+                          ? 'bg-status-locked/10 text-status-locked'
+                          : 'bg-status-overdue/10 text-status-overdue'
+                    "
+                  >
+                    <i class="fas text-xs" [class]="statusIcon(payment.status)"></i>
+                  </div>
+
+                  <div class="min-w-0">
+                    <p class="truncate text-xs font-semibold text-brand-text">
+                      Кладовка №{{ payment.storage_number }}
+                    </p>
+
+                    <p class="mt-1 text-[10px] text-brand-muted">
+                      {{ formatDate(payment.created_at) }}
+                      ·
+                      {{ formatTime(payment.created_at) }}
+                    </p>
+
+                    <p class="mt-1 text-[10px] text-brand-subtle">
+                      {{ providerLabel(payment.provider) }}
+                    </p>
+                  </div>
+                </div>
+
+                <div class="shrink-0 text-right">
+                  <p class="text-sm font-semibold text-brand-text">
+                    {{ formatMoney(payment.amount) }}
+                  </p>
+
+                  <span
+                    class="mt-1 inline-flex rounded-full px-2 py-1 text-[9px] font-medium"
+                    [class]="statusClass(payment.status)"
+                  >
+                    {{ statusLabel(payment.status) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </section>
+    }
+  }
+</div>

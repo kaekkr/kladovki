@@ -1,0 +1,175 @@
+<div class="min-h-full space-y-6">
+  <!-- Header -->
+  <section>
+    <a
+      routerLink="/app"
+      class="mb-4 inline-flex items-center gap-2 text-[11px] font-medium text-brand-muted transition-colors hover:text-brand-text"
+    >
+      <i class="fas fa-arrow-left text-[10px]"></i>
+      Главная
+    </a>
+
+    <h1 class="text-[24px] font-semibold tracking-[-0.035em] text-brand-text">Профиль</h1>
+
+    <p class="mt-1 text-xs text-brand-muted">Ваши данные и настройки</p>
+  </section>
+
+  <!-- User card -->
+  <section class="rounded-3xl border border-brand-line bg-brand-surface p-5">
+    <div class="flex items-center gap-4">
+      <div
+        class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-brand-accent text-lg font-semibold text-brand-bg"
+      >
+        {{ initials() }}
+      </div>
+
+      <div class="min-w-0">
+        <h2 class="truncate text-base font-semibold text-brand-text">
+          {{ user()?.full_name || 'Житель' }}
+        </h2>
+
+        <p class="mt-1 truncate text-xs text-brand-muted">
+          {{ user()?.email || 'Email не указан' }}
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Personal information -->
+  <section>
+    <h2 class="mb-3 px-1 text-sm font-semibold text-brand-text">Личные данные</h2>
+
+    <div class="overflow-hidden rounded-2xl border border-brand-line bg-brand-surface">
+      <div class="flex items-center gap-3 border-b border-brand-line px-4 py-4">
+        <div
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-elevated text-brand-muted"
+        >
+          <i class="fas fa-user text-xs"></i>
+        </div>
+
+        <div class="min-w-0">
+          <p class="text-[10px] text-brand-subtle">Имя</p>
+
+          <p class="mt-0.5 truncate text-xs font-medium text-brand-text">
+            {{ user()?.full_name || 'Не указано' }}
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 border-b border-brand-line px-4 py-4">
+        <div
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-elevated text-brand-muted"
+        >
+          <i class="fas fa-envelope text-xs"></i>
+        </div>
+
+        <div class="min-w-0">
+          <p class="text-[10px] text-brand-subtle">Email</p>
+
+          <p class="mt-0.5 truncate text-xs font-medium text-brand-text">
+            {{ user()?.email || 'Не указан' }}
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 px-4 py-4">
+        <div
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-elevated text-brand-muted"
+        >
+          <i class="fas fa-phone text-xs"></i>
+        </div>
+
+        <div class="min-w-0">
+          <p class="text-[10px] text-brand-subtle">Телефон</p>
+
+          <p class="mt-0.5 truncate text-xs font-medium text-brand-text">
+            {{ user()?.phone || 'Не указан' }}
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Settings -->
+  <section>
+    <h2 class="mb-3 px-1 text-sm font-semibold text-brand-text">Настройки</h2>
+
+    <div class="overflow-hidden rounded-2xl border border-brand-line bg-brand-surface">
+      <button
+        type="button"
+        class="flex w-full items-center gap-3 border-b border-brand-line px-4 py-4 text-left transition-colors hover:bg-brand-elevated"
+      >
+        <div
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-elevated text-brand-muted"
+        >
+          <i class="fas fa-bell text-xs"></i>
+        </div>
+
+        <div class="min-w-0 flex-1">
+          <p class="text-xs font-medium text-brand-text">Уведомления</p>
+
+          <p class="mt-0.5 text-[10px] text-brand-muted">Управление уведомлениями</p>
+        </div>
+
+        <i class="fas fa-chevron-right text-[10px] text-brand-subtle"></i>
+      </button>
+
+      <button
+        type="button"
+        class="flex w-full items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-brand-elevated"
+      >
+        <div
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-elevated text-brand-muted"
+        >
+          <i class="fas fa-shield-halved text-xs"></i>
+        </div>
+
+        <div class="min-w-0 flex-1">
+          <p class="text-xs font-medium text-brand-text">Безопасность</p>
+
+          <p class="mt-0.5 text-[10px] text-brand-muted">Пароль и доступ к аккаунту</p>
+        </div>
+
+        <i class="fas fa-chevron-right text-[10px] text-brand-subtle"></i>
+      </button>
+    </div>
+  </section>
+
+  <!-- About -->
+  <section>
+    <h2 class="mb-3 px-1 text-sm font-semibold text-brand-text">О приложении</h2>
+
+    <div class="overflow-hidden rounded-2xl border border-brand-line bg-brand-surface">
+      <a
+        routerLink="/app"
+        class="flex items-center gap-3 px-4 py-4 transition-colors hover:bg-brand-elevated"
+      >
+        <div
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-elevated text-brand-muted"
+        >
+          <i class="fas fa-file-lines text-xs"></i>
+        </div>
+
+        <div class="min-w-0 flex-1">
+          <p class="text-xs font-medium text-brand-text">Пользовательское соглашение</p>
+
+          <p class="mt-0.5 text-[10px] text-brand-muted">Условия использования сервиса</p>
+        </div>
+
+        <i class="fas fa-chevron-right text-[10px] text-brand-subtle"></i>
+      </a>
+    </div>
+  </section>
+
+  <!-- Logout -->
+  <section class="pb-2">
+    <button
+      type="button"
+      (click)="logout()"
+      class="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-status-overdue/20 bg-status-overdue/10 text-xs font-semibold text-status-overdue transition-colors hover:bg-status-overdue/15"
+    >
+      <i class="fas fa-right-from-bracket text-[11px]"></i>
+      Выйти из аккаунта
+    </button>
+  </section>
+</div>

@@ -163,35 +163,56 @@
       <section>
         <h2 class="mb-3 px-1 text-sm font-semibold text-brand-text">Срок аренды</h2>
 
-        <div class="grid grid-cols-4 gap-2">
-          @for (period of rentalPeriods; track period) {
-            <button
-              type="button"
-              (click)="selectPeriod(period)"
-              class="flex h-12 flex-col items-center justify-center rounded-xl border text-[10px] transition-colors"
-              [class.border-brand-accent]="selectedPeriod() === period"
-              [class.bg-brand-accent/10]="selectedPeriod() === period"
-              [class.text-brand-accent]="selectedPeriod() === period"
-              [class.border-brand-line]="selectedPeriod() !== period"
-              [class.bg-brand-surface]="selectedPeriod() !== period"
-              [class.text-brand-muted]="selectedPeriod() !== period"
-            >
-              <span class="text-xs font-semibold">
-                {{ period }}
-              </span>
+        <div class="flex items-center gap-2">
+          <!-- Minus -->
+          <button
+            type="button"
+            (click)="setRentalPeriod(selectedPeriod() - 1)"
+            [disabled]="selectedPeriod() <= 1"
+            class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-brand-line bg-brand-surface text-brand-muted transition-colors hover:bg-brand-elevated hover:text-brand-text disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <i class="fas fa-minus text-xs"></i>
+          </button>
 
-              <span class="mt-0.5">
-                {{ period === 1 ? 'месяц' : 'месяцев' }}
-              </span>
-            </button>
-          }
+          <!-- Input -->
+          <div class="relative flex-1">
+            <input
+              type="number"
+              min="1"
+              max="120"
+              step="1"
+              [value]="selectedPeriod()"
+              (input)="setRentalPeriod(+$any($event.target).value)"
+              class="h-12 w-full rounded-xl border border-brand-accent bg-brand-accent/10 px-4 pr-20 text-center text-sm font-semibold text-brand-text outline-none transition focus:bg-brand-accent/15"
+            />
+
+            <span
+              class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xs text-brand-muted"
+            >
+              мес.
+            </span>
+          </div>
+
+          <!-- Plus -->
+          <button
+            type="button"
+            (click)="setRentalPeriod(selectedPeriod() + 1)"
+            [disabled]="selectedPeriod() >= 120"
+            class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-brand-line bg-brand-surface text-brand-muted transition-colors hover:bg-brand-elevated hover:text-brand-text disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <i class="fas fa-plus text-xs"></i>
+          </button>
         </div>
+
+        <p class="mt-2 px-1 text-[10px] text-brand-subtle">От 1 до 120 месяцев</p>
       </section>
 
       <!-- Summary -->
       <section class="rounded-2xl border border-brand-line bg-brand-surface px-4 py-4">
         <div class="flex items-center justify-between">
-          <span class="text-xs text-brand-muted"> {{ selectedPeriod() }} мес. аренды </span>
+          <span class="text-xs text-brand-muted">
+            {{ selectedPeriod() }} {{ selectedPeriod() === 1 ? 'месяц' : 'месяцев' }} аренды
+          </span>
 
           <span class="text-base font-semibold text-brand-text">
             {{ formatMoney(totalPrice()) }}
@@ -221,16 +242,17 @@
           Арендовать
         }
       </button>
+
       @if (rentalError()) {
         <p class="mt-3 text-center text-sm text-status-overdue">
           {{ rentalError() }}
         </p>
       }
+
       <p class="px-2 text-center text-[10px] leading-4 text-brand-subtle">
         Оформление аренды будет доступно после подключения оплаты.
       </p>
     }
-
     <!-- Locked -->
     @else if (storage()!.status === 'locked') {
       <section class="rounded-2xl border border-status-locked/20 bg-status-locked/5 px-4 py-4">

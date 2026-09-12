@@ -34,7 +34,11 @@ func (s *Service) LockStorage(
 		return nil, ErrInvalid
 	}
 
-	months := max(in.Months, 1)
+	if in.Months < 1 || in.Months > 120 {
+		return nil, ErrInvalid
+	}
+
+	months := in.Months
 
 	st, err := s.repo.GetStorageByID(ctx, storageID)
 	if err != nil {

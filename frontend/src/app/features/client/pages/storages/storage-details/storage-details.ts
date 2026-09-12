@@ -1,18 +1,16 @@
-import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+
 import { AuthService } from '../../../../../core/auth/auth.service';
 import { StorageService } from '../../../../../core/services/storage';
 import { SettingsService } from '../../../../../core/services/settings';
 import { Storage } from '../../../../../core/models/storage';
 import { RentalService } from '../../../../../core/services/rental';
 
-type RentalPeriod = 1 | 3 | 6 | 12;
-
 @Component({
   selector: 'app-client-storage-details',
   standalone: true,
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink],
   templateUrl: './storage-details.html',
 })
 export class ClientStorageDetails {
@@ -32,9 +30,18 @@ export class ClientStorageDetails {
   storage = signal<Storage | null>(null);
   tariff = signal(0);
 
-  rentalPeriods: RentalPeriod[] = [1, 3, 6, 12];
+  selectedPeriod = signal(1);
 
-  selectedPeriod = signal<RentalPeriod>(1);
+  setRentalPeriod(value: number): void {
+    const months = Math.floor(Number(value));
+
+    if (!Number.isFinite(months)) {
+      this.selectedPeriod.set(1);
+      return;
+    }
+
+    this.selectedPeriod.set(Math.min(120, Math.max(1, months)));
+  }
 
   pricePerMonth = computed(() => {
     const currentStorage = this.storage();
@@ -52,10 +59,6 @@ export class ClientStorageDetails {
 
   constructor() {
     this.load();
-  }
-
-  selectPeriod(period: RentalPeriod): void {
-    this.selectedPeriod.set(period);
   }
 
   formatMoney(value: number): string {
@@ -141,9 +144,6 @@ export class ClientStorageDetails {
       next: (rental) => {
         this.renting.set(false);
 
-        // Пока просто переходим на страницу аренды.
-        // Следующим шагом там сделаем оплату.
-        // Предполагается, что rental-details route уже существует.
         this.router.navigate(['/app/rentals', rental.id]);
       },
       error: (error) => {
@@ -152,8 +152,6 @@ export class ClientStorageDetails {
         if (error.status === 409) {
           this.rentalError.set('Кладовка уже занята или забронирована.');
 
-          // Обновляем данные кладовки,
-          // чтобы UI получил актуальный status.
           this.load();
           return;
         }

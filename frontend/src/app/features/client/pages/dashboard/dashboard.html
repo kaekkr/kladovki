@@ -1,8 +1,9 @@
 <div class="min-h-full space-y-6">
   <!-- Greeting -->
-  <!-- Greeting -->
   <section class="px-1 pb-1">
-    <p class="text-[11px] font-medium text-brand-subtle">Добрый вечер</p>
+    <p class="text-[11px] font-medium text-brand-subtle">
+      {{ greeting() }}
+    </p>
 
     <h1 class="mt-1 text-[24px] font-semibold tracking-[-0.035em] text-brand-text">
       {{ userName() }}
@@ -89,7 +90,7 @@
           </div>
 
           <a
-            routerLink="/app/rentals"
+            [routerLink]="['/app/rentals', activeRentals()[0].id]"
             class="mt-6 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-accent text-xs font-semibold text-brand-bg transition-opacity hover:opacity-90 active:scale-[0.99]"
           >
             Управление арендой
@@ -127,7 +128,7 @@
         <div class="mb-3 flex items-center justify-between px-1">
           <h2 class="text-sm font-semibold text-brand-text">Оплата</h2>
 
-          <a routerLink="/app/rentals" class="text-[11px] font-medium text-brand-accent">
+          <a routerLink="/app/payments" class="text-[11px] font-medium text-brand-accent">
             История
           </a>
         </div>
@@ -151,7 +152,9 @@
                 {{ formatMoney(activeRentals()[0].price_per_month) }}
               </p>
 
-              <p class="mt-0.5 text-[10px] text-brand-muted">до 1 октября</p>
+              <p class="mt-0.5 text-[10px] text-brand-muted">
+                до {{ activeRentals()[0].ends_at | date: 'd MMMM' }}
+              </p>
             </div>
           </div>
         </div>
@@ -207,13 +210,13 @@
         <div class="space-y-2">
           @for (r of lockedRentals(); track r.id) {
             <a
-              routerLink="/app/rentals"
-              class="flex items-center gap-3 rounded-2xl border border-brand-line bg-brand-surface px-4 py-3.5"
+              [routerLink]="['/app/rentals', r.id]"
+              class="flex items-center gap-3 rounded-2xl border border-brand-line bg-brand-surface px-4 py-3.5 transition-colors hover:bg-brand-elevated"
             >
               <div
-                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10"
+                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-status-locked/10"
               >
-                <i class="fas fa-clock text-xs text-brand-accent"></i>
+                <i class="fas fa-clock text-xs text-status-locked"></i>
               </div>
 
               <div class="min-w-0 flex-1">
@@ -225,7 +228,7 @@
                 </p>
               </div>
 
-              <span class="text-[10px] font-semibold text-brand-accent"> Оплатить </span>
+              <span class="text-[10px] font-semibold text-status-locked"> Оплатить </span>
             </a>
           }
         </div>

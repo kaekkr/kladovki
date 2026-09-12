@@ -48,11 +48,14 @@ export class ClientRentals {
     switch (status) {
       case 'active':
         return 'bg-brand-accent/10 text-brand-accent';
+
       case 'locked':
         return 'bg-status-locked/10 text-status-locked';
+
       case 'expired':
       case 'cancelled':
         return 'bg-brand-elevated text-brand-muted';
+
       default:
         return 'bg-brand-elevated text-brand-muted';
     }
@@ -77,8 +80,9 @@ export class ClientRentals {
   private load(): void {
     const user = this.auth.currentUser();
     const jkId = user?.jk_id;
+    const userId = user?.id;
 
-    if (!jkId) {
+    if (!jkId || !userId) {
       this.loading.set(false);
       this.error.set(true);
       return;
@@ -88,10 +92,13 @@ export class ClientRentals {
     this.error.set(false);
 
     this.rentalService.listByJK(jkId).subscribe({
-      next: (rentals) => {
-        this.rentals.set(rentals);
+      next: (allRentals) => {
+        const myRentals = allRentals.filter((rental) => rental.user_id === userId);
+
+        this.rentals.set(myRentals);
         this.loading.set(false);
       },
+
       error: () => {
         this.rentals.set([]);
         this.loading.set(false);

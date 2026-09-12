@@ -39,9 +39,7 @@ export class SettingsService {
   }
 
   saveTariff(jkId: string, amount: number): Observable<void> {
-    return this.http
-      .put<void>(`${this.baseUrl}/jks/${jkId}/tariff`, { amount })
-      .pipe(catchError(() => of(void 0)));
+    return this.http.put<void>(`${this.baseUrl}/jks/${jkId}/tariff`, { amount });
   }
 
   saveRentalSettings(jkId: string, settings: RentalSettings): Observable<void> {
