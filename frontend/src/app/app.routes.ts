@@ -11,6 +11,10 @@ export const routes: Routes = [
     loadComponent: () => import('./shared/pages/login/login').then((m) => m.Login),
   },
   {
+    path: 'auth/register',
+    loadComponent: () => import('./shared/pages/register/register').then((m) => m.Register),
+  },
+  {
     path: 'admin',
     canActivate: [authGuard],
     data: { role: 'admin' },

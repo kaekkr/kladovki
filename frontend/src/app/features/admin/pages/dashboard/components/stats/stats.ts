@@ -23,11 +23,11 @@ export class AdminStats {
   occupancyPercent = computed(() => {
     const stats = this.stats();
 
-    if (!stats || stats.totalStorages === 0) {
+    if (!stats || !stats.total_storages || stats.total_storages === 0) {
       return 0;
     }
 
-    return Math.round((stats.occupiedStorages / stats.totalStorages) * 100);
+    return Math.round((stats.occupied_storages / stats.total_storages) * 100);
   });
 
   constructor() {
@@ -49,11 +49,13 @@ export class AdminStats {
 
     this.dashboardService.getStats(this.selectedPeriod()).subscribe({
       next: (stats) => {
+        console.log('API Stats response:', stats); // <-- Добавьте это
         this.stats.set(stats);
         this.loading.set(false);
       },
 
-      error: () => {
+      error: (err) => {
+        console.error('API Stats error:', err);
         this.error.set(true);
         this.loading.set(false);
       },

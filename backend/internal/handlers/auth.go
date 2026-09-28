@@ -17,6 +17,48 @@ type loginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
+type registerRequest struct {
+	FullName string  `json:"full_name" binding:"required"`
+	Phone    string  `json:"phone" binding:"required"`
+	Password string  `json:"password" binding:"required"`
+	JKID     *string `json:"jk_id"`
+}
+
+func (h *Handler) RegisterResident(c *gin.Context) {
+	var req registerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Заполните обязательные поля для регистрации"})
+		return
+	}
+
+	user, err := h.svc.Register(c.Request.Context(), service.RegisterInput{
+		FullName: req.FullName,
+		Phone:    req.Phone,
+		Password: req.Password,
+		JKID:     req.JKID,
+	})
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Сразу авторизуем пользователя (выпускаем токен и устанавливаем куку)
+	_, err = h.issueToken(c, user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось сгенерировать токен"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":        user.ID,
+		"full_name": user.FullName,
+		"phone":     user.Phone,
+		"email":     user.Email,
+		"role":      user.Role,
+		"jk_id":     user.JKID,
+	})
+}
+
 func (h *Handler) Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

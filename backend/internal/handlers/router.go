@@ -13,10 +13,12 @@ func (h *Handler) Register(r *gin.Engine) {
 		api.GET("/jks/:id", h.mw.Require(), h.GetJKByID)
 		api.GET("/jks/:id/tariff", h.mw.Require(), h.GetTariff)
 		api.PUT("/jks/:id/tariff", h.mw.Require(), h.SetTariff)
+		api.GET("/jks/:id/tariff/preview", h.mw.Require(), h.GetTariffPreview)
 
 		// === Auth ===
 		auth := api.Group("/auth")
 		{
+			auth.POST("/register", h.RegisterResident)
 			auth.POST("/login", h.Login)
 			auth.POST("/logout", h.Logout)
 			auth.GET("/me", h.mw.Require(), h.Me)

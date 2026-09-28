@@ -1,0 +1,163 @@
+<div class="min-h-screen flex items-center justify-center bg-brand-bg px-4 py-12 relative">
+  <div class="max-w-md w-full space-y-6 bg-brand-surface p-8 rounded-xl border border-brand-line">
+    <!-- Заголовок -->
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight text-brand-text">Регистрация жителя</h1>
+      <p class="mt-1 text-sm text-brand-muted">
+        Создайте аккаунт для доступа к кладовкам вашего ЖК
+      </p>
+    </div>
+
+    @if (errorMessage()) {
+      <div
+        class="p-3 rounded-lg bg-brand-surface border border-status-overdue text-sm text-status-overdue"
+      >
+        {{ errorMessage() }}
+      </div>
+    }
+
+    <form (submit)="$event.preventDefault(); register()" class="space-y-4">
+      <!-- ФИО -->
+      <div>
+        <label class="block text-xs text-brand-muted mb-1.5">ФИО</label>
+        <input
+          type="text"
+          [ngModel]="fullName()"
+          (ngModelChange)="fullName.set($event)"
+          name="fullName"
+          placeholder="Иванов Иван Иванович"
+          required
+          class="w-full px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent"
+        />
+      </div>
+
+      <!-- Телефон -->
+      <div>
+        <label class="block text-xs text-brand-muted mb-1.5">Номер телефона</label>
+        <input
+          type="tel"
+          [ngModel]="phone()"
+          (ngModelChange)="phone.set($event)"
+          name="phone"
+          placeholder="+7 (777) 000-00-00"
+          required
+          class="w-full px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent"
+        />
+      </div>
+
+      <!-- Пароль -->
+      <div>
+        <label class="block text-xs text-brand-muted mb-1.5">Пароль</label>
+        <input
+          type="password"
+          [ngModel]="password()"
+          (ngModelChange)="password.set($event)"
+          name="password"
+          placeholder="••••••••"
+          required
+          class="w-full px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent"
+        />
+      </div>
+
+      <!-- Чекбокс согласия и ссылка на регламент -->
+      <div class="flex items-start gap-2 pt-2">
+        <input
+          type="checkbox"
+          [ngModel]="acceptedRules()"
+          (ngModelChange)="acceptedRules.set($event)"
+          name="acceptedRules"
+          id="rules"
+          class="mt-0.5 rounded border-brand-line text-brand-accent focus:ring-0 cursor-pointer"
+        />
+        <label
+          for="rules"
+          class="text-xs text-brand-muted cursor-pointer select-none leading-relaxed"
+        >
+          Я согласен(-на) с
+          <button
+            type="button"
+            (click)="showTerms.set(true)"
+            class="text-brand-accent hover:underline font-medium inline-block"
+          >
+            регламентом использования сервиса
+          </button>
+        </label>
+      </div>
+
+      <!-- Кнопка отправки -->
+      <button
+        type="submit"
+        [disabled]="loading()"
+        class="w-full py-2.5 rounded-md bg-brand-accent text-brand-bg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 mt-4"
+      >
+        {{ loading() ? 'Регистрация…' : 'Зарегистрироваться' }}
+      </button>
+    </form>
+
+    <!-- Ссылка на вход -->
+    <div class="text-center text-xs text-brand-muted pt-2">
+      Уже есть аккаунт?
+      <a routerLink="/login" class="text-brand-accent hover:underline font-medium">Войти</a>
+    </div>
+  </div>
+
+  <!-- Модальное окно с регламентом -->
+  @if (showTerms()) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+    >
+      <div
+        class="max-w-lg w-full bg-brand-surface border border-brand-line rounded-xl p-6 space-y-4 shadow-xl max-h-[80vh] flex flex-col"
+      >
+        <div class="flex justify-between items-center border-b border-brand-line pb-3">
+          <h2 class="text-base font-semibold text-brand-text">Регламент использования сервиса</h2>
+          <button
+            type="button"
+            (click)="showTerms.set(false)"
+            class="text-brand-muted hover:text-brand-text text-lg font-bold px-2"
+          >
+            &times;
+          </button>
+        </div>
+
+        <div class="overflow-y-auto space-y-3 text-xs text-brand-muted pr-2">
+          <p>
+            <strong>1. Общие положения:</strong> Настоящий регламент регулирует правила
+            использования платформы для аренды и управления кладовыми помещениями в жилом комплексе.
+          </p>
+          <p>
+            <strong>2. Регистрация и безопасность:</strong> Пользователь несет полную
+            ответственность за сохранность своих учетных данных и пароля. Запрещено передавать
+            доступ к замку третьим лицам.
+          </p>
+          <p>
+            <strong>3. Правила хранения:</strong> В кладовых помещениях разрешено хранить только
+            личные вещи, инвентарь и бытовые предметы. Категорически запрещено хранить
+            взрывоопасные, легковоспламеняющиеся, токсичные вещества, оружие, а также
+            скоропортящиеся продукты питания.
+          </p>
+          <p>
+            <strong>4. Финансовые условия:</strong> Оплата за аренду кладовой производится в
+            соответствии с установленным тарифом ЖК ежемесячно. В случае просрочки оплаты доступ к
+            помещению может быть временно заблокирован.
+          </p>
+          <p>
+            <strong>5. Ответственность сторон:</strong> Администрация ЖК и сервис не несут
+            ответственности за ущерб имуществу в результате стихийных бедствий или форс-мажорных
+            обстоятельств, не связанных с работой замков и систем контроля доступа.
+          </p>
+        </div>
+
+        <div class="pt-3 border-t border-brand-line flex justify-end">
+          <button
+            type="button"
+            (click)="acceptedRules.set(true); showTerms.set(false)"
+            class="px-4 py-2 bg-brand-accent text-brand-bg text-xs font-semibold rounded-md hover:opacity-90 transition-opacity"
+          >
+            Принять и закрыть
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

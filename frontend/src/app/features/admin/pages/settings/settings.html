@@ -62,6 +62,58 @@
       </div>
     </section>
 
+    <!-- Приглашение для жителей -->
+    <section class="rounded-lg border border-brand-line bg-brand-surface overflow-hidden">
+      <div class="px-5 py-4 border-b border-brand-line">
+        <h2 class="text-sm font-medium text-brand-text">Приглашение для жителей</h2>
+        <p class="mt-0.5 text-xs text-brand-muted">
+          Ссылка и QR-код для регистрации собственников в вашем ЖК
+        </p>
+      </div>
+      <div class="px-5 py-4 space-y-4">
+        <div>
+          <label class="block text-xs text-brand-muted mb-1.5">Прямая ссылка для регистрации</label>
+          <div class="flex gap-2">
+            <input
+              type="text"
+              readonly
+              [value]="registrationLink()"
+              class="w-full px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-xs text-brand-text outline-none"
+            />
+            <button
+              type="button"
+              (click)="copyLink()"
+              class="px-4 py-2 bg-brand-accent text-brand-bg text-xs font-semibold rounded-md shrink-0 hover:opacity-90 transition-opacity"
+            >
+              @if (copied()) {
+                Скопировано!
+              } @else {
+                Копировать
+              }
+            </button>
+          </div>
+          <p class="mt-1.5 text-xs text-brand-muted">
+            Передайте эту ссылку председателю ОСИ или разместите в чате дома. Перейдя по ней, житель
+            автоматически привяжется к вашему ЖК.
+          </p>
+        </div>
+
+        <!-- QR-код -->
+        <div class="flex items-center gap-4 pt-2">
+          <div class="p-3 bg-white rounded-xl border border-brand-line shrink-0">
+            <img [src]="getQrCodeUrl()" alt="QR код" class="w-24 h-24" />
+          </div>
+          <div>
+            <p class="text-xs font-medium text-brand-text">QR-код для печати</p>
+            <p class="text-xs text-brand-muted mt-0.5">
+              Вы можете распечатать этот QR-код и повесить на информационный стенд в подъезде, чтобы
+              жители могли быстро зарегистрироваться через смартфон.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Тариф -->
     <section class="rounded-lg border border-brand-line bg-brand-surface overflow-hidden">
       <div class="px-5 py-4 border-b border-brand-line">
@@ -82,13 +134,6 @@
             class="w-full max-w-xs px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent"
           />
         </div>
-        <p class="text-xs text-brand-muted">
-          Пример: кладовка 3.5 м² →
-          <span class="text-brand-text font-medium">
-            {{ formatMoney(Math.round(3.5 * tariffAmount())) }}
-          </span>
-          / мес.
-        </p>
       </div>
     </section>
 
@@ -146,6 +191,84 @@
       >
         {{ saving() ? 'Сохранение…' : 'Сохранить' }}
       </button>
+    </div>
+  }
+
+  <!-- Модальное окно вынесено в самый конец корневого блока, чтобы перекрывать весь экран -->
+  @if (showRecalculateModal()) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+    >
+      <div
+        class="max-w-md w-full bg-brand-surface border border-brand-line rounded-xl p-6 space-y-4 shadow-xl"
+      >
+        <div class="border-b border-brand-line pb-3">
+          <h2 class="text-base font-semibold text-brand-text">Внимание: уменьшение тарифа</h2>
+          <p class="text-xs text-brand-muted mt-1">
+            Новый тариф ниже предыдущего. Это затронет активных арендаторов.
+          </p>
+        </div>
+
+        <div class="space-y-3 text-sm text-brand-text">
+          <div class="p-3 bg-brand-elev/20 rounded-lg border border-brand-line space-y-1 text-xs">
+            <p>
+              📦 Затронуто активных кладовок:
+              <span class="font-semibold">{{ affectedRentalsCount() }}</span>
+            </p>
+            <p>
+              💰 Общая сумма разницы к перерасчету:
+              <span class="font-semibold">{{ formatMoney(totalDifferenceAmount()) }}</span>
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-xs text-brand-muted mb-2">
+              Выберите способ перерасчета для жителей:
+            </label>
+            <div class="space-y-2">
+              <label class="flex items-center gap-2 text-xs text-brand-text cursor-pointer">
+                <input
+                  type="radio"
+                  name="strategy"
+                  value="extend"
+                  [ngModel]="recalculationStrategy()"
+                  (ngModelChange)="recalculationStrategy.set($event)"
+                  class="text-brand-accent focus:ring-0"
+                />
+                <span>Удлинение оплаченного периода аренды</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs text-brand-text cursor-pointer">
+                <input
+                  type="radio"
+                  name="strategy"
+                  value="refund"
+                  [ngModel]="recalculationStrategy()"
+                  (ngModelChange)="recalculationStrategy.set($event)"
+                  class="text-brand-accent focus:ring-0"
+                />
+                <span>Засчитать разницу в счет будущих платежей (возврат)</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-brand-line flex justify-end gap-2">
+          <button
+            type="button"
+            (click)="showRecalculateModal.set(false)"
+            class="px-4 py-2 border border-brand-line text-brand-text text-xs font-medium rounded-md hover:bg-brand-elevated/20 transition-colors"
+          >
+            Отмена
+          </button>
+          <button
+            type="button"
+            (click)="confirmRecalculation()"
+            class="px-4 py-2 bg-brand-accent text-brand-bg text-xs font-semibold rounded-md hover:opacity-90 transition-opacity"
+          >
+            Подтвердить и пересчитать
+          </button>
+        </div>
+      </div>
     </div>
   }
 </div>

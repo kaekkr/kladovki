@@ -13,6 +13,14 @@ type SetTariffInput struct {
 	Amount int64  `json:"amount"`
 }
 
+func (s *Service) GetTariffPreview(ctx context.Context, jkID string, newAmount int64) (models.TariffPreviewResponse, error) {
+	jkID = strings.TrimSpace(jkID)
+	if jkID == "" || newAmount <= 0 {
+		return models.TariffPreviewResponse{}, ErrInvalid
+	}
+	return s.repo.GetTariffPreview(ctx, jkID, newAmount)
+}
+
 func (s *Service) SetTariff(ctx context.Context, in SetTariffInput) error {
 	jkID := strings.TrimSpace(in.JKID)
 	if jkID == "" || in.Amount <= 0 {

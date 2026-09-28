@@ -52,6 +52,12 @@ func (s *Service) GetDashboardStats(
 		return nil, fmt.Errorf("service.GetDashboardStats: %w", err)
 	}
 
+	// Fetch accurate total and occupied storage counts independently
+	occupancy, err := s.repo.GetDashboardOccupancy(ctx, jkID)
+	if err != nil {
+		return nil, fmt.Errorf("service.GetDashboardStats occupancy: %w", err)
+	}
+
 	var receivedChange float64
 
 	if row.PreviousReceived > 0 {
@@ -67,8 +73,8 @@ func (s *Service) GetDashboardStats(
 		Received:       row.Received,
 		ReceivedChange: receivedChange,
 
-		OccupiedStorages: row.OccupiedStorages,
-		TotalStorages:    row.TotalStorages,
+		OccupiedStorages: occupancy.Occupied,
+		TotalStorages:    occupancy.Total,
 
 		ActiveRentals: row.ActiveRentals,
 		NewRentals:    row.NewRentals,

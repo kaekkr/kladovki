@@ -17,6 +17,9 @@ export class Login {
   errorMessage = signal<string | null>(null);
   isLoading = signal<boolean>(false);
 
+  // Сигнал для управления видимостью пароля
+  showPassword = signal<boolean>(false);
+
   form = this.fb.nonNullable.group({
     login: ['', [Validators.required]],
     password: ['', [Validators.required, Validators.minLength(6)]],

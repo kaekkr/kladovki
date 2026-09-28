@@ -15,6 +15,48 @@ type LoginInput struct {
 	Password string
 }
 
+type RegisterInput struct {
+	FullName string
+	Phone    string
+	Password string
+	JKID     *string
+}
+
+func (s *Service) Register(ctx context.Context, in RegisterInput) (*models.User, error) {
+	fullName := strings.TrimSpace(in.FullName)
+	phone := strings.TrimSpace(in.Phone)
+	password := strings.TrimSpace(in.Password)
+
+	if fullName == "" || phone == "" || password == "" {
+		return nil, ErrInvalid
+	}
+
+	// Проверяем, не занят ли телефон
+	existing, err := s.repo.GetUserByPhone(ctx, phone)
+	if err == nil && existing != nil {
+		return nil, errors.New("пользователь с таким телефоном уже существует")
+	}
+
+	hashedPassword, err := HashPassword(password)
+	if err != nil {
+		return nil, err
+	}
+
+	user := &models.User{
+		FullName:     fullName,
+		Phone:        phone,
+		PasswordHash: hashedPassword,
+		Role:         models.RoleResident, // Роль жителя
+		JKID:         in.JKID,
+	}
+
+	if err := s.repo.CreateUser(ctx, user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
 func (s *Service) Login(ctx context.Context, in LoginInput) (*models.User, error) {
 	login := strings.TrimSpace(in.Login)
 	password := strings.TrimSpace(in.Password)

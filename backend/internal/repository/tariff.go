@@ -13,6 +13,33 @@ import (
 
 const tariffColumns = `id, jk_id, amount, created_at, updated_at`
 
+func (r *Repo) GetTariffPreview(ctx context.Context, jkID string, newAmount int64) (models.TariffPreviewResponse, error) {
+	// 1. Получаем текущий тариф
+	currentTariff, err := r.GetTariff(ctx, jkID)
+	if err != nil || currentTariff <= newAmount {
+		return models.TariffPreviewResponse{AffectedCount: 0, TotalDifference: 0}, nil
+	}
+
+	// 2. Исправленный запрос с нумерацией параметров под PostgreSQL ($1, $2, $3)
+	query := `
+		SELECT COUNT(r.id), COALESCE(SUM(($1 - $2) * s.area), 0)
+		FROM rentals r
+		JOIN storages s ON r.storage_id = s.id
+		WHERE r.jk_id = $3 AND r.status = 'active'
+	`
+
+	var count, diffSum int64
+	err = r.db.QueryRowContext(ctx, query, currentTariff, newAmount, jkID).Scan(&count, &diffSum)
+	if err != nil {
+		return models.TariffPreviewResponse{}, fmt.Errorf("repository.GetTariffPreview: %w", err)
+	}
+
+	return models.TariffPreviewResponse{
+		AffectedCount:   count,
+		TotalDifference: diffSum,
+	}, nil
+}
+
 func (r *Repo) SetTariff(ctx context.Context, jkID string, amount int64) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {

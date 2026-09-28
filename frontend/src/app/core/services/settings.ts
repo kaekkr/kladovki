@@ -5,6 +5,12 @@ import { Observable, of, forkJoin, map, catchError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { AdminSettings, JKSettings, TariffSettings, RentalSettings } from '../models/settings';
 
+// Интерфейс для ответа предварительного расчёта перерасчета
+export interface TariffPreviewResponse {
+  affected_count: number;
+  total_difference: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
   private http = inject(HttpClient);
@@ -38,8 +44,23 @@ export class SettingsService {
     return of({ lock_duration_minutes: 2 });
   }
 
-  saveTariff(jkId: string, amount: number): Observable<void> {
-    return this.http.put<void>(`${this.baseUrl}/jks/${jkId}/tariff`, { amount });
+  /** Предварительный расчет при уменьшении тарифа (Preview) */
+  /** Предварительный расчет при уменьшении тарифа (Preview через GET) */
+  previewTariffReduction(jkId: string, newAmount: number): Observable<TariffPreviewResponse> {
+    return this.http.get<TariffPreviewResponse>(`${this.baseUrl}/jks/${jkId}/tariff/preview`, {
+      params: { amount: newAmount.toString() },
+    });
+  }
+
+  saveTariff(
+    jkId: string,
+    amount: number,
+    recalculationStrategy?: 'extend' | 'refund',
+  ): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/jks/${jkId}/tariff`, {
+      amount,
+      recalculation_strategy: recalculationStrategy,
+    });
   }
 
   saveRentalSettings(jkId: string, settings: RentalSettings): Observable<void> {

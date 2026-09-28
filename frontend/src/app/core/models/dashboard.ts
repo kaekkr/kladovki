@@ -2,16 +2,16 @@ export type DashboardPeriod = '7d' | '30d' | 'quarter';
 
 export interface DashboardStats {
   received: number;
-  receivedChange: number;
+  received_change: number;
 
   debt: number;
-  debtApartments: number;
+  debt_apartments: number;
 
-  occupiedStorages: number;
-  totalStorages: number;
+  occupied_storages: number;
+  total_storages: number;
 
-  activeRentals: number;
-  newRentals: number;
+  active_rentals: number;
+  new_rentals: number;
 }
 
 export interface RevenuePoint {

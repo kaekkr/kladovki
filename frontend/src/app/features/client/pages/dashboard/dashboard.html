@@ -43,87 +43,135 @@
     }
 
     <!-- Main storage -->
-    @if (activeRentals().length) {
-      <section
-        class="relative overflow-hidden rounded-3xl border border-brand-line bg-brand-surface"
-      >
-        <div
-          class="pointer-events-none absolute -right-20 -top-20 h-48 w-48 rounded-full bg-brand-accent/10 blur-3xl"
-        ></div>
+    @if (activeRentals(); as rentalsList) {
+      @if (rentalsList.length > 0) {
+        <section
+          class="relative overflow-hidden rounded-3xl border border-brand-line bg-brand-surface"
+        >
+          <div
+            class="pointer-events-none absolute -right-20 -top-20 h-48 w-48 rounded-full bg-brand-accent/10 blur-3xl"
+          ></div>
 
-        <div class="relative p-5">
-          <div class="flex items-start justify-between gap-4">
-            <div>
-              <p class="text-[10px] font-medium uppercase tracking-[0.14em] text-brand-subtle">
-                Моя кладовка
-              </p>
+          @if (currentActiveRental(); as rental) {
+            <div class="relative p-5">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <p
+                      class="text-[10px] font-medium uppercase tracking-[0.14em] text-brand-subtle"
+                    >
+                      Моя кладовка
+                    </p>
+                    @if (rentalsList.length > 1) {
+                      <span class="text-[10px] text-brand-accent font-medium">
+                        ({{ currentIndex() + 1 }} из {{ rentalsList.length }})
+                      </span>
+                    }
+                  </div>
 
-              <h2 class="mt-1.5 text-[30px] font-semibold tracking-[-0.04em] text-brand-text">
-                №{{ activeRentals()[0].storage_number }}
-              </h2>
+                  <h2 class="mt-1.5 text-[30px] font-semibold tracking-[-0.04em] text-brand-text">
+                    №{{ rental.storage_number }}
+                  </h2>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  @if (rentalsList.length > 1) {
+                    <div class="flex items-center gap-1 bg-brand-elevated/50 p-1 rounded-lg">
+                      <button
+                        (click)="prevStorage()"
+                        class="px-2 py-1 text-xs text-brand-text hover:bg-brand-elevated rounded"
+                      >
+                        ←
+                      </button>
+                      <button
+                        (click)="nextStorage()"
+                        class="px-2 py-1 text-xs text-brand-text hover:bg-brand-elevated rounded"
+                      >
+                        →
+                      </button>
+                    </div>
+                  }
+
+                  <span
+                    class="inline-flex items-center gap-1.5 rounded-full bg-brand-accent/10 px-2.5 py-1 text-[10px] font-medium text-brand-accent"
+                  >
+                    <span class="h-1.5 w-1.5 rounded-full bg-brand-accent"></span>
+                    Активна
+                  </span>
+                </div>
+              </div>
+
+              <div class="mt-7 grid grid-cols-2 gap-4">
+                <div>
+                  <p class="text-[10px] text-brand-subtle">Аренда до</p>
+
+                  <p class="mt-1 text-sm font-medium text-brand-text">
+                    {{ rental.ends_at | date: 'dd MMMM yyyy' }}
+                  </p>
+                </div>
+
+                <div>
+                  <p class="text-[10px] text-brand-subtle">Ежемесячно</p>
+
+                  <p class="mt-1 text-sm font-medium text-brand-text">
+                    {{ formatMoney(rental.price_per_month) }}
+                  </p>
+                </div>
+              </div>
+
+              <a
+                [routerLink]="['/app/rentals', rental.id]"
+                class="mt-6 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-accent text-xs font-semibold text-brand-bg transition-opacity hover:opacity-90 active:scale-[0.99]"
+              >
+                Управление арендой
+                <i class="fas fa-arrow-right text-[10px]"></i>
+              </a>
+
+              <!-- Точки-индикаторы, если кладовых несколько -->
+              @if (rentalsList.length > 1) {
+                <div class="flex justify-center items-center gap-1.5 mt-4">
+                  @for (r of rentalsList; track r.id; let i = $index) {
+                    <button
+                      (click)="currentIndex.set(i)"
+                      class="h-1.5 rounded-full transition-all"
+                      [class.w-4]="currentIndex() === i"
+                      [class.bg-brand-accent]="currentIndex() === i"
+                      [class.w-1.5]="currentIndex() !== i"
+                      [class.bg-brand-line]="currentIndex() !== i"
+                    ></button>
+                  }
+                </div>
+              }
             </div>
-
-            <span
-              class="inline-flex items-center gap-1.5 rounded-full bg-brand-accent/10 px-2.5 py-1 text-[10px] font-medium text-brand-accent"
-            >
-              <span class="h-1.5 w-1.5 rounded-full bg-brand-accent"></span>
-              Активна
-            </span>
+          }
+        </section>
+      } @else {
+        <!-- Empty state -->
+        <section class="rounded-3xl border border-brand-line bg-brand-surface p-6 text-center">
+          <div
+            class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-elevated text-brand-muted"
+          >
+            <i class="fas fa-box-open"></i>
           </div>
 
-          <div class="mt-7 grid grid-cols-2 gap-4">
-            <div>
-              <p class="text-[10px] text-brand-subtle">Аренда до</p>
+          <h2 class="mt-4 text-base font-semibold text-brand-text">У вас пока нет кладовки</h2>
 
-              <p class="mt-1 text-sm font-medium text-brand-text">
-                {{ activeRentals()[0].ends_at | date: 'dd MMMM yyyy' }}
-              </p>
-            </div>
-
-            <div>
-              <p class="text-[10px] text-brand-subtle">Ежемесячно</p>
-
-              <p class="mt-1 text-sm font-medium text-brand-text">
-                {{ formatMoney(activeRentals()[0].price_per_month) }}
-              </p>
-            </div>
-          </div>
+          <p class="mx-auto mt-1 max-w-xs text-xs leading-5 text-brand-muted">
+            Выберите свободную кладовку и оформите аренду прямо в приложении.
+          </p>
 
           <a
-            [routerLink]="['/app/rentals', activeRentals()[0].id]"
-            class="mt-6 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-accent text-xs font-semibold text-brand-bg transition-opacity hover:opacity-90 active:scale-[0.99]"
+            routerLink="/app/storages"
+            class="mt-5 inline-flex h-11 w-full items-center justify-center rounded-xl bg-brand-accent text-xs font-semibold text-brand-bg"
           >
-            Управление арендой
-            <i class="fas fa-arrow-right text-[10px]"></i>
+            Найти кладовку
           </a>
-        </div>
-      </section>
-    } @else {
-      <!-- Empty state -->
-      <section class="rounded-3xl border border-brand-line bg-brand-surface p-6 text-center">
-        <div
-          class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-elevated text-brand-muted"
-        >
-          <i class="fas fa-box-open"></i>
-        </div>
-
-        <h2 class="mt-4 text-base font-semibold text-brand-text">У вас пока нет кладовки</h2>
-
-        <p class="mx-auto mt-1 max-w-xs text-xs leading-5 text-brand-muted">
-          Выберите свободную кладовку и оформите аренду прямо в приложении.
-        </p>
-
-        <a
-          routerLink="/app/storages"
-          class="mt-5 inline-flex h-11 w-full items-center justify-center rounded-xl bg-brand-accent text-xs font-semibold text-brand-bg"
-        >
-          Найти кладовку
-        </a>
-      </section>
+        </section>
+      }
     }
 
     <!-- Payment -->
-    @if (activeRentals().length) {
+    @if (currentActiveRental(); as rental) {
       <section>
         <div class="mb-3 flex items-center justify-between px-1">
           <h2 class="text-sm font-semibold text-brand-text">Оплата</h2>
@@ -144,23 +192,24 @@
             <div class="min-w-0 flex-1">
               <p class="text-xs font-medium text-brand-text">Следующий платёж</p>
 
-              <p class="mt-0.5 text-[11px] text-brand-muted">Аренда кладовки</p>
+              <p class="mt-0.5 text-[11px] text-brand-muted">
+                Кладовка №{{ rental.storage_number }}
+              </p>
             </div>
 
             <div class="text-right">
               <p class="text-sm font-semibold text-brand-text">
-                {{ formatMoney(activeRentals()[0].price_per_month) }}
+                {{ formatMoney(rental.price_per_month) }}
               </p>
 
               <p class="mt-0.5 text-[10px] text-brand-muted">
-                до {{ activeRentals()[0].ends_at | date: 'd MMMM' }}
+                до {{ rental.ends_at | date: 'd MMMM' }}
               </p>
             </div>
           </div>
         </div>
       </section>
     }
-
     <!-- Quick actions -->
     <section>
       <p class="mb-3 px-1 text-sm font-semibold text-brand-text">Быстрый доступ</p>

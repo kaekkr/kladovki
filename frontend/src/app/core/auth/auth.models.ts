@@ -13,6 +13,13 @@ export interface LoginPayload {
   password: string;
 }
 
+export interface RegisterPayload {
+  full_name: string;
+  phone: string;
+  password: string;
+  jk_id?: string;
+}
+
 export interface LoginResponse extends User {
   access_token: string;
   token_type: string;

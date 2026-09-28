@@ -2,7 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { tap, catchError, of } from 'rxjs';
 import { environment } from '../../../environments/environment.development';
-import { LoginPayload, User } from './auth.models';
+import { LoginPayload, RegisterPayload, User } from './auth.models';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -31,5 +31,11 @@ export class AuthService {
     return this.http
       .post(`${this.baseUrl}/auth/logout`, {})
       .pipe(tap(() => this.currentUser.set(null)));
+  }
+
+  register(payload: RegisterPayload) {
+    return this.http
+      .post<User>(`${this.baseUrl}/auth/register`, payload)
+      .pipe(tap((user) => this.currentUser.set(user)));
   }
 }

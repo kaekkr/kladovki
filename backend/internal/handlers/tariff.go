@@ -28,6 +28,28 @@ func (h *Handler) GetTariff(c *gin.Context) {
 	})
 }
 
+func (h *Handler) GetTariffPreview(c *gin.Context) {
+	jkID := c.Param("id")
+	if middleware.UserID(c) == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req SetTariffRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	preview, err := h.svc.GetTariffPreview(c.Request.Context(), jkID, req.Amount)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, preview)
+}
+
 func (h *Handler) SetTariff(c *gin.Context) {
 	jkID := c.Param("id")
 

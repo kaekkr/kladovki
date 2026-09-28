@@ -20,34 +20,45 @@ export class ClientDashboard {
   error = signal(false);
   rentals = signal<Rental[]>([]);
 
+  // Индекс выбранной кладовой для карусели
+  currentIndex = signal(0);
+
   userName = computed(() => this.auth.currentUser()?.full_name || 'Житель');
 
   greeting = computed(() => {
     const hour = new Date().getHours();
-
-    if (hour >= 5 && hour < 12) {
-      return 'Доброе утро';
-    }
-
-    if (hour >= 12 && hour < 18) {
-      return 'Добрый день';
-    }
-
-    if (hour >= 18 && hour < 24) {
-      return 'Добрый вечер';
-    }
-
+    if (hour >= 5 && hour < 12) return 'Доброе утро';
+    if (hour >= 12 && hour < 18) return 'Добрый день';
+    if (hour >= 18 && hour < 24) return 'Добрый вечер';
     return 'Доброй ночи';
   });
 
   activeRentals = computed(() => this.rentals().filter((r) => r.status === 'active'));
+
+  // Текущая активная кладовая с учетом карусели
+  currentActiveRental = computed(() => {
+    const list = this.activeRentals();
+    if (list.length === 0) return null;
+    return list[this.currentIndex()] || list[0];
+  });
+
+  nextStorage() {
+    const list = this.activeRentals();
+    if (list.length <= 1) return;
+    this.currentIndex.update((i) => (i + 1) % list.length);
+  }
+
+  prevStorage() {
+    const list = this.activeRentals();
+    if (list.length <= 1) return;
+    this.currentIndex.update((i) => (i - 1 + list.length) % list.length);
+  }
 
   lockedRentals = computed(() => this.rentals().filter((r) => r.status === 'locked'));
 
   hasDebt = computed(() =>
     this.activeRentals().some((r) => r.total_paid < r.price_per_month * r.months),
   );
-
   constructor() {
     this.load();
   }
