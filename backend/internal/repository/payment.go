@@ -39,6 +39,61 @@ func (r *Repo) CreatePayment(ctx context.Context, p *models.Payment) error {
 	).Scan(&p.CreatedAt)
 }
 
+func (r *Repo) CompletePaymentAndActivateRental(ctx context.Context, paymentID string, status models.PaymentStatus) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 1. Обновляем статус платежа
+	var rentalID string
+	var currentStatus string
+	err = tx.QueryRowContext(ctx, `
+		UPDATE payments 
+		SET status = $1 
+		WHERE id = $2 
+		RETURNING rental_id, status
+	`, status, paymentID).Scan(&rentalID, &currentStatus)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return fmt.Errorf("update payment status: %w", err)
+	}
+
+	// 2. Если платеж успешен (в ApiPay статус успешной оплаты — "paid")
+	if status == "paid" || status == "success" || status == "completed" {
+		var storageID string
+		err = tx.QueryRowContext(ctx, `
+			UPDATE rentals 
+			SET status = 'active' 
+			WHERE id = $1 AND status = 'locked'
+			RETURNING storage_id
+		`, rentalID).Scan(&storageID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("activate rental: %w", err)
+		}
+
+		if storageID != "" {
+			_, err = tx.ExecContext(ctx, `
+				UPDATE storages 
+				SET status = 'occupied' 
+				WHERE id = $1
+			`, storageID)
+			if err != nil {
+				return fmt.Errorf("update storage status: %w", err)
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit tx: %w", err)
+	}
+
+	return nil
+}
+
 func (r *Repo) GetPaymentByID(ctx context.Context, id string) (*models.Payment, error) {
 	query := fmt.Sprintf(`SELECT %s FROM payments WHERE id = $1`, paymentColumns)
 	return r.scanPayment(r.db.QueryRowContext(ctx, query, id))
@@ -61,10 +116,6 @@ func (r *Repo) ListPaymentsByUserID(ctx context.Context, userID string) ([]*mode
 		payments = append(payments, p)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("repository.ListPaymentsByUserID rows: %w", err)
-	}
-
 	return payments, nil
 }
 
@@ -83,10 +134,6 @@ func (r *Repo) ListPaymentsByRentalID(ctx context.Context, rentalID string) ([]*
 			return nil, fmt.Errorf("repository.ListPaymentsByRentalID scan: %w", err)
 		}
 		payments = append(payments, p)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("repository.ListPaymentsByRentalID rows: %w", err)
 	}
 
 	return payments, nil

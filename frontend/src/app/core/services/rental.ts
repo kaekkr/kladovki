@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 
 import { environment } from '../../../environments/environment';
 import { Rental } from '../models/rental';
+import { Observable } from 'rxjs';
 
 @Injectable({
   providedIn: 'root',
@@ -39,5 +40,13 @@ export class RentalService {
 
   forceRelease(id: string) {
     return this.http.patch<Rental>(`${this.baseUrl}/rentals/${id}/force-release`, {});
+  }
+
+  createPayment(data: {
+    rental_id: string;
+    amount: number;
+    phone: string;
+  }): Observable<{ payment_url: string }> {
+    return this.http.post<{ payment_url: string }>(`${this.baseUrl}/payments`, data);
   }
 }

@@ -61,10 +61,17 @@ func (h *Handler) Register(r *gin.Engine) {
 			rentals.GET("/:id", h.GetRentalByID)
 		}
 
+		// === Payments ===
 		payments := api.Group("/payments")
-		payments.Use(h.mw.Require())
 		{
-			payments.GET("/jk/:jk_id", h.ListPaymentsByJK)
+			// Вебхук от ApiPay вызывается внешней системой, поэтому без h.mw.Require()
+			payments.POST("/webhook", h.PaymentWebhook)
+
+			// Создание платежа требует авторизации пользователя
+			payments.Group("").Use(h.mw.Require()).POST("", h.CreatePayment)
+
+			// Список платежей по ЖК тоже под авторизацией
+			payments.Group("").Use(h.mw.Require()).GET("/jk/:jk_id", h.ListPaymentsByJK)
 		}
 	}
 }

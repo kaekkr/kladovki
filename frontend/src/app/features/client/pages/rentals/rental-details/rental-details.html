@@ -1,4 +1,30 @@
-<div class="space-y-5 pb-4">
+<div class="space-y-5 pb-4 relative">
+  <!-- Оверлей ожидания Kaspi Push -->
+  @if (paying()) {
+    <div class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-brand-surface/90 backdrop-blur-md p-6 text-center">
+      <div class="flex h-16 w-16 items-center justify-center rounded-3xl bg-brand-accent/10 text-brand-accent mb-4 animate-bounce">
+        <i class="fas fa-mobile-screen-button text-2xl"></i>
+      </div>
+      <h2 class="text-sm font-semibold text-brand-text">Ожидаем оплату в Kaspi...</h2>
+      <p class="mt-1.5 text-xs leading-relaxed text-brand-muted max-w-xs">
+        Мы отправили счёт на ваш номер телефона. Подтвердите оплату в приложении Kaspi.kz
+      </p>
+
+      <div class="mt-6 flex items-center gap-2 text-xs text-brand-accent font-medium">
+        <i class="fas fa-spinner fa-spin"></i>
+        Проверяем статус платежа...
+      </div>
+
+      <button
+        type="button"
+        (click)="cancelPaymentLoading()"
+        class="mt-8 text-xs font-medium text-brand-muted hover:text-brand-text transition"
+      >
+        Отменить ожидание
+      </button>
+    </div>
+  }
+
   <!-- Back -->
   <div class="pt-2">
     <a
@@ -152,7 +178,7 @@
         </div>
       </section>
     } @else if (rental()!.status === 'locked') {
-      <section class="rounded-2xl border border-status-locked/20 bg-status-locked/5 px-4 py-4">
+      <section class="rounded-2xl border border-status-locked/25 bg-status-locked/5 px-4 py-4 relative">
         <div class="flex items-center justify-between gap-4">
           <div class="flex items-start gap-3">
             <div
@@ -181,13 +207,10 @@
           (click)="pay()"
           class="mt-4 flex h-12 w-full items-center justify-center rounded-xl bg-brand-accent text-sm font-semibold text-brand-bg transition hover:bg-brand-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
         >
-          @if (paying()) {
-            <i class="fas fa-spinner fa-spin mr-2"></i>
-            Оплата...
-          } @else if (remainingSeconds() <= 0) {
+          @if (remainingSeconds() <= 0) {
             Бронь истекла
           } @else {
-            Оплатить
+            Запросить оплату в Kaspi
             {{ formatMoney(rental()!.price_per_month * rental()!.months) }}
           }
         </button>
@@ -235,28 +258,5 @@
         </div>
       </section>
     }
-
-    <!-- <!-- Cancel -->
-    -->
-    <!-- @if (canCancel()) { -->
-    <!--   <button -->
-    <!--     type="button" -->
-    <!--     (click)="cancel()" -->
-    <!--     class="h-12 w-full rounded-xl border border-brand-line bg-brand-surface text-xs font-semibold text-brand-muted transition-colors hover:border-red-400/30 hover:text-red-400" -->
-    <!--   > -->
-    <!--     Отменить аренду -->
-    <!--   </button> -->
-    <!-- } -->
-    <!-- <!-- Cancel -->
-    -->
-    <!-- @if (canCancel()) { -->
-    <!--   <button -->
-    <!--     type="button" -->
-    <!--     (click)="cancel()" -->
-    <!--     class="h-12 w-full rounded-xl border border-brand-line bg-brand-surface text-xs font-semibold text-brand-muted transition-colors hover:border-red-400/30 hover:text-red-400" -->
-    <!--   > -->
-    <!--     Отменить аренду -->
-    <!--   </button> -->
-    <!-- } -->
   }
 </div>

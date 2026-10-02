@@ -23,6 +23,10 @@ export class ClientDashboard {
   // Индекс выбранной кладовой для карусели
   currentIndex = signal(0);
 
+  // Переменные для отслеживания свайпа
+  private touchStartX = 0;
+  private touchEndX = 0;
+
   userName = computed(() => this.auth.currentUser()?.full_name || 'Житель');
 
   greeting = computed(() => {
@@ -42,6 +46,31 @@ export class ClientDashboard {
     return list[this.currentIndex()] || list[0];
   });
 
+  // Методы обработки свайпов
+  onTouchStart(event: TouchEvent): void {
+    this.touchStartX = event.changedTouches[0].screenX;
+  }
+
+  onTouchEnd(event: TouchEvent): void {
+    this.touchEndX = event.changedTouches[0].screenX;
+    this.handleGesture();
+  }
+
+  private handleGesture(): void {
+    const threshold = 50; // Минимальная длина свайпа в пикселях
+    const list = this.activeRentals();
+    if (!list || list.length <= 1) return;
+
+    if (this.touchEndX < this.touchStartX - threshold) {
+      // Свайп влево -> следующая кладовка
+      this.nextStorage();
+    }
+    if (this.touchEndX > this.touchStartX + threshold) {
+      // Свайп вправо -> предыдущая кладовка
+      this.prevStorage();
+    }
+  }
+
   nextStorage() {
     const list = this.activeRentals();
     if (list.length <= 1) return;
@@ -59,6 +88,7 @@ export class ClientDashboard {
   hasDebt = computed(() =>
     this.activeRentals().some((r) => r.total_paid < r.price_per_month * r.months),
   );
+
   constructor() {
     this.load();
   }
@@ -98,14 +128,7 @@ export class ClientDashboard {
 
     this.rentalService.listByJK(jkId).subscribe({
       next: (all) => {
-        console.log('CURRENT USER:', user);
-        console.log('USER ID:', userId);
-        console.log('ALL RENTALS:', all);
-
         const mine = userId ? all.filter((r) => r.user_id === userId) : [];
-
-        console.log('MY RENTALS:', mine);
-
         this.rentals.set(mine);
         this.loading.set(false);
       },

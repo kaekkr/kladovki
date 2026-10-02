@@ -10,14 +10,17 @@ import (
 )
 
 type Config struct {
-	Port         string
-	DBPath       string
-	JWTSecret    string
-	JWTAccessTTL time.Duration
-	CookieSecure bool
-	CookieName   string
-	Env          string
-	APIPrefix    string
+	Port                string
+	DBPath              string
+	JWTSecret           string
+	JWTAccessTTL        time.Duration
+	CookieSecure        bool
+	CookieName          string
+	Env                 string
+	APIPrefix           string
+	ApiPayKey           string
+	ApiPayBaseURL       string
+	ApiPayWebhookSecret string
 }
 
 func Load() Config {
@@ -77,14 +80,32 @@ func Load() Config {
 		apiPrefix = "/api/v1"
 	}
 
+	// Настройки ApiPay
+	apiPayKey := os.Getenv("APIPAY_KEY")
+	if apiPayKey == "" {
+		apiPayKey = "22b82f26250099bf359c3c82a114fdc2992cbb20c2e3ae2e67227eae8d772ad1"
+	}
+
+	apiPayBaseURL := os.Getenv("APIPAY_BASE_URL")
+	if apiPayBaseURL == "" {
+		apiPayBaseURL = "https://api.apipay.kz/api"
+	}
+
+	apiPayWebhookSecret := os.Getenv("APIPAY_WEBHOOK_SECRET")
+	if apiPayWebhookSecret == "" {
+		apiPayWebhookSecret = "462abe230df09c10468689c4d941a5fa2e349561b6be80de8d46b29f3cd1d4d0"
+	}
+
 	return Config{
-		Port:         port,
-		DBPath:       dbPath,
-		JWTSecret:    secret,
-		JWTAccessTTL: time.Duration(ttlHours) * time.Hour,
-		CookieSecure: secure,
-		CookieName:   cookieName,
-		Env:          env,
-		APIPrefix:    apiPrefix,
+		Port:          port,
+		DBPath:        dbPath,
+		JWTSecret:     secret,
+		JWTAccessTTL:  time.Duration(ttlHours) * time.Hour,
+		CookieSecure:  secure,
+		CookieName:    cookieName,
+		Env:           env,
+		APIPrefix:     apiPrefix,
+		ApiPayKey:     apiPayKey,
+		ApiPayBaseURL: apiPayBaseURL,
 	}
 }

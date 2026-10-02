@@ -394,17 +394,46 @@ func (r *Repo) CreateRental(ctx context.Context, rt *models.Rental) error {
 }
 
 func (r *Repo) GetRentalByID(ctx context.Context, id string) (*models.Rental, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("repository.GetRentalByID begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
 	query := fmt.Sprintf(`
 		SELECT %s
 		FROM rentals r
 		JOIN storages s ON s.id = r.storage_id
 		JOIN users u ON u.id = r.user_id
 		WHERE r.id = $1
+		FOR UPDATE
 	`, rentalDetailsColumns)
 
-	return scanRentalDetails(
-		r.db.QueryRowContext(ctx, query, id),
-	)
+	rt, err := scanRentalDetails(tx.QueryRowContext(ctx, query, id))
+	if err != nil {
+		return nil, err
+	}
+
+	// Если аренда заблокирована, но время брони вышло — автоматически переводим в expired и освобождаем кладовку
+	if rt.Status == models.RentalStatusLocked && time.Now().UTC().After(rt.EndsAt) {
+		_, err = tx.ExecContext(ctx, `UPDATE rentals SET status = 'expired' WHERE id = $1`, rt.ID)
+		if err != nil {
+			return nil, fmt.Errorf("repository.GetRentalByID expire rental: %w", err)
+		}
+
+		_, err = tx.ExecContext(ctx, `UPDATE storages SET status = 'free' WHERE id = $1`, rt.StorageID)
+		if err != nil {
+			return nil, fmt.Errorf("repository.GetRentalByID free storage: %w", err)
+		}
+
+		rt.Status = models.RentalStatusExpired
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("repository.GetRentalByID commit: %w", err)
+	}
+
+	return rt, nil
 }
 
 func (r *Repo) GetActiveRentalByStorage(ctx context.Context, storageID string) (*models.Rental, error) {

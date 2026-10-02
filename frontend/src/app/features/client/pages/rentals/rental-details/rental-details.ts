@@ -1,5 +1,5 @@
 import { Component, inject, OnDestroy, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink, Router } from '@angular/router';
 
 import { Rental, RentalStatus } from '../../../../../core/models/rental';
 import { RentalService } from '../../../../../core/services/rental';
@@ -18,12 +18,13 @@ export class ClientRentalDetails implements OnDestroy {
   error = signal(false);
   rental = signal<Rental | null>(null);
 
-  paying = signal(false);
+  paying = signal(false); // Теперь это состояние "Ожидание оплаты в Kaspi"
   paymentError = signal<string | null>(null);
 
   remainingSeconds = signal(0);
 
   private timer: ReturnType<typeof setInterval> | null = null;
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     this.load();
@@ -48,14 +49,11 @@ export class ClientRentalDetails implements OnDestroy {
     switch (status) {
       case 'active':
         return 'bg-brand-accent/10 text-brand-accent';
-
       case 'locked':
         return 'bg-status-locked/10 text-status-locked';
-
       case 'expired':
       case 'cancelled':
         return 'bg-brand-elevated text-brand-muted';
-
       default:
         return 'bg-brand-elevated text-brand-muted';
     }
@@ -98,11 +96,17 @@ export class ClientRentalDetails implements OnDestroy {
     this.paying.set(true);
     this.paymentError.set(null);
 
-    this.rentalService.confirmPayment(currentRental.id).subscribe({
-      next: (updatedRental) => {
-        this.rental.set(updatedRental);
-        this.paying.set(false);
-        this.stopTimer();
+    const amount = currentRental.price_per_month * currentRental.months;
+    const phone = (currentRental as any).user_phone || (currentRental as any).phone || '';
+
+    this.rentalService.createPayment({
+      rental_id: currentRental.id,
+      amount: amount,
+      phone: phone,
+    }).subscribe({
+      next: () => {
+        // Счет успешно отправлен в Kaspi, запускаем опрос (поллинг) статуса
+        this.startPolling(currentRental.id);
       },
       error: (error) => {
         this.paying.set(false);
@@ -111,14 +115,48 @@ export class ClientRentalDetails implements OnDestroy {
           this.paymentError.set(
             'Срок бронирования истёк. Кладовка больше не удерживается за вами.',
           );
-
           this.load();
           return;
         }
 
-        this.paymentError.set('Не удалось выполнить оплату. Попробуйте ещё раз.');
+        this.paymentError.set('Не удалось отправить счёт в Kaspi. Попробуйте ещё раз.');
       },
     });
+  }
+
+  // Запуск поллинга для ожидания оплаты
+  private startPolling(rentalId: string): void {
+    this.stopPolling();
+
+    this.pollTimer = setInterval(() => {
+      this.rentalService.getById(rentalId).subscribe({
+        next: (rental) => {
+          if (rental.status === 'active') {
+            // Оплата прошла успешно!
+            this.stopPolling();
+            this.paying.set(false);
+            this.rental.set(rental);
+            // Можно обновить таймеры или перенаправить/показать успех
+          } else if (rental.status === 'cancelled' || rental.status === 'expired') {
+            // Если бронь отменилась или истекла
+            this.stopPolling();
+            this.paying.set(false);
+            this.rental.set(rental);
+            this.paymentError.set('Время оплаты истекло, бронь отменена.');
+          }
+        },
+        error: () => {
+          // Игнорируем сетевые ошибки во время поллинга, пробуем снова
+        }
+      });
+    }, 3000); // Проверяем каждые 3 секунды
+  }
+
+  private stopPolling(): void {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
   }
 
   private startTimer(endsAt: string): void {
@@ -187,7 +225,13 @@ export class ClientRentalDetails implements OnDestroy {
     });
   }
 
+  cancelPaymentLoading(): void {
+    this.stopPolling();
+    this.paying.set(false);
+  }
+
   ngOnDestroy(): void {
     this.stopTimer();
+    this.stopPolling();
   }
 }

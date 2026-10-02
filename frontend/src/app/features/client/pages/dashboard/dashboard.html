@@ -14,7 +14,6 @@
     <!-- Loading -->
     <div class="space-y-4">
       <div class="h-48 animate-pulse rounded-3xl bg-brand-surface"></div>
-
       <div class="h-28 animate-pulse rounded-2xl bg-brand-surface"></div>
     </div>
   } @else {
@@ -32,7 +31,6 @@
 
         <div class="min-w-0 flex-1">
           <p class="text-xs font-semibold text-status-overdue">Есть задолженность</p>
-
           <p class="mt-0.5 text-[11px] text-status-overdue/70">Нажмите, чтобы посмотреть детали</p>
         </div>
 
@@ -46,7 +44,9 @@
     @if (activeRentals(); as rentalsList) {
       @if (rentalsList.length > 0) {
         <section
-          class="relative overflow-hidden rounded-3xl border border-brand-line bg-brand-surface"
+          class="relative overflow-hidden rounded-3xl border border-brand-line bg-brand-surface touch-pan-y"
+          (touchstart)="onTouchStart($event)"
+          (touchend)="onTouchEnd($event)"
         >
           <div
             class="pointer-events-none absolute -right-20 -top-20 h-48 w-48 rounded-full bg-brand-accent/10 blur-3xl"
@@ -75,23 +75,6 @@
                 </div>
 
                 <div class="flex items-center gap-2">
-                  @if (rentalsList.length > 1) {
-                    <div class="flex items-center gap-1 bg-brand-elevated/50 p-1 rounded-lg">
-                      <button
-                        (click)="prevStorage()"
-                        class="px-2 py-1 text-xs text-brand-text hover:bg-brand-elevated rounded"
-                      >
-                        ←
-                      </button>
-                      <button
-                        (click)="nextStorage()"
-                        class="px-2 py-1 text-xs text-brand-text hover:bg-brand-elevated rounded"
-                      >
-                        →
-                      </button>
-                    </div>
-                  }
-
                   <span
                     class="inline-flex items-center gap-1.5 rounded-full bg-brand-accent/10 px-2.5 py-1 text-[10px] font-medium text-brand-accent"
                   >
@@ -104,7 +87,6 @@
               <div class="mt-7 grid grid-cols-2 gap-4">
                 <div>
                   <p class="text-[10px] text-brand-subtle">Аренда до</p>
-
                   <p class="mt-1 text-sm font-medium text-brand-text">
                     {{ rental.ends_at | date: 'dd MMMM yyyy' }}
                   </p>
@@ -112,7 +94,6 @@
 
                 <div>
                   <p class="text-[10px] text-brand-subtle">Ежемесячно</p>
-
                   <p class="mt-1 text-sm font-medium text-brand-text">
                     {{ formatMoney(rental.price_per_month) }}
                   </p>
@@ -127,19 +108,24 @@
                 <i class="fas fa-arrow-right text-[10px]"></i>
               </a>
 
-              <!-- Точки-индикаторы, если кладовых несколько -->
+              <!-- Точки-индикаторы и подсказка о свайпе -->
               @if (rentalsList.length > 1) {
-                <div class="flex justify-center items-center gap-1.5 mt-4">
-                  @for (r of rentalsList; track r.id; let i = $index) {
-                    <button
-                      (click)="currentIndex.set(i)"
-                      class="h-1.5 rounded-full transition-all"
-                      [class.w-4]="currentIndex() === i"
-                      [class.bg-brand-accent]="currentIndex() === i"
-                      [class.w-1.5]="currentIndex() !== i"
-                      [class.bg-brand-line]="currentIndex() !== i"
-                    ></button>
-                  }
+                <div class="flex flex-col items-center gap-2 mt-4">
+                  <div class="flex justify-center items-center gap-1.5">
+                    @for (r of rentalsList; track r.id; let i = $index) {
+                      <button
+                        (click)="currentIndex.set(i)"
+                        class="h-1.5 rounded-full transition-all"
+                        [class.w-4]="currentIndex() === i"
+                        [class.bg-brand-accent]="currentIndex() === i"
+                        [class.w-1.5]="currentIndex() !== i"
+                        [class.bg-brand-line]="currentIndex() !== i"
+                      ></button>
+                    }
+                  </div>
+                  <p class="text-[9px] text-brand-subtle tracking-wide select-none">
+                    Смахните влево или вправо
+                  </p>
                 </div>
               }
             </div>
@@ -210,6 +196,7 @@
         </div>
       </section>
     }
+
     <!-- Quick actions -->
     <section>
       <p class="mb-3 px-1 text-sm font-semibold text-brand-text">Быстрый доступ</p>
@@ -252,7 +239,6 @@
       <section>
         <div class="mb-3 px-1">
           <h2 class="text-sm font-semibold text-brand-text">Ожидают оплаты</h2>
-
           <p class="mt-0.5 text-[11px] text-brand-muted">Незавершённые бронирования</p>
         </div>
 
