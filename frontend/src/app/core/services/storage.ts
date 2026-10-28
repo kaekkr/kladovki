@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
-// import { environment } from '../../../environments/environment.development';
+// import { environment } from '../../../environments/environment';
 import { environment } from '../../../environments/environment';
 import { Storage } from '../models/storage';
 
@@ -40,6 +40,10 @@ export class StorageService {
     },
   ) {
     return this.http.put<Storage>(`${this.baseUrl}/storages/${id}`, data);
+  }
+
+  setTransfer(id: string, iin: string) {
+    return this.http.patch<{ message: string }>(`${this.baseUrl}/storages/${id}/transfer`, { iin });
   }
 
   delete(id: string) {

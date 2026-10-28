@@ -43,6 +43,7 @@ func (h *Handler) Register(r *gin.Engine) {
 			storages.GET("/:id", h.GetStorageByID)
 			storages.PUT("/:id", h.UpdateStorage)
 			storages.DELETE("/:id", h.DeleteStorage)
+			storages.PATCH("/:id/transfer", h.SetStorageTransfer)
 		}
 
 		// === Rentals ===
@@ -57,6 +58,7 @@ func (h *Handler) Register(r *gin.Engine) {
 
 			rentals.PATCH("/:id/cancel", h.CancelRental)
 			rentals.PATCH("/:id/force-release", h.ForceReleaseLocked)
+			rentals.PATCH("/:id/release-overdue", h.ReleaseOverdueRental)
 
 			rentals.GET("/:id", h.GetRentalByID)
 		}

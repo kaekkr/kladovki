@@ -42,6 +42,13 @@ export class RentalService {
     return this.http.patch<Rental>(`${this.baseUrl}/rentals/${id}/force-release`, {});
   }
 
+  releaseOverdue(id: string) {
+    return this.http.patch<Rental>(
+      `${this.baseUrl}/rentals/${id}/release-overdue`,
+      {},
+    );
+  }
+
   createPayment(data: {
     rental_id: string;
     amount: number;

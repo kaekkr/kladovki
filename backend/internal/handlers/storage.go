@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -139,4 +140,59 @@ func (h *Handler) DeleteStorage(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Кладовка успешно удалена"})
+}
+
+type setStorageTransferRequest struct {
+	IIN string `json:"iin" binding:"required"`
+}
+
+func (h *Handler) SetStorageTransfer(c *gin.Context) {
+	var req setStorageTransferRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Укажи ИИН нового владельца"})
+		return
+	}
+	userID := middleware.UserID(c)
+	role := middleware.Role(c)
+
+	if role != "admin" {
+		rental, err := h.svc.GetActiveRentalByStorage(
+			c.Request.Context(),
+			c.Param("id"),
+		)
+		if err != nil {
+			c.JSON(http.StatusConflict, gin.H{
+				"error": "Не удалось проверить владельца кладовки",
+			})
+			return
+		}
+
+		if rental.UserID != userID {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "Только текущий арендатор может назначить нового владельца",
+			})
+			return
+		}
+	}
+
+	err := h.svc.SetStorageTransfer(
+		c.Request.Context(),
+		c.Param("id"),
+		req.IIN,
+	)
+	if err != nil {
+		if errors.Is(err, service.ErrInvalid) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Некорректный ИИН или статус кладовки"})
+			return
+		}
+		if errors.Is(err, service.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Кладовка не найдена"})
+			return
+		}
+		log.Printf("SetStorageTransfer error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось назначить нового владельца"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Передача кладовки назначена на 14 дней"})
 }

@@ -11,12 +11,14 @@ const (
 )
 
 type Storage struct {
-	ID        string        `json:"id"`
-	JKID      string        `json:"jk_id"`
-	Number    string        `json:"number"`
-	Area      float64       `json:"area"`
-	Floor     int           `json:"floor"`
-	Entrance  int           `json:"entrance"`
-	Status    StorageStatus `json:"status"`
-	CreatedAt time.Time     `json:"created_at"`
+	ID            string        `json:"id"`
+	JKID          string        `json:"jk_id"`
+	Number        string        `json:"number"`
+	Area          float64       `json:"area"`
+	Floor         int           `json:"floor"`
+	Entrance      int           `json:"entrance"`
+	Status        StorageStatus `json:"status"`
+	CreatedAt     time.Time     `json:"created_at"`
+	TransferToIIN string        `json:"transfer_to_iin"`
+	TransferUntil *time.Time    `json:"transfer_until"`
 }

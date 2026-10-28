@@ -20,6 +20,7 @@ export class Register {
   phone = signal('');
   password = signal('');
   acceptedRules = signal(false);
+  iin = signal('');
 
   // State
   loading = signal(false);
@@ -37,6 +38,11 @@ export class Register {
       return;
     }
 
+    if (!/^\d{12}$/.test(this.iin())) {
+      this.errorMessage.set('ИИН должен содержать 12 цифр');
+      return;
+    }
+
     if (!this.acceptedRules()) {
       this.errorMessage.set('Необходимо принять регламент использования сервиса');
       return;
@@ -50,6 +56,7 @@ export class Register {
       phone: this.phone(),
       password: this.password(),
       jk_id: this.jkId() || undefined,
+      iin: this.iin(),
     };
 
     this.authService.register(payload).subscribe({

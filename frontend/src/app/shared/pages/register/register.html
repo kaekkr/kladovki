@@ -31,6 +31,20 @@
         />
       </div>
 
+      <div>
+        <label class="block text-xs text-brand-muted mb-1.5">ИИН</label>
+        <input
+          type="text"
+          [ngModel]="iin()"
+          (ngModelChange)="iin.set($event)"
+          name="iin"
+          inputmode="numeric"
+          maxlength="12"
+          placeholder="Введите 12 цифр"
+          required
+          class="w-full px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent"
+        />
+      </div>
       <!-- Телефон -->
       <div>
         <label class="block text-xs text-brand-muted mb-1.5">Номер телефона</label>

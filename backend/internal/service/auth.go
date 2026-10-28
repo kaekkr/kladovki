@@ -18,6 +18,7 @@ type LoginInput struct {
 type RegisterInput struct {
 	FullName string
 	Phone    string
+	IIN      string
 	Password string
 	JKID     *string
 }
@@ -25,6 +26,17 @@ type RegisterInput struct {
 func (s *Service) Register(ctx context.Context, in RegisterInput) (*models.User, error) {
 	fullName := strings.TrimSpace(in.FullName)
 	phone := strings.TrimSpace(in.Phone)
+	iin := strings.TrimSpace(in.IIN)
+
+	if len(iin) != 12 {
+		return nil, ErrInvalid
+	}
+
+	for _, ch := range iin {
+		if ch < '0' || ch > '9' {
+			return nil, ErrInvalid
+		}
+	}
 	password := strings.TrimSpace(in.Password)
 
 	if fullName == "" || phone == "" || password == "" {
@@ -48,6 +60,7 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (*models.User,
 		PasswordHash: hashedPassword,
 		Role:         models.RoleResident, // Роль жителя
 		JKID:         in.JKID,
+		IIN:          iin,
 	}
 
 	if err := s.repo.CreateUser(ctx, user); err != nil {

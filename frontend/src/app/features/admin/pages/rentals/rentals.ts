@@ -130,6 +130,27 @@ export class AdminRentals {
     });
   }
 
+  releaseOverdueRental(rental: Rental) {
+    if (!confirm('Освободить кладовку? Аренда будет завершена.')) {
+      return;
+    }
+
+    this.rentalService.releaseOverdue(rental.id).subscribe({
+      next: (updated) => {
+        this.rentals.update((items) =>
+          items.map((item) => (item.id === updated.id ? updated : item)),
+        );
+
+        if (this.selectedRental()?.id === updated.id) {
+          this.selectedRental.set(updated);
+        }
+      },
+      error: (err) => {
+        this.actionError.set(err.error?.error ?? 'Не удалось освободить кладовку');
+      },
+    });
+  }
+
   statusLabel(status: RentalStatus): string {
     switch (status) {
       case 'active':
@@ -147,6 +168,12 @@ export class AdminRentals {
       default:
         return status;
     }
+  }
+
+  overdueDays(rental: Rental): number {
+    if (rental.status !== 'active') return 0;
+    const diff = Date.now() - new Date(rental.ends_at).getTime();
+    return diff > 0 ? Math.floor(diff / 86400000) : 0;
   }
 
   formatMoney(value: number): string {

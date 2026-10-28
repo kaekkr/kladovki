@@ -35,10 +35,12 @@
     <!-- Content -->
     <div class="px-6 py-6 space-y-5">
       <!-- Error -->
-      @if (error(); as error) {
-        <div
-          class="rounded-lg border border-status-overdue/20 bg-status-overdue/10 px-4 py-3 text-sm text-status-overdue"
-        >
+      @if (validationError(); as error) {
+        <div class="error-message">
+          {{ error }}
+        </div>
+      } @else if (serverError(); as error) {
+        <div class="error-message">
           {{ error }}
         </div>
       }

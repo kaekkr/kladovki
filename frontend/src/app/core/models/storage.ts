@@ -9,6 +9,8 @@ export interface Storage {
   entrance: number;
   status: StorageStatus;
   created_at: string;
+  transfer_to_iin?: string | null;
+  transfer_until?: string | null;
 }
 
 export interface CreateStorageRequest {

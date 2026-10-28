@@ -22,6 +22,7 @@ type registerRequest struct {
 	Phone    string  `json:"phone" binding:"required"`
 	Password string  `json:"password" binding:"required"`
 	JKID     *string `json:"jk_id"`
+	IIN      string  `json:"iin" binding:"required"`
 }
 
 func (h *Handler) RegisterResident(c *gin.Context) {
@@ -36,6 +37,7 @@ func (h *Handler) RegisterResident(c *gin.Context) {
 		Phone:    req.Phone,
 		Password: req.Password,
 		JKID:     req.JKID,
+		IIN:      req.IIN,
 	})
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -56,6 +58,7 @@ func (h *Handler) RegisterResident(c *gin.Context) {
 		"email":     user.Email,
 		"role":      user.Role,
 		"jk_id":     user.JKID,
+		"iin":       user.IIN,
 	})
 }
 
@@ -94,6 +97,7 @@ func (h *Handler) Login(c *gin.Context) {
 		"email":     user.Email,
 		"role":      user.Role,
 		"jk_id":     user.JKID,
+		"iin":       user.IIN,
 	})
 }
 
@@ -128,6 +132,7 @@ func (h *Handler) Me(c *gin.Context) {
 		"email":     user.Email,
 		"role":      user.Role,
 		"jk_id":     user.JKID,
+		"iin":       user.IIN,
 	})
 }
 

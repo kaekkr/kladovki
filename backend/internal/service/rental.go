@@ -45,6 +45,21 @@ func (s *Service) LockStorage(
 		return nil, err
 	}
 
+	if st.TransferToIIN != "" {
+		if st.TransferUntil == nil || time.Now().After(*st.TransferUntil) {
+			return nil, ErrInvalid
+		}
+
+		user, err := s.repo.GetUserByID(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+
+		if user.IIN != st.TransferToIIN {
+			return nil, ErrInvalid
+		}
+	}
+
 	tariffAmount, err := s.repo.GetTariff(ctx, st.JKID)
 	if err != nil {
 		return nil, fmt.Errorf(
@@ -156,6 +171,21 @@ func (s *Service) CancelRental(
 		rentalID,
 		jkID,
 	)
+}
+
+func (s *Service) ReleaseOverdueRental(
+	ctx context.Context,
+	rentalID string,
+	jkID string,
+) (*models.Rental, error) {
+	rentalID = strings.TrimSpace(rentalID)
+	jkID = strings.TrimSpace(jkID)
+
+	if rentalID == "" || jkID == "" {
+		return nil, ErrInvalid
+	}
+
+	return s.repo.ReleaseOverdueRental(ctx, rentalID, jkID)
 }
 
 func (s *Service) ExpireRentals(ctx context.Context) error {

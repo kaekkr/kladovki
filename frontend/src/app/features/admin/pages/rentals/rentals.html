@@ -88,6 +88,8 @@
             @for (rental of filteredRentals(); track rental.id) {
               <tr
                 class="border-b border-brand-line last:border-b-0 hover:bg-brand-elevated/40 transition-colors"
+                [class.bg-orange-500/5]="overdueDays(rental) > 0 && overdueDays(rental) <= 14"
+                [class.bg-red-500/10]="overdueDays(rental) > 14"
               >
                 <td class="px-5 py-4">
                   <span class="font-medium text-brand-text"> № {{ rental.storage_number }} </span>
@@ -129,8 +131,20 @@
                     [class.bg-brand-elevated]="rental.status !== 'active'"
                     [class.text-brand-muted]="rental.status !== 'active'"
                   >
+                    @if (overdueDays(rental) > 0) {
+                      <i class="fas fa-triangle-exclamation mr-1"
+                        [class.text-orange-500]="overdueDays(rental) <= 14"
+                        [class.text-red-500]="overdueDays(rental) > 14"></i>
+                    }
                     {{ statusLabel(rental.status) }}
                   </span>
+                  @if (overdueDays(rental) > 0) {
+                    <div class="mt-1 text-xs font-medium"
+                      [class.text-orange-500]="overdueDays(rental) <= 14"
+                      [class.text-red-500]="overdueDays(rental) > 14">
+                      Просрочка {{ overdueDays(rental) }} дн.
+                    </div>
+                  }
                 </td>
 
                 <td class="px-5 py-4 text-right">
@@ -163,5 +177,6 @@
     (closed)="closeRental()"
     (cancelled)="cancelRental($event)"
     (forceReleased)="forceReleaseRental($event)"
+    (overdueReleased)="releaseOverdueRental($event)"
   />
 }

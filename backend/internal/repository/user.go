@@ -11,7 +11,7 @@ import (
 	"github.com/kaekkr/kladovki/internal/models"
 )
 
-const userColumns = `id, full_name, phone, email, password_hash, role, jk_id, created_at`
+const userColumns = `id, full_name, phone, email, password_hash, role, jk_id, created_at, iin`
 
 func (r *Repo) CreateUser(ctx context.Context, u *models.User) error {
 	if u.ID == "" {
@@ -19,11 +19,13 @@ func (r *Repo) CreateUser(ctx context.Context, u *models.User) error {
 	}
 
 	query := `
-		INSERT INTO users (id, full_name, phone, email, password_hash, role, jk_id, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING created_at
+    INSERT INTO users (
+        id, full_name, phone, email, password_hash,
+        role, jk_id, created_at, iin
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    RETURNING created_at
 	`
-
 	now := time.Now().UTC()
 
 	return r.db.QueryRowContext(
@@ -37,6 +39,7 @@ func (r *Repo) CreateUser(ctx context.Context, u *models.User) error {
 		u.Role,
 		nullStringPtr(u.JKID),
 		now,
+		u.IIN,
 	).Scan(&u.CreatedAt)
 }
 
@@ -60,7 +63,7 @@ func (r *Repo) GetUserByLogin(ctx context.Context, login string) (*models.User, 
 
 func (r *Repo) scanUser(s rowScanner) (*models.User, error) {
 	var u models.User
-	var email, jkID sql.NullString
+	var email, jkID, iin sql.NullString
 
 	err := s.Scan(
 		&u.ID,
@@ -71,12 +74,17 @@ func (r *Repo) scanUser(s rowScanner) (*models.User, error) {
 		&u.Role,
 		&jkID,
 		&u.CreatedAt,
+		&iin,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 		return nil, err
+	}
+
+	if iin.Valid {
+		u.IIN = iin.String
 	}
 
 	if email.Valid {

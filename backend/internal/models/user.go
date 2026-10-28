@@ -18,4 +18,5 @@ type User struct {
 	PasswordHash string    `json:"-"`
 	JKID         *string   `json:"jk_id,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
+	IIN          string    `json:"iin,omitempty"`
 }

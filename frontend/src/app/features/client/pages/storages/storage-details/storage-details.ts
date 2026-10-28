@@ -1,4 +1,5 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../../../core/auth/auth.service';
@@ -10,7 +11,7 @@ import { RentalService } from '../../../../../core/services/rental';
 @Component({
   selector: 'app-client-storage-details',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, DatePipe],
   templateUrl: './storage-details.html',
 })
 export class ClientStorageDetails {
@@ -20,6 +21,7 @@ export class ClientStorageDetails {
   private storageService = inject(StorageService);
   private settingsService = inject(SettingsService);
   private rentalService = inject(RentalService);
+  private destroyRef = inject(DestroyRef);
 
   renting = signal(false);
   rentalError = signal<string | null>(null);
@@ -29,6 +31,24 @@ export class ClientStorageDetails {
 
   storage = signal<Storage | null>(null);
   tariff = signal(0);
+  private now = signal(Date.now());
+
+  transferInvitation = computed(() => {
+    const storage = this.storage();
+    const userIin = this.auth.currentUser()?.iin;
+    return !!storage?.transfer_to_iin && !!userIin &&
+      storage.transfer_to_iin === userIin && !!storage.transfer_until &&
+      new Date(storage.transfer_until).getTime() > this.now();
+  });
+
+  canRent = computed(() => {
+    const storage = this.storage();
+    if (!storage) return false;
+    if (!storage.transfer_to_iin) return storage.status === 'free';
+    if (!this.transferInvitation() || !storage.transfer_until) return false;
+    const transferStartsAt = new Date(storage.transfer_until).getTime() - 14 * 86400000;
+    return this.now() >= transferStartsAt;
+  });
 
   selectedPeriod = signal(1);
 
@@ -58,6 +78,8 @@ export class ClientStorageDetails {
   });
 
   constructor() {
+    const clock = setInterval(() => this.now.set(Date.now()), 30_000);
+    this.destroyRef.onDestroy(() => clearInterval(clock));
     this.load();
   }
 
@@ -133,7 +155,7 @@ export class ClientStorageDetails {
   rent(): void {
     const currentStorage = this.storage();
 
-    if (!currentStorage || currentStorage.status !== 'free') {
+    if (!currentStorage || !this.canRent()) {
       return;
     }
 

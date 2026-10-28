@@ -5,6 +5,7 @@ export interface User {
   full_name?: string;
   phone?: string;
   jk_id?: string;
+  iin?: string;
 }
 
 export interface LoginPayload {
@@ -18,6 +19,7 @@ export interface RegisterPayload {
   phone: string;
   password: string;
   jk_id?: string;
+  iin: string;
 }
 
 export interface LoginResponse extends User {

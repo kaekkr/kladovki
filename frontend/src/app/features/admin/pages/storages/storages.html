@@ -227,5 +227,9 @@
 }
 
 @if (createModalOpen()) {
-  <app-admin-storage-create-modal (closed)="closeCreate()" (created)="createStorage($event)" />
+  <app-admin-storage-create-modal
+    [saving]="creating()"
+    (closed)="closeCreate()"
+    (created)="createStorage($event)"
+  />
 }

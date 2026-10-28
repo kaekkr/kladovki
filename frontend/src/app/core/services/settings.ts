@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of, forkJoin, map, catchError } from 'rxjs';
-// import { environment } from '../../../environments/environment.development';
+// import { environment } from '../../../environments/environment';
 import { environment } from '../../../environments/environment';
 import { AdminSettings, JKSettings, TariffSettings, RentalSettings } from '../models/settings';
 

@@ -145,6 +145,39 @@ func (h *Handler) CancelRental(c *gin.Context) {
 	c.JSON(http.StatusOK, rental)
 }
 
+func (h *Handler) ReleaseOverdueRental(c *gin.Context) {
+	id := c.Param("id")
+	jkID := middleware.JKID(c)
+
+	rental, err := h.svc.ReleaseOverdueRental(
+		c.Request.Context(),
+		id,
+		jkID,
+	)
+	if err != nil {
+		if errors.Is(err, service.ErrInvalid) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Некорректный ID аренды",
+			})
+			return
+		}
+
+		if errors.Is(err, service.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "Аренда не найдена",
+			})
+			return
+		}
+
+		c.JSON(http.StatusConflict, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, rental)
+}
+
 func (h *Handler) ForceReleaseLocked(c *gin.Context) {
 	id := c.Param("id")
 	jkID := middleware.JKID(c)

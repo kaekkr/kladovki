@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/kaekkr/kladovki/internal/models"
 )
@@ -126,6 +127,49 @@ func (s *Service) DeleteStorage(ctx context.Context, id string) error {
 
 	if err := s.repo.DeleteStorage(ctx, id); err != nil {
 		return fmt.Errorf("service.DeleteStorage: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Service) SetStorageTransfer(
+	ctx context.Context,
+	storageID string,
+	iin string,
+) error {
+	storageID = strings.TrimSpace(storageID)
+	iin = strings.TrimSpace(iin)
+
+	if storageID == "" || len(iin) != 12 {
+		return ErrInvalid
+	}
+
+	for _, ch := range iin {
+		if ch < '0' || ch > '9' {
+			return ErrInvalid
+		}
+	}
+
+	storage, err := s.repo.GetStorageByID(ctx, storageID)
+	if err != nil {
+		return err
+	}
+
+	if storage.Status != models.StatusOccupied {
+		return ErrInvalid
+	}
+
+	rental, err := s.repo.GetActiveRentalByStorage(ctx, storageID)
+	if err != nil {
+		return err
+	}
+
+	if time.Now().Before(rental.EndsAt) {
+		return ErrInvalid
+	}
+
+	if err := s.repo.SetStorageTransfer(ctx, storageID, iin); err != nil {
+		return fmt.Errorf("service.SetStorageTransfer: %w", err)
 	}
 
 	return nil

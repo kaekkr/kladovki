@@ -15,4 +15,6 @@ var (
 	ErrLocked = errors.New(
 		"rental lock has expired",
 	)
+	// ErrInvalid is returned when the provided data or operation is invalid.
+	ErrInvalid = errors.New("invalid data or operation")
 )

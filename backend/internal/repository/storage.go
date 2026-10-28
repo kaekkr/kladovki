@@ -11,7 +11,7 @@ import (
 	"github.com/kaekkr/kladovki/internal/models"
 )
 
-const storageColumns = `id, jk_id, number, area, floor, entrance, status, created_at`
+const storageColumns = `id, jk_id, number, area, floor, entrance, status, created_at, transfer_to_iin, transfer_until`
 
 func (r *Repo) CreateStorage(ctx context.Context, s *models.Storage) error {
 	if s.ID == "" {
@@ -22,11 +22,13 @@ func (r *Repo) CreateStorage(ctx context.Context, s *models.Storage) error {
 	}
 
 	query := `
-		INSERT INTO storages (id, jk_id, number, area, floor, entrance, status, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING created_at
-	`
-
+    INSERT INTO storages (
+        id, jk_id, number, area, floor, entrance, status, created_at,
+        transfer_to_iin, transfer_until
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    RETURNING created_at
+`
 	now := time.Now().UTC()
 
 	return r.db.QueryRowContext(
@@ -40,6 +42,8 @@ func (r *Repo) CreateStorage(ctx context.Context, s *models.Storage) error {
 		s.Entrance,
 		s.Status,
 		now,
+		s.TransferToIIN,
+		s.TransferUntil,
 	).Scan(&s.CreatedAt)
 }
 
@@ -91,7 +95,9 @@ func (r *Repo) GetAvailableStoragesByJK(ctx context.Context, jkID string) ([]*mo
 				WHEN s.status = 'locked' AND r.id IS NULL THEN 'free'
 				ELSE s.status 
 			END AS status, 
-			s.created_at
+			s.created_at,
+			s.transfer_to_iin,
+			s.transfer_until
 		FROM storages s
 		LEFT JOIN rentals r ON s.id = r.storage_id AND r.status = 'locked' AND r.ends_at > NOW()
 		WHERE s.jk_id = $1 
@@ -124,12 +130,28 @@ func (r *Repo) GetAvailableStoragesByJK(ctx context.Context, jkID string) ([]*mo
 
 func (r *Repo) UpdateStorage(ctx context.Context, s *models.Storage) error {
 	query := `
-		UPDATE storages 
-		SET number = $1, area = $2, floor = $3, entrance = $4, status = $5
-		WHERE id = $6
-	`
-
-	res, err := r.db.ExecContext(ctx, query, s.Number, s.Area, s.Floor, s.Entrance, s.Status, s.ID)
+    UPDATE storages
+    SET number = $1,
+        area = $2,
+        floor = $3,
+        entrance = $4,
+        status = $5,
+        transfer_to_iin = $6,
+        transfer_until = $7
+    WHERE id = $8
+`
+	res, err := r.db.ExecContext(
+		ctx,
+		query,
+		s.Number,
+		s.Area,
+		s.Floor,
+		s.Entrance,
+		s.Status,
+		s.TransferToIIN,
+		s.TransferUntil,
+		s.ID,
+	)
 	if err != nil {
 		return fmt.Errorf("repository.UpdateStorage: %w", err)
 	}
@@ -181,6 +203,40 @@ func (r *Repo) DeleteStorage(ctx context.Context, id string) error {
 	return nil
 }
 
+func (r *Repo) SetStorageTransfer(
+	ctx context.Context,
+	storageID string,
+	iin string,
+) error {
+	query := `
+        UPDATE storages
+        SET transfer_to_iin = $1,
+            transfer_until = COALESCE(
+                (SELECT ends_at + INTERVAL '14 days' FROM rentals
+                 WHERE storage_id = $2 AND status = 'active'
+                 ORDER BY ends_at DESC LIMIT 1),
+                NOW() + INTERVAL '14 days'
+            )
+        WHERE id = $2
+          AND EXISTS (SELECT 1 FROM rentals WHERE storage_id = $2 AND status = 'active')
+    `
+
+	res, err := r.db.ExecContext(ctx, query, iin, storageID)
+	if err != nil {
+		return fmt.Errorf("repository.SetStorageTransfer: %w", err)
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("repository.SetStorageTransfer rows affected: %w", err)
+	}
+	if rows == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
 func (r *Repo) scanStorage(s rowScanner) (*models.Storage, error) {
 	var st models.Storage
 
@@ -193,6 +249,8 @@ func (r *Repo) scanStorage(s rowScanner) (*models.Storage, error) {
 		&st.Entrance,
 		&st.Status,
 		&st.CreatedAt,
+		&st.TransferToIIN,
+		&st.TransferUntil,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

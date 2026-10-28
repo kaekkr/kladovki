@@ -49,6 +49,29 @@ func (h *Handler) CreatePayment(c *gin.Context) {
 		return
 	}
 
+	// Только для локального тестирования — без обращения к ApiPay.
+	if h.cfg.Env == "development" {
+		rental, err := h.svc.ConfirmPayment(
+			c.Request.Context(),
+			service.ConfirmPaymentInput{
+				RentalID: req.RentalID,
+				UserID:   userID,
+			},
+		)
+		if err != nil {
+			c.JSON(http.StatusConflict, gin.H{
+				"error": "Не удалось подтвердить тестовую оплату",
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Тестовая оплата успешна",
+			"rental":  rental,
+		})
+		return
+	}
+
 	// Метод теперь возвращает только error (так как ссылка не нужна, идет push в Kaspi)
 	err := h.svc.CreatePaymentInvoice(c.Request.Context(), service.CreatePaymentInput{
 		RentalID: req.RentalID,

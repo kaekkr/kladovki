@@ -5,6 +5,8 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { Rental } from '../../../../core/models/rental';
 import { RentalService } from '../../../../core/services/rental';
+import { Storage } from '../../../../core/models/storage';
+import { StorageService } from '../../../../core/services/storage';
 
 @Component({
   selector: 'app-client-dashboard',
@@ -15,6 +17,9 @@ import { RentalService } from '../../../../core/services/rental';
 export class ClientDashboard {
   private auth = inject(AuthService);
   private rentalService = inject(RentalService);
+  private storageService = inject(StorageService);
+
+  transferInvitations = signal<Storage[]>([]);
 
   loading = signal(true);
   error = signal(false);
@@ -138,5 +143,27 @@ export class ClientDashboard {
         this.error.set(true);
       },
     });
+
+    this.storageService.listByJK(jkId).subscribe({
+      next: (storages) => {
+        const userIin = this.auth.currentUser()?.iin;
+        const now = Date.now();
+
+        this.transferInvitations.set(
+          storages.filter(
+            (storage) =>
+              !!userIin &&
+              storage.transfer_to_iin === userIin &&
+              !!storage.transfer_until &&
+              new Date(storage.transfer_until).getTime() > now,
+          ),
+        );
+      },
+      error: () => this.transferInvitations.set([]),
+    });
+  }
+
+  isOverdue(endsAt: string): boolean {
+    return new Date(endsAt).getTime() < Date.now();
   }
 }

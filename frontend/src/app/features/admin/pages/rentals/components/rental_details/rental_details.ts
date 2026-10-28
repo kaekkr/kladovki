@@ -14,6 +14,7 @@ export class AdminRentalDetails {
   closed = output<void>();
   cancelled = output<Rental>();
   forceReleased = output<Rental>();
+  overdueReleased = output<Rental>();
 
   close(): void {
     this.closed.emit();
@@ -67,5 +68,23 @@ export class AdminRentalDetails {
 
   forceRelease(): void {
     this.forceReleased.emit(this.rental());
+  }
+
+  overdueDays() {
+    const diff = Date.now() - new Date(this.rental().ends_at).getTime();
+
+    return diff > 0 ? Math.floor(diff / 86400000) : 0;
+  }
+
+  isOverdue() {
+    return this.rental().status === 'active' && this.overdueDays() > 0;
+  }
+
+  canReleaseOverdue() {
+    return this.rental().status === 'active' && this.overdueDays() > 14;
+  }
+
+  releaseOverdue() {
+    this.overdueReleased.emit(this.rental());
   }
 }

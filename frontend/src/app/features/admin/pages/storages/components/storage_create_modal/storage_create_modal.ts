@@ -1,6 +1,5 @@
-import { Component, EventEmitter, Output, signal } from '@angular/core';
+import { Component, EventEmitter, Output, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-
 import { Storage } from '../../../../../../core/models/storage';
 
 @Component({
@@ -13,38 +12,38 @@ export class AdminStorageCreateModal {
   @Output() closed = new EventEmitter<void>();
   @Output() created = new EventEmitter<Storage>();
 
+  saving = input(false);
+  serverError = input<string | null>(null);
+
   number = '';
   area: number | null = null;
   floor: number | null = null;
   entrance: number | null = null;
 
-  saving = signal(false);
-  error = signal<string | null>(null);
+  validationError = signal<string | null>(null);
 
   submit(): void {
-    this.error.set(null);
+    this.validationError.set(null);
 
     if (!this.number.trim()) {
-      this.error.set('Введите номер кладовой.');
+      this.validationError.set('Введите номер кладовой.');
       return;
     }
 
     if (this.area === null || this.area <= 0) {
-      this.error.set('Площадь должна быть больше 0.');
+      this.validationError.set('Площадь должна быть больше 0.');
       return;
     }
 
     if (this.floor === null) {
-      this.error.set('Введите этаж.');
+      this.validationError.set('Введите этаж.');
       return;
     }
 
     if (this.entrance === null) {
-      this.error.set('Введите подъезд.');
+      this.validationError.set('Введите подъезд.');
       return;
     }
-
-    this.saving.set(true);
 
     this.created.emit({
       id: '',
@@ -59,10 +58,7 @@ export class AdminStorageCreateModal {
   }
 
   close(): void {
-    if (this.saving()) {
-      return;
-    }
-
+    if (this.saving()) return;
     this.closed.emit();
   }
 }

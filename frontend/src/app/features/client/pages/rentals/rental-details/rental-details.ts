@@ -1,8 +1,9 @@
 import { Component, inject, OnDestroy, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink, Router } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { Rental, RentalStatus } from '../../../../../core/models/rental';
 import { RentalService } from '../../../../../core/services/rental';
+import { StorageService } from '../../../../../core/services/storage';
 
 @Component({
   selector: 'app-client-rental-details',
@@ -13,10 +14,15 @@ import { RentalService } from '../../../../../core/services/rental';
 export class ClientRentalDetails implements OnDestroy {
   private route = inject(ActivatedRoute);
   private rentalService = inject(RentalService);
+  private storageService = inject(StorageService);
 
   loading = signal(true);
   error = signal(false);
   rental = signal<Rental | null>(null);
+  transferIIN = signal('');
+  transferLoading = signal(false);
+  transferMessage = signal<string | null>(null);
+  transferError = signal<string | null>(null);
 
   paying = signal(false); // Теперь это состояние "Ожидание оплаты в Kaspi"
   paymentError = signal<string | null>(null);
@@ -82,6 +88,32 @@ export class ClientRentalDetails implements OnDestroy {
     return `${String(minutes).padStart(2, '0')}:${String(remaining).padStart(2, '0')}`;
   }
 
+  setTransfer() {
+    const rental = this.rental();
+    const iin = this.transferIIN().trim();
+
+    if (!rental || !/^\d{12}$/.test(iin)) {
+      this.transferError.set('ИИН должен содержать 12 цифр');
+      return;
+    }
+
+    this.transferLoading.set(true);
+    this.transferError.set(null);
+    this.transferMessage.set(null);
+
+    this.storageService.setTransfer(rental.storage_id, iin).subscribe({
+      next: () => {
+        this.transferMessage.set('Новый владелец указан успешно');
+        this.transferIIN.set('');
+        this.transferLoading.set(false);
+      },
+      error: (err) => {
+        this.transferError.set(err.error?.error || 'Не удалось указать нового владельца');
+        this.transferLoading.set(false);
+      },
+    });
+  }
+
   canPay(): boolean {
     return this.rental()?.status === 'locked' && this.remainingSeconds() > 0 && !this.paying();
   }
@@ -99,29 +131,31 @@ export class ClientRentalDetails implements OnDestroy {
     const amount = currentRental.price_per_month * currentRental.months;
     const phone = (currentRental as any).user_phone || (currentRental as any).phone || '';
 
-    this.rentalService.createPayment({
-      rental_id: currentRental.id,
-      amount: amount,
-      phone: phone,
-    }).subscribe({
-      next: () => {
-        // Счет успешно отправлен в Kaspi, запускаем опрос (поллинг) статуса
-        this.startPolling(currentRental.id);
-      },
-      error: (error) => {
-        this.paying.set(false);
+    this.rentalService
+      .createPayment({
+        rental_id: currentRental.id,
+        amount: amount,
+        phone: phone,
+      })
+      .subscribe({
+        next: () => {
+          // Счет успешно отправлен в Kaspi, запускаем опрос (поллинг) статуса
+          this.startPolling(currentRental.id);
+        },
+        error: (error) => {
+          this.paying.set(false);
 
-        if (error.status === 409) {
-          this.paymentError.set(
-            'Срок бронирования истёк. Кладовка больше не удерживается за вами.',
-          );
-          this.load();
-          return;
-        }
+          if (error.status === 409) {
+            this.paymentError.set(
+              'Срок бронирования истёк. Кладовка больше не удерживается за вами.',
+            );
+            this.load();
+            return;
+          }
 
-        this.paymentError.set('Не удалось отправить счёт в Kaspi. Попробуйте ещё раз.');
-      },
-    });
+          this.paymentError.set('Не удалось отправить счёт в Kaspi. Попробуйте ещё раз.');
+        },
+      });
   }
 
   // Запуск поллинга для ожидания оплаты
@@ -147,7 +181,7 @@ export class ClientRentalDetails implements OnDestroy {
         },
         error: () => {
           // Игнорируем сетевые ошибки во время поллинга, пробуем снова
-        }
+        },
       });
     }, 3000); // Проверяем каждые 3 секунды
   }
@@ -228,6 +262,10 @@ export class ClientRentalDetails implements OnDestroy {
   cancelPaymentLoading(): void {
     this.stopPolling();
     this.paying.set(false);
+  }
+
+  isOverdue(endsAt: string): boolean {
+    return new Date(endsAt).getTime() < Date.now();
   }
 
   ngOnDestroy(): void {
