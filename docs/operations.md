@@ -78,6 +78,21 @@ Merge only when CI is green.
 - **ApiPay webhook URL**: `https://kladovki.onrender.com/api/v1/payments/webhook`.
 - **Android**: `cd frontend && npx ng build && npx cap sync android`, then build the APK in Android Studio. The app calls the production API URL from `src/environments/environment.ts`.
 
+## Test data
+
+`backend/db/seed/seed_test_data.sql` creates a separate test ЖК «ЖК Тестовый (seed)». It contains 12 storage rooms, an ОСИ admin and residents in every state:
+- active, ending soon, overdue, more than 2 months in debt;
+- a company tenant;
+- an early-termination request;
+- a rental released for debt, with its termination record;
+- pending, rejected and blocked users.
+
+Every user's password is `test1234`; the logins are listed at the top of the file.
+
+- Run it in the Supabase SQL editor after the backend has created the schema at least once. It is safe to run again.
+- It touches nothing outside the test ЖК, and every row id starts with `seed-`.
+- `backend/db/seed/cleanup_test_data.sql` removes the test ЖК and everything in it, including users who later registered into it.
+
 ## Runbook
 
 | Symptom | Likely cause | Fix |
