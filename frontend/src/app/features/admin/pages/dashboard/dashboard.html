@@ -1,4 +1,7 @@
 <div class="space-y-8">
+  <!-- Free/occupied first: the question OSI staff get asked most (tester, Sep 5) -->
+  <app-admin-occupancy-summary class="block" />
+
   <app-admin-stats class="block" />
 
   <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -9,8 +12,5 @@
     <app-admin-attention />
   </div>
 
-  <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-    <app-admin-recent-activity />
-    <app-admin-occupancy-summary />
-  </div>
+  <app-admin-recent-activity class="block" />
 </div>
