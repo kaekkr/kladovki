@@ -176,6 +176,28 @@ func (r *Repo) ListDashboardAttention(
 ) ([]*models.DashboardAttention, error) {
 	query := `
 		SELECT
+			'rental_overdue' AS type,
+			r.id AS rental_id,
+			s.id AS storage_id,
+			s.number AS storage_number,
+			u.id AS user_id,
+			u.full_name,
+			u.phone,
+			r.ends_at,
+			0 AS days_left,
+			` + overdueDaysSQL + ` AS days_overdue,
+			` + debtSQL + ` AS debt,
+			0 AS sort_group
+		FROM rentals r
+		INNER JOIN storages s ON s.id = r.storage_id
+		INNER JOIN users u ON u.id = r.user_id
+		WHERE r.jk_id = $1
+		  AND r.status = 'active'
+		  AND r.ends_at <= NOW()
+
+		UNION ALL
+
+		SELECT
 			'rental_expiring' AS type,
 			r.id AS rental_id,
 			s.id AS storage_id,
@@ -189,7 +211,10 @@ func (r *Repo) ListDashboardAttention(
 					EXTRACT(EPOCH FROM (r.ends_at - NOW())) / 86400
 				),
 				0
-			)::int AS days_left
+			)::int AS days_left,
+			0 AS days_overdue,
+			0::bigint AS debt,
+			1 AS sort_group
 		FROM rentals r
 		INNER JOIN storages s ON s.id = r.storage_id
 		INNER JOIN users u ON u.id = r.user_id
@@ -209,7 +234,10 @@ func (r *Repo) ListDashboardAttention(
 			u.full_name,
 			u.phone,
 			r.ends_at,
-			0 AS days_left
+			0 AS days_left,
+			0 AS days_overdue,
+			0::bigint AS debt,
+			2 AS sort_group
 		FROM rentals r
 		INNER JOIN storages s ON s.id = r.storage_id
 		INNER JOIN users u ON u.id = r.user_id
@@ -217,7 +245,7 @@ func (r *Repo) ListDashboardAttention(
 		  AND r.status = 'locked'
 		  AND r.ends_at > NOW()
 
-		ORDER BY ends_at ASC
+		ORDER BY sort_group ASC, ends_at ASC
 	`
 
 	rows, err := r.db.QueryContext(ctx, query, jkID)
@@ -244,6 +272,9 @@ func (r *Repo) ListDashboardAttention(
 			&item.Phone,
 			&item.EndsAt,
 			&item.DaysLeft,
+			&item.DaysOverdue,
+			&item.Debt,
+			new(int),
 		); err != nil {
 			return nil, fmt.Errorf(
 				"repository.ListDashboardAttention scan: %w",

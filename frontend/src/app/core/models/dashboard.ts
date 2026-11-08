@@ -23,7 +23,7 @@ export interface DashboardRevenue {
   points: RevenuePoint[];
 }
 
-export type AttentionType = 'rental_expiring' | 'storage_locked';
+export type AttentionType = 'rental_overdue' | 'rental_expiring' | 'storage_locked';
 
 export interface DashboardAttention {
   type: AttentionType;
@@ -40,6 +40,10 @@ export interface DashboardAttention {
   ends_at: string;
 
   days_left?: number;
+
+  /** rental_overdue: started days after the paid period, and the debt so far (₸). */
+  days_overdue?: number;
+  debt?: number;
 }
 
 export interface DashboardActivity {

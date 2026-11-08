@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -145,4 +146,20 @@ func (h *Handler) GetDashboardOccupancy(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, occupancy)
+}
+
+// ListCharges: GET /charges/jk/:jk_id — charged / paid / debt per paid rental.
+func (h *Handler) ListCharges(c *gin.Context) {
+	jkID := c.Param("jk_id")
+	if !middleware.SameJK(c, jkID) {
+		middleware.Forbidden(c)
+		return
+	}
+	list, err := h.svc.ListCharges(c.Request.Context(), jkID)
+	if err != nil {
+		log.Printf("ListCharges: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось загрузить начисления"})
+		return
+	}
+	c.JSON(http.StatusOK, list)
 }

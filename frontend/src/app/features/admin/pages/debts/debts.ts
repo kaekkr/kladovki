@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ChargeService } from '../../../../core/services/charge';
+import { chargeStatusLabel } from '../../../../core/utils/charge-display';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { Charge, ChargeStatus } from '../../../../core/models/charge';
 
@@ -77,20 +78,7 @@ export class AdminDebts {
     this.statusFilter.set(status);
   }
 
-  statusLabel(status: ChargeStatus): string {
-    switch (status) {
-      case 'partial':
-        return 'Частично';
-      case 'pending':
-        return 'Ожидает';
-      case 'overdue':
-        return 'Просрочено';
-      case 'paid':
-        return 'Оплачено';
-      default:
-        return status;
-    }
-  }
+  statusLabel = chargeStatusLabel;
 
   formatMoney(value: number): string {
     return new Intl.NumberFormat('ru-RU').format(value) + ' ₸';

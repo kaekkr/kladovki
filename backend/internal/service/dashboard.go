@@ -69,9 +69,17 @@ func (s *Service) GetDashboardStats(
 		receivedChange = 100
 	}
 
+	debt, debtors, err := s.repo.DebtTotals(ctx, jkID)
+	if err != nil {
+		return nil, err
+	}
+
 	return &models.DashboardStats{
 		Received:       row.Received,
 		ReceivedChange: receivedChange,
+
+		Debt:           debt,
+		DebtApartments: debtors,
 
 		OccupiedStorages: occupancy.Occupied,
 		TotalStorages:    occupancy.Total,
@@ -189,4 +197,12 @@ func (s *Service) GetDashboardOccupancy(
 	}
 
 	return occupancy, nil
+}
+
+// ListCharges is the ЖК ledger with server-computed debt (see repository/charges.go).
+func (s *Service) ListCharges(ctx context.Context, jkID string) ([]*models.Charge, error) {
+	if jkID == "" {
+		return nil, ErrInvalid
+	}
+	return s.repo.ListCharges(ctx, jkID)
 }
