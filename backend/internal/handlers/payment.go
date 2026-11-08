@@ -76,18 +76,21 @@ func (h *Handler) CreatePayment(c *gin.Context) {
 	}
 	userID := middleware.UserID(c)
 
-	// Local development only: activate immediately without ApiPay.
-	if h.cfg.Env == "development" {
-		rental, err := h.svc.ConfirmPayment(c.Request.Context(), service.ConfirmPaymentInput{
-			RentalID: req.RentalID,
-			UserID:   userID,
-		})
-		if err != nil {
-			c.JSON(http.StatusConflict, gin.H{"error": "Не удалось подтвердить тестовую оплату"})
-			return
+	// Development / stage (FAKE_PAYMENTS): pay without Kaspi, through the same
+	// activation as a real paid webhook.
+	if h.cfg.FakePayments || h.cfg.Env == "development" {
+		payment, err := h.svc.PayWithoutKaspi(c.Request.Context(), req.RentalID, userID)
+		switch {
+		case err == nil:
+			h.recordConsent(c, userID, legal.ResidentTerms, "payment", req.RentalID)
+			c.JSON(http.StatusOK, gin.H{"message": "Тестовая оплата: аренда активирована", "amount": payment.Amount, "test_payment": true})
+		case errors.Is(err, service.ErrNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "Аренда не найдена"})
+		case errors.Is(err, service.ErrPaymentPending):
+			c.JSON(http.StatusConflict, gin.H{"error": "Оплата уже обрабатывается"})
+		default:
+			c.JSON(http.StatusConflict, gin.H{"error": "Срок брони истёк. Забронируйте кладовку заново."})
 		}
-		h.recordConsent(c, userID, legal.ResidentTerms, "payment", req.RentalID)
-		c.JSON(http.StatusOK, gin.H{"message": "Тестовая оплата успешна", "rental": rental})
 		return
 	}
 
@@ -217,8 +220,8 @@ func (h *Handler) RenewRental(c *gin.Context) {
 
 	var payment *models.Payment
 	var err error
-	if h.cfg.Env == "development" {
-		// Local development only: apply the renewal without ApiPay.
+	if h.cfg.FakePayments || h.cfg.Env == "development" {
+		// Development / stage: apply the renewal without ApiPay.
 		payment, err = h.svc.PrepareRenewal(c.Request.Context(), in)
 		if err == nil {
 			err = h.svc.HandlePaymentWebhook(c.Request.Context(), payment.ID, "paid")

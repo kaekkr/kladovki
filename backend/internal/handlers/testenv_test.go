@@ -67,7 +67,10 @@ type testEnv struct {
 	storageB           string // storage in JK B
 }
 
-func newTestEnv(t *testing.T) *testEnv {
+func newTestEnv(t *testing.T) *testEnv { return newTestEnvWith(t, nil) }
+
+// newTestEnvWith lets a test adjust the server config (e.g. FakePayments).
+func newTestEnvWith(t *testing.T, adjust func(*config.Config)) *testEnv {
 	t.Helper()
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
@@ -104,6 +107,10 @@ func newTestEnv(t *testing.T) *testEnv {
 		ApiPayBaseURL:       apiSrv.URL,
 		ApiPayWebhookSecret: webhookSecret,
 		ApiPayLive:          true,
+	}
+
+	if adjust != nil {
+		adjust(&cfg)
 	}
 
 	tg := newFakeTelegram(t)

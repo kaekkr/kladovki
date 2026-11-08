@@ -23,6 +23,10 @@ type Config struct {
 	ApiPayWebhookSecret string
 	// ApiPayLive: real money mode — sandbox webhook events are then ignored.
 	ApiPayLive bool
+	// FakePayments: «Оплатить» / «Продлить» complete immediately without Kaspi
+	// (STAGE BRANCH: on unless FAKE_PAYMENTS=false). Never merge this default
+	// into main — production must take real payments.
+	FakePayments bool
 }
 
 // envFiles are read in order; a value from an earlier file wins, and real
@@ -142,5 +146,15 @@ func Load() Config {
 
 		ApiPayWebhookSecret: apiPayWebhookSecret,
 		ApiPayLive:          os.Getenv("APIPAY_LIVE") == "true",
+		FakePayments:        fakePayments(),
 	}
+}
+
+// fakePayments: stage branch default is ON (test payments), FAKE_PAYMENTS=false disables it.
+func fakePayments() bool {
+	on := os.Getenv("FAKE_PAYMENTS") != "false"
+	if on {
+		log.Println("WARNING: FAKE_PAYMENTS is on — payments complete without Kaspi (stage/testing only)")
+	}
+	return on
 }

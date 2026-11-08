@@ -239,3 +239,27 @@ func formatPhoneNumber(phone string) string {
 
 	return digits
 }
+
+// PayWithoutKaspi (stage / testing): records the payment and applies it exactly
+// like a paid ApiPay webhook — same activation, dates, total_paid and
+// notifications — but no Kaspi invoice is sent.
+func (s *Service) PayWithoutKaspi(ctx context.Context, rentalID, userID string) (*models.Payment, error) {
+	if rentalID == "" || userID == "" {
+		return nil, ErrInvalid
+	}
+	payment, err := s.repo.PreparePayment(ctx, rentalID, userID, PaymentWindow)
+	switch {
+	case errors.Is(err, repository.ErrNotFound):
+		return nil, ErrNotFound
+	case errors.Is(err, repository.ErrLocked):
+		return nil, ErrLocked
+	case errors.Is(err, repository.ErrPaymentPending):
+		return nil, ErrPaymentPending
+	case err != nil:
+		return nil, err
+	}
+	if err := s.HandlePaymentWebhook(ctx, payment.ID, "paid"); err != nil {
+		return nil, err
+	}
+	return payment, nil
+}
