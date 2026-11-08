@@ -24,6 +24,7 @@ const (
 	KindRefundPending   = "refund_pending"
 	KindResidentNew     = "resident_new"
 	KindAccountStatus   = "account_status"
+	KindRentalCancelled = "rental_cancelled"
 )
 
 // Paid channels (SMS, WhatsApp) are used only for messages that matter.

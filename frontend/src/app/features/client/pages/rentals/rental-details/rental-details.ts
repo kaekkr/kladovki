@@ -187,8 +187,9 @@ export class ClientRentalDetails implements OnDestroy {
           this.paying.set(false);
 
           if (error.status === 409) {
+            // Either the hold expired or an invoice is already waiting in Kaspi.
             this.paymentError.set(
-              'Срок бронирования истёк. Кладовка больше не удерживается за вами.',
+              error.error?.error || 'Срок бронирования истёк. Кладовка больше не удерживается за вами.',
             );
             this.load();
             return;

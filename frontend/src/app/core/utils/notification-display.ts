@@ -8,6 +8,7 @@ export function notificationTone(kind: NotificationKind): NotificationTone {
       return 'success';
     case 'rental_overdue':
     case 'debt_warning':
+    case 'rental_cancelled':
       return 'danger';
     case 'rental_expiring':
     case 'tariff_recalc':
@@ -43,6 +44,8 @@ export function notificationIcon(kind: NotificationKind): string {
       return 'fa-user-clock';
     case 'account_status':
       return 'fa-user-check';
+    case 'rental_cancelled':
+      return 'fa-ban';
   }
 }
 

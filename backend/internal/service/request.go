@@ -17,6 +17,8 @@ func mapRepoErr(err error) error {
 		return ErrAlreadyExists
 	case errors.Is(err, repository.ErrInvalid):
 		return ErrInvalid
+	case errors.Is(err, repository.ErrLocked):
+		return ErrLocked
 	}
 	return err
 }

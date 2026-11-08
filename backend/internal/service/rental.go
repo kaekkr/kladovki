@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/kaekkr/kladovki/internal/models"
+	"github.com/kaekkr/kladovki/internal/notify"
 )
 
 // LockDuration is the default hold before payment; each ЖК can override it.
@@ -198,11 +199,20 @@ func (s *Service) CancelRental(
 		return nil, ErrInvalid
 	}
 
-	return s.repo.CancelRental(
-		ctx,
-		rentalID,
-		jkID,
-	)
+	rt, err := s.repo.CancelRental(ctx, rentalID, jkID)
+	if err != nil {
+		return nil, mapRepoErr(err)
+	}
+	body := fmt.Sprintf("ОСИ завершил аренду кладовки №%s.", rt.StorageNumber)
+	if rt.RefundDue > 0 {
+		body += fmt.Sprintf(" За неиспользованный период вам вернут %s — заявка на возврат передана ОСИ.", money(rt.RefundDue))
+	}
+	s.Notify(ctx, rt.UserID, KindRentalCancelled, notify.Message{
+		Title: "Аренда завершена ОСИ",
+		Body:  body,
+		Link:  "/app/rentals/" + rt.ID,
+	}, "cancelled:"+rt.ID)
+	return rt, nil
 }
 
 func (s *Service) ReleaseOverdueRental(

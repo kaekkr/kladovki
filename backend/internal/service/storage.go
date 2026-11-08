@@ -118,21 +118,18 @@ func (s *Service) UpdateStorage(ctx context.Context, in UpdateStorageInput) (*mo
 
 	// 2. Prepare storage model with updated values
 	storage := &models.Storage{
-		ID:        existing.ID,
-		JKID:      existing.JKID,
-		Number:    number,
-		Area:      in.Area,
-		Floor:     in.Floor,
-		Entrance:  in.Entrance,
-		Status:    in.Status,
+		ID:       existing.ID,
+		JKID:     existing.JKID,
+		Number:   number,
+		Area:     in.Area,
+		Floor:    in.Floor,
+		Entrance: in.Entrance,
+		// Status is derived from rentals (free/locked/occupied), never set by hand.
+		Status:    existing.Status,
 		CreatedAt: existing.CreatedAt,
 
 		TransferToIIN: existing.TransferToIIN,
 		TransferUntil: existing.TransferUntil,
-	}
-
-	if storage.Status == "" {
-		storage.Status = existing.Status
 	}
 
 	if err := s.repo.UpdateStorage(ctx, storage); err != nil {
