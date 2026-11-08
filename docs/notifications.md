@@ -17,7 +17,7 @@ DispatchPending (every 30 s) ─► channel.Send() ─► sent | retry (backoff 
 
 | Kind | When | To | Paid channels? |
 |---|---|---|---|
-| `payment_success` | Webhook `paid` activated the rental | resident | no |
+| `payment_success` | Webhook `paid` activated or renewed the rental | resident | no |
 | `rental_expiring` | 7 days and 1 day before `ends_at` (hourly check) | resident | **yes** |
 | `rental_overdue` | `ends_at` passed: once, then weekly | resident + ОСИ | **yes** |
 | `debt_warning` | Overdue more than 60 days | resident | **yes** |
@@ -25,6 +25,7 @@ DispatchPending (every 30 s) ─► channel.Send() ─► sent | retry (backoff 
 | `tariff_changed` | Tariff raised | residents with active rentals | no |
 | `request_new` | A new early_termination / payment_refund request | ОСИ | no |
 | `request_resolved` | The ОСИ approved or rejected a request | resident | no |
+| `refund_pending` | A payment arrived but couldn't be applied (room taken / rental ended), so a refund is coming | resident | no |
 
 "Paid channels" (SMS, WhatsApp) are used only for the kinds marked **yes**, to keep costs down. In-app, email and Telegram receive everything.
 

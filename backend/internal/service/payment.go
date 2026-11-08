@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -55,17 +56,9 @@ func (s *Service) CreatePaymentInvoice(ctx context.Context, in CreatePaymentInpu
 		return nil, ErrInvalid
 	}
 
-	phone := strings.TrimSpace(in.Phone)
-	if phone == "" {
-		user, err := s.repo.GetUserByID(ctx, in.UserID)
-		if err != nil {
-			return nil, fmt.Errorf("get user: %w", err)
-		}
-		phone = user.Phone
-	}
-	phone = formatPhoneNumber(phone)
-	if len(phone) != 11 {
-		return nil, ErrInvalid
+	phone, err := s.kaspiPhone(ctx, in.UserID, in.Phone)
+	if err != nil {
+		return nil, err
 	}
 
 	payment, err := s.repo.PreparePayment(ctx, in.RentalID, in.UserID, PaymentWindow)
@@ -116,6 +109,85 @@ func sendApiPayInvoice(ctx context.Context, key, baseURL string, p *models.Payme
 		return fmt.Errorf("apipay returned status %d, body: %v", resp.StatusCode, errResp)
 	}
 	return nil
+}
+
+// kaspiPhone returns the phone the Kaspi invoice goes to (given, or the profile phone).
+func (s *Service) kaspiPhone(ctx context.Context, userID, given string) (string, error) {
+	phone := strings.TrimSpace(given)
+	if phone == "" {
+		user, err := s.repo.GetUserByID(ctx, userID)
+		if err != nil {
+			return "", fmt.Errorf("get user: %w", err)
+		}
+		phone = user.Phone
+	}
+	phone = formatPhoneNumber(phone)
+	if len(phone) != 11 {
+		return "", ErrInvalid
+	}
+	return phone, nil
+}
+
+// MaxRentalMonths bounds one booking or one renewal.
+const MaxRentalMonths = 120
+
+type RenewRentalInput struct {
+	RentalID string
+	UserID   string
+	Months   int
+	Phone    string
+}
+
+// PrepareRenewal records a pending renewal payment for the caller's active
+// rental, priced at the current tariff (area × ₸/м²).
+func (s *Service) PrepareRenewal(ctx context.Context, in RenewRentalInput) (*models.Payment, error) {
+	if in.RentalID == "" || in.UserID == "" || in.Months < 1 || in.Months > MaxRentalMonths {
+		return nil, ErrInvalid
+	}
+	rental, err := s.repo.GetRentalByID(ctx, in.RentalID)
+	if err != nil || rental.UserID != in.UserID {
+		return nil, ErrNotFound
+	}
+	st, err := s.repo.GetStorageByID(ctx, rental.StorageID)
+	if err != nil {
+		return nil, fmt.Errorf("service.PrepareRenewal storage: %w", err)
+	}
+	tariff, err := s.repo.GetTariff(ctx, st.JKID)
+	if err != nil || tariff <= 0 {
+		return nil, fmt.Errorf("service.PrepareRenewal tariff not set for jk %s: %v", st.JKID, err)
+	}
+	price := int64(math.Round(st.Area * float64(tariff)))
+
+	payment, err := s.repo.PrepareRenewalPayment(ctx, in.RentalID, in.UserID, in.Months, price)
+	switch {
+	case errors.Is(err, repository.ErrNotFound):
+		return nil, ErrNotFound
+	case errors.Is(err, repository.ErrLocked):
+		return nil, ErrLocked
+	case errors.Is(err, repository.ErrTransferPending):
+		return nil, ErrTransferPending
+	}
+	return payment, err
+}
+
+// CreateRenewalInvoice prepares a renewal payment and pushes the Kaspi invoice.
+func (s *Service) CreateRenewalInvoice(ctx context.Context, in RenewRentalInput, apipayKey, apipayBaseURL string) (*models.Payment, error) {
+	if in.Months < 1 || in.Months > MaxRentalMonths {
+		return nil, ErrInvalid
+	}
+	phone, err := s.kaspiPhone(ctx, in.UserID, in.Phone)
+	if err != nil {
+		return nil, err
+	}
+	payment, err := s.PrepareRenewal(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	if err := sendApiPayInvoice(ctx, apipayKey, apipayBaseURL, payment, phone); err != nil {
+		_ = s.repo.MarkPaymentFailed(ctx, payment.ID)
+		return nil, err
+	}
+	return payment, nil
 }
 
 // HandlePaymentWebhook applies an ApiPay invoice status to our payment.

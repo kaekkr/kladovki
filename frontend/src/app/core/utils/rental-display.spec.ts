@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import { Rental } from '../models/rental';
 import {
+  canRenew,
   isUnpaidExpired,
   rentalDisplayEndsAt,
   rentalStatusLabel,
   rentalTotalCost,
+  renewalEndsAt,
+  renewalPrice,
 } from './rental-display';
 
 function rental(overrides: Partial<Rental> = {}): Rental {
@@ -76,5 +79,25 @@ describe('isUnpaidExpired / rentalStatusLabel', () => {
   it('labels active and cancelled rentals', () => {
     expect(rentalStatusLabel(rental({ status: 'active', total_paid: 1 }))).toBe('Активна');
     expect(rentalStatusLabel(rental({ status: 'cancelled' }))).toBe('Отменена');
+  });
+});
+
+describe('renewal', () => {
+  it('only an active (paid) rental can be renewed, overdue included', () => {
+    expect(canRenew(rental({ status: 'active', total_paid: 100 }))).toBe(true);
+    expect(canRenew(rental({ status: 'active', ends_at: '2020-01-01T00:00:00.000Z' }))).toBe(true);
+    expect(canRenew(rental({ status: 'locked' }))).toBe(false);
+    expect(canRenew(rental({ status: 'expired' }))).toBe(false);
+    expect(canRenew(rental({ status: 'cancelled' }))).toBe(false);
+  });
+
+  it('extends from the current end date, so overdue time is paid first', () => {
+    const r = rental({ status: 'active', ends_at: '2026-10-15T09:00:00.000Z' });
+    expect(renewalEndsAt(r, 3)).toBe('2027-01-15T09:00:00.000Z');
+  });
+
+  it('prices by area × tariff per month', () => {
+    expect(renewalPrice(5, 1000, 3)).toBe(15_000);
+    expect(renewalPrice(2.5, 999, 1)).toBe(2498); // rounded per month like the server
   });
 });

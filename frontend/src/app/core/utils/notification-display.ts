@@ -12,6 +12,7 @@ export function notificationTone(kind: NotificationKind): NotificationTone {
     case 'rental_expiring':
     case 'tariff_recalc':
     case 'request_new':
+    case 'refund_pending':
       return 'warning';
     default:
       return 'neutral';
@@ -35,6 +36,8 @@ export function notificationIcon(kind: NotificationKind): string {
       return 'fa-inbox';
     case 'request_resolved':
       return 'fa-circle-check';
+    case 'refund_pending':
+      return 'fa-rotate-left';
   }
 }
 

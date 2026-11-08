@@ -10,13 +10,13 @@ IDs are UUID strings (`VARCHAR(36)`). Money is `BIGINT` whole tenge. Times are `
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| `jks` | Residential complexes | `name`, `address`, `owner_id → users` |
+| `jks` | Residential complexes | `name`, `address`, `owner_id → users`, `lock_minutes` (booking hold, default 2) |
 | `users` | Residents and ОСИ admins | `phone` UNIQUE, `iin` UNIQUE (when set), `email`, `password_hash` (bcrypt), `role` (`user_role`), `jk_id → jks`, `telegram_chat_id` |
 | `storages` | Storage rooms | `jk_id`, `number` (unique per ЖК, case/space-insensitive), `area`, `floor`, `entrance`, `status` (`storage_status`), `locked_until`, `transfer_to_iin`, `transfer_until` |
-| `tariffs` | Current monthly price per ЖК | `jk_id`, `amount`, `updated_at` |
+| `tariffs` | Current price per ЖК, **₸ per m² per month** | `jk_id`, `amount`, `updated_at` |
 | `tariff_history` | Every tariff change | `jk_id`, `amount`, `changed_at` |
 | `rentals` | One rental of one storage room | `storage_id`, `user_id`, `jk_id`, `months`, `price_per_month`, `total_paid`, `starts_at`, `ends_at`, `status` (`rental_status`) |
-| `payments` | Kaspi invoices | `rental_id`, `user_id`, `amount`, `provider` (`apipay`), `status` (`payment_status`). `id` is sent to ApiPay as `external_order_id` |
+| `payments` | Kaspi invoices | `rental_id`, `user_id`, `amount`, `provider` (`apipay`), `status` (`payment_status`), `kind` (`booking`/`renewal`), `months` (renewal length). `id` is sent to ApiPay as `external_order_id` |
 | `requests` | Заявки | `type`, `status`, `amount`, `choice`, `old_price`, `new_price`, `comment`, `resolution`, `resolved_at`, `resolved_by`, `rental_id`, `user_id`, `jk_id` |
 | `notifications` | In-app inbox | `user_id`, `kind`, `title`, `body`, `link`, `dedupe_key` (unique per user), `read_at` |
 | `notification_deliveries` | Outbox: one row per notification × channel | `channel`, `status` (`pending`/`sent`/`failed`/`skipped`), `attempts`, `next_attempt_at`, `last_error`, `sent_at` |
@@ -33,7 +33,7 @@ IDs are UUID strings (`VARCHAR(36)`). Money is `BIGINT` whole tenge. Times are `
 | `payment_status` | `pending`, `success`, `failed` |
 | `requests.type` | `tariff_recalc`, `early_termination`, `payment_refund` |
 | `requests.status` | `awaiting_choice` (resident must choose), `open` (ОСИ must act), `done`, `rejected`, `superseded` |
-| `notifications.kind` | `payment_success`, `rental_expiring`, `rental_overdue`, `debt_warning`, `tariff_changed`, `tariff_recalc`, `request_new`, `request_resolved` |
+| `notifications.kind` | `payment_success`, `rental_expiring`, `rental_overdue`, `debt_warning`, `tariff_changed`, `tariff_recalc`, `request_new`, `request_resolved`, `refund_pending` |
 
 ## Invariants
 

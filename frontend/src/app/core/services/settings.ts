@@ -40,8 +40,9 @@ export class SettingsService {
   }
 
   getRentalSettings(jkId: string): Observable<RentalSettings> {
-    // No backend yet → defaults
-    return of({ lock_duration_minutes: 2 });
+    return this.http
+      .get<RentalSettings>(`${this.baseUrl}/jks/${jkId}/rental-settings`)
+      .pipe(catchError(() => of({ lock_duration_minutes: 2 })));
   }
 
   /** Предварительный расчет при уменьшении тарифа (Preview) */
@@ -59,8 +60,8 @@ export class SettingsService {
     });
   }
 
-  saveRentalSettings(jkId: string, settings: RentalSettings): Observable<void> {
-    // Wire when backend exists
-    return of(void 0);
+  /** Lock duration: 1–60 minutes (validated on the server). */
+  saveRentalSettings(jkId: string, settings: RentalSettings): Observable<RentalSettings> {
+    return this.http.put<RentalSettings>(`${this.baseUrl}/jks/${jkId}/rental-settings`, settings);
   }
 }

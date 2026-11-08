@@ -10,7 +10,36 @@ import (
 	"github.com/kaekkr/kladovki/internal/models"
 )
 
+// LockDuration is the default hold before payment; each ЖК can override it.
 const LockDuration = 2 * time.Minute
+
+// Bounds for the ОСИ "lock duration" setting, in minutes.
+const (
+	MinLockMinutes = 1
+	MaxLockMinutes = 60
+)
+
+func (s *Service) lockDuration(ctx context.Context, jkID string) time.Duration {
+	if n, err := s.repo.LockMinutes(ctx, jkID); err == nil && n > 0 {
+		return time.Duration(n) * time.Minute
+	}
+	return LockDuration
+}
+
+func (s *Service) GetRentalSettings(ctx context.Context, jkID string) (models.RentalSettings, error) {
+	n, err := s.repo.LockMinutes(ctx, jkID)
+	if err != nil {
+		return models.RentalSettings{}, err
+	}
+	return models.RentalSettings{LockDurationMinutes: n}, nil
+}
+
+func (s *Service) SetRentalSettings(ctx context.Context, jkID string, in models.RentalSettings) error {
+	if in.LockDurationMinutes < MinLockMinutes || in.LockDurationMinutes > MaxLockMinutes {
+		return ErrInvalid
+	}
+	return s.repo.SetLockMinutes(ctx, jkID, in.LockDurationMinutes)
+}
 
 type LockStorageInput struct {
 	StorageID string `json:"storage_id"`
@@ -86,7 +115,7 @@ func (s *Service) LockStorage(
 		st.JKID,
 		months,
 		pricePerMonth,
-		LockDuration,
+		s.lockDuration(ctx, st.JKID),
 	)
 }
 

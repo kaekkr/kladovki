@@ -41,8 +41,8 @@ Rules of thumb used across the code:
 
 ## Request flow example: booking
 
-1. `POST /api/v1/rentals/lock` puts the storage room in `locked` and creates a rental in `locked` state with a 2-minute hold.
-2. `POST /api/v1/payments` makes the server compute `price × months`, create the ApiPay invoice, and extend the hold to 10 minutes.
+1. `POST /api/v1/rentals/lock` puts the storage room in `locked` and creates a rental in `locked` state with a hold (the ЖК's lock duration, default 2 minutes).
+2. `POST /api/v1/payments` makes the server compute `price_per_month × months` (price = area × tariff), create the ApiPay invoice, and extend the hold to 10 minutes.
 3. The resident pays in Kaspi.
 4. ApiPay calls `POST /api/v1/payments/webhook` (HMAC-signed). The server sets the rental to `active` and the storage room to `occupied`, then sends a notification.
 

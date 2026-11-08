@@ -242,13 +242,12 @@ func (r *Repo) ResolveRequest(ctx context.Context, requestID, jkID, adminID, act
 }
 
 // insertPaymentRefundRequest is used inside ActivatePaidRental's transaction.
-func insertPaymentRefundRequest(ctx context.Context, tx *sql.Tx, paymentID string) error {
+func insertPaymentRefundRequest(ctx context.Context, tx *sql.Tx, paymentID, reason string) error {
 	_, err := tx.ExecContext(ctx, `
 		INSERT INTO requests (id, jk_id, user_id, rental_id, type, status, amount, comment)
-		SELECT $1, r.jk_id, p.user_id, p.rental_id, 'payment_refund', 'open', p.amount,
-		       'Оплата поступила после окончания брони, кладовка уже занята'
+		SELECT $1, r.jk_id, p.user_id, p.rental_id, 'payment_refund', 'open', p.amount, $3
 		FROM payments p JOIN rentals r ON r.id = p.rental_id
-		WHERE p.id = $2`, uuid.NewString(), paymentID)
+		WHERE p.id = $2`, uuid.NewString(), paymentID, reason)
 	return err
 }
 

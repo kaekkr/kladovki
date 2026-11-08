@@ -31,3 +31,8 @@ type Rental struct {
 	Status    RentalStatus `json:"status"`
 	CreatedAt time.Time    `json:"created_at"`
 }
+
+// RentalSettings are per-ЖК rental rules editable by the ОСИ.
+type RentalSettings struct {
+	LockDurationMinutes int `json:"lock_duration_minutes"`
+}

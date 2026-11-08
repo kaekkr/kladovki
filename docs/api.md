@@ -30,9 +30,11 @@ Source of truth: [`backend/internal/handlers/router.go`](../backend/internal/han
 | Method | Path | Who | Body / notes |
 |---|---|---|---|
 | GET | `/jks/:id` | 🔑 ЖК | Name and address |
-| GET | `/jks/:id/tariff` | 🔑 ЖК | `{amount}` ₸/month |
+| GET | `/jks/:id/tariff` | 🔑 ЖК | `{amount}` ₸ per m² per month |
 | PUT | `/jks/:id/tariff` | 🛡 ЖК | `{amount}` → `{recalc_requests: n}`. A decrease creates tariff_recalc requests |
 | GET | `/jks/:id/tariff/preview?amount=` | 🛡 ЖК | `{affected_count, total_difference}` for a planned decrease |
+| GET | `/jks/:id/rental-settings` | 🔑 ЖК | `{lock_duration_minutes}` |
+| PUT | `/jks/:id/rental-settings` | 🛡 ЖК | `{lock_duration_minutes: 1–60}`; 400 outside the range |
 
 ## Storage rooms
 
@@ -51,7 +53,8 @@ Source of truth: [`backend/internal/handlers/router.go`](../backend/internal/han
 |---|---|---|---|
 | GET | `/rentals/my` | 🔑 | The caller's rentals |
 | GET | `/rentals/:id` | 🔑 | Owner or the ОСИ of that ЖК |
-| POST | `/rentals/lock` | 🔑 | `{storage_id, months}`. 2-minute hold; 409 if not free |
+| POST | `/rentals/lock` | 🔑 | `{storage_id, months}`. Hold for the ЖК's lock duration (default 2 min); 409 if not free |
+| POST | `/rentals/:id/renew` | 🔑 owner | `{months (1–120), phone?}` → 201 payment `{id, amount, …}`. Kaspi invoice at the **current** tariff; when paid, `ends_at += months` from the current end. 409 if the rental isn't active or a transfer is pending. In development it is applied immediately |
 | POST | `/rentals/:id/terminate` | 🔑 owner | `{comment?}` → an early_termination request |
 | GET | `/rentals/jk/:jk_id` | 🛡 ЖК | All rentals in the ЖК |
 | GET | `/rentals/storage/:storage_id` | 🛡 ЖК | The active rental of a storage room |

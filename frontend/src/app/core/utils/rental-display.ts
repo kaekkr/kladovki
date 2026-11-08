@@ -40,3 +40,20 @@ export function rentalStatusLabel(rental: Rental): string {
       return rental.status;
   }
 }
+
+/** A paid rental (overdue included) can be extended by paying more months. */
+export function canRenew(rental: Rental): boolean {
+  return rental.status === 'active';
+}
+
+/** Renewal continues from the current end, so overdue time is covered first. */
+export function renewalEndsAt(rental: Rental, months: number): string {
+  const end = new Date(rental.ends_at);
+  end.setUTCMonth(end.getUTCMonth() + months);
+  return end.toISOString();
+}
+
+/** Same formula as the server: round(area × tariff) per month. */
+export function renewalPrice(area: number, tariff: number, months: number): number {
+  return Math.round(area * tariff) * months;
+}

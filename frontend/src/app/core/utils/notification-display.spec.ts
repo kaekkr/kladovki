@@ -10,12 +10,13 @@ describe('notification display', () => {
     expect(notificationTone('tariff_recalc')).toBe('warning');
     expect(notificationTone('payment_success')).toBe('success');
     expect(notificationTone('request_resolved')).toBe('neutral');
+    expect(notificationTone('refund_pending')).toBe('warning');
   });
 
   it('has an icon for every kind', () => {
     for (const k of [
       'payment_success', 'rental_expiring', 'rental_overdue', 'debt_warning',
-      'tariff_changed', 'tariff_recalc', 'request_new', 'request_resolved',
+      'tariff_changed', 'tariff_recalc', 'request_new', 'request_resolved', 'refund_pending',
     ] as const) {
       expect(notificationIcon(k)).toMatch(/^fa-/);
     }

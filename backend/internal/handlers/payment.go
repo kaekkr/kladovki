@@ -169,3 +169,53 @@ func (h *Handler) webhookSignatureOK(body []byte, header string) bool {
 	mac.Write(body)
 	return hmac.Equal(got, mac.Sum(nil))
 }
+
+type renewRentalRequest struct {
+	Months int    `json:"months"`
+	Phone  string `json:"phone"`
+}
+
+// RenewRental sends a Kaspi invoice that extends the caller's active rental
+// by `months` once paid (applied by the webhook, from the current end date).
+func (h *Handler) RenewRental(c *gin.Context) {
+	var req renewRentalRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.Months < 1 || req.Months > service.MaxRentalMonths {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Укажите срок продления"})
+		return
+	}
+	in := service.RenewRentalInput{
+		RentalID: c.Param("id"),
+		UserID:   middleware.UserID(c),
+		Months:   req.Months,
+		Phone:    req.Phone,
+	}
+
+	var payment *models.Payment
+	var err error
+	if h.cfg.Env == "development" {
+		// Local development only: apply the renewal without ApiPay.
+		payment, err = h.svc.PrepareRenewal(c.Request.Context(), in)
+		if err == nil {
+			err = h.svc.HandlePaymentWebhook(c.Request.Context(), payment.ID, "paid")
+		}
+	} else {
+		payment, err = h.svc.CreateRenewalInvoice(c.Request.Context(), in, h.cfg.ApiPayKey, h.cfg.ApiPayBaseURL)
+	}
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "Аренда не найдена"})
+		case errors.Is(err, service.ErrLocked):
+			c.JSON(http.StatusConflict, gin.H{"error": "Продлить можно только оплаченную аренду"})
+		case errors.Is(err, service.ErrTransferPending):
+			c.JSON(http.StatusConflict, gin.H{"error": "Кладовка передаётся новому владельцу — продление недоступно"})
+		case errors.Is(err, service.ErrInvalid):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Укажите номер телефона, привязанный к Kaspi"})
+		default:
+			log.Printf("RenewRental: %v", err)
+			c.JSON(http.StatusBadGateway, gin.H{"error": "Не удалось отправить счёт в Kaspi. Попробуйте ещё раз."})
+		}
+		return
+	}
+	c.JSON(http.StatusCreated, payment)
+}
