@@ -2,30 +2,38 @@ package handlers
 
 import (
 	"github.com/gin-gonic/gin"
+
+	"github.com/kaekkr/kladovki/internal/middleware"
 )
 
+// Access rules:
+//   - admin  = OSI administrator, may manage only their own JK (token jk_id).
+//   - resident may read their own JK's storages and only their own rentals/payments.
+//
+// JK ownership of path/body IDs is checked inside the handlers.
 func (h *Handler) Register(r *gin.Engine) {
 	r.Use(h.mw.Optional())
+
+	auth := h.mw.Require()
+	admin := middleware.RequireAdmin()
 
 	api := r.Group(h.cfg.APIPrefix)
 	{
 		api.POST("/lead", h.CreateLead)
-		api.GET("/jks/:id", h.mw.Require(), h.GetJKByID)
-		api.GET("/jks/:id/tariff", h.mw.Require(), h.GetTariff)
-		api.PUT("/jks/:id/tariff", h.mw.Require(), h.SetTariff)
-		api.GET("/jks/:id/tariff/preview", h.mw.Require(), h.GetTariffPreview)
+		api.GET("/jks/:id", auth, h.GetJKByID)
+		api.GET("/jks/:id/tariff", auth, h.GetTariff)
+		api.PUT("/jks/:id/tariff", auth, admin, h.SetTariff)
+		api.GET("/jks/:id/tariff/preview", auth, admin, h.GetTariffPreview)
 
-		// === Auth ===
-		auth := api.Group("/auth")
+		authGroup := api.Group("/auth")
 		{
-			auth.POST("/register", h.RegisterResident)
-			auth.POST("/login", h.Login)
-			auth.POST("/logout", h.Logout)
-			auth.GET("/me", h.mw.Require(), h.Me)
+			authGroup.POST("/register", h.RegisterResident)
+			authGroup.POST("/login", h.Login)
+			authGroup.POST("/logout", h.Logout)
+			authGroup.GET("/me", auth, h.Me)
 		}
 
-		dashboard := api.Group("/dashboard")
-		dashboard.Use(h.mw.Require())
+		dashboard := api.Group("/dashboard", auth, admin)
 		{
 			dashboard.GET("/stats", h.GetDashboardStats)
 			dashboard.GET("/revenue", h.GetDashboardRevenue)
@@ -34,46 +42,42 @@ func (h *Handler) Register(r *gin.Engine) {
 			dashboard.GET("/occupancy", h.GetDashboardOccupancy)
 		}
 
-		// === Storages (Flat Routes) ===
-		storages := api.Group("/storages")
-		storages.Use(h.mw.Require())
+		storages := api.Group("/storages", auth)
 		{
 			storages.GET("/jk/:jk_id", h.ListStoragesByJK)
-			storages.POST("", h.CreateStorage)
 			storages.GET("/:id", h.GetStorageByID)
-			storages.PUT("/:id", h.UpdateStorage)
-			storages.DELETE("/:id", h.DeleteStorage)
+			storages.POST("", admin, h.CreateStorage)
+			storages.PUT("/:id", admin, h.UpdateStorage)
+			storages.DELETE("/:id", admin, h.DeleteStorage)
 			storages.PATCH("/:id/transfer", h.SetStorageTransfer)
 		}
 
-		// === Rentals ===
-		rentals := api.Group("/rentals")
-		rentals.Use(h.mw.Require())
+		rentals := api.Group("/rentals", auth)
 		{
-			rentals.GET("/jk/:jk_id", h.ListRentalsByJK)
-			rentals.GET("/storage/:storage_id", h.GetActiveRentalByStorage)
+			rentals.GET("/my", h.ListMyRentals)
+			rentals.GET("/jk/:jk_id", admin, h.ListRentalsByJK)
+			rentals.GET("/storage/:storage_id", admin, h.GetActiveRentalByStorage)
 
 			rentals.POST("/lock", h.LockStorage)
-			rentals.POST("/confirm-payment", h.ConfirmPayment)
+			// Activates a rental without payment — local development only.
+			if h.cfg.Env == "development" {
+				rentals.POST("/confirm-payment", h.ConfirmPayment)
+			}
 
-			rentals.PATCH("/:id/cancel", h.CancelRental)
-			rentals.PATCH("/:id/force-release", h.ForceReleaseLocked)
-			rentals.PATCH("/:id/release-overdue", h.ReleaseOverdueRental)
+			rentals.PATCH("/:id/cancel", admin, h.CancelRental)
+			rentals.PATCH("/:id/force-release", admin, h.ForceReleaseLocked)
+			rentals.PATCH("/:id/release-overdue", admin, h.ReleaseOverdueRental)
 
 			rentals.GET("/:id", h.GetRentalByID)
 		}
 
-		// === Payments ===
 		payments := api.Group("/payments")
 		{
-			// Вебхук от ApiPay вызывается внешней системой, поэтому без h.mw.Require()
+			// Called by ApiPay; authenticated by HMAC signature, not by user token.
 			payments.POST("/webhook", h.PaymentWebhook)
-
-			// Создание платежа требует авторизации пользователя
-			payments.Group("").Use(h.mw.Require()).POST("", h.CreatePayment)
-
-			// Список платежей по ЖК тоже под авторизацией
-			payments.Group("").Use(h.mw.Require()).GET("/jk/:jk_id", h.ListPaymentsByJK)
+			payments.POST("", auth, h.CreatePayment)
+			payments.GET("/my", auth, h.ListMyPayments)
+			payments.GET("/jk/:jk_id", auth, admin, h.ListPaymentsByJK)
 		}
 	}
 }

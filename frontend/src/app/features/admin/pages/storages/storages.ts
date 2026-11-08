@@ -23,6 +23,7 @@ export class AdminStorages {
   deleteTarget = signal<Storage | null>(null);
   deleting = signal(false);
   deleteError = signal<string | null>(null);
+  updateError = signal<string | null>(null);
 
   createModalOpen = signal(false);
   creating = signal(false);
@@ -108,6 +109,7 @@ export class AdminStorages {
   }
 
   updateStorage(updated: Storage): void {
+    this.updateError.set(null);
     this.storageService
       .update(updated.id, {
         number: updated.number,
@@ -124,8 +126,8 @@ export class AdminStorages {
           this.selectedStorage.set(storage);
         },
 
-        error: () => {
-          // здесь позже сделаем нормальный toast
+        error: (err) => {
+          this.updateError.set(err?.error?.error || 'Не удалось сохранить изменения кладовой.');
         },
       });
   }

@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/kaekkr/kladovki/internal/middleware"
 	"github.com/kaekkr/kladovki/internal/models"
+	"github.com/kaekkr/kladovki/internal/repository"
 	"github.com/kaekkr/kladovki/internal/service"
 )
 
@@ -27,9 +28,10 @@ func (h *Handler) CreateStorage(c *gin.Context) {
 	}
 
 	// If JKID isn't passed in payload, fall back to user's assigned JKID from context
-	jkID := req.JKID
-	if jkID == "" {
-		jkID = middleware.JKID(c)
+	jkID := middleware.JKID(c)
+	if req.JKID != "" && req.JKID != jkID {
+		middleware.Forbidden(c)
+		return
 	}
 
 	storage, err := h.svc.CreateStorage(c.Request.Context(), service.CreateStorageInput{
@@ -44,6 +46,14 @@ func (h *Handler) CreateStorage(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Неверные данные кладовки"})
 			return
 		}
+		if errors.Is(err, service.ErrAlreadyExists) {
+			c.JSON(http.StatusConflict, gin.H{"error": "Кладовка с таким номером уже есть в этом ЖК"})
+			return
+		}
+		if errors.Is(err, service.ErrLocked) {
+			c.JSON(http.StatusConflict, gin.H{"error": "Нельзя менять параметры кладовки, пока она занята или забронирована"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось создать кладовку"})
 		return
 	}
@@ -53,8 +63,9 @@ func (h *Handler) CreateStorage(c *gin.Context) {
 
 func (h *Handler) ListStoragesByJK(c *gin.Context) {
 	jkID := c.Param("jk_id")
-	if jkID == "" {
-		jkID = middleware.JKID(c)
+	if !middleware.SameJK(c, jkID) {
+		middleware.Forbidden(c)
+		return
 	}
 
 	storages, err := h.svc.ListStoragesByJK(c.Request.Context(), jkID)
@@ -71,15 +82,8 @@ func (h *Handler) ListStoragesByJK(c *gin.Context) {
 }
 
 func (h *Handler) GetStorageByID(c *gin.Context) {
-	id := c.Param("id")
-
-	storage, err := h.svc.GetStorageByID(c.Request.Context(), id)
-	if err != nil {
-		if errors.Is(err, service.ErrNotFound) || errors.Is(err, service.ErrInvalid) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Кладовка не найдена"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось получить кладовку"})
+	storage, ok := h.storageInMyJK(c, c.Param("id"))
+	if !ok {
 		return
 	}
 
@@ -96,6 +100,9 @@ type updateStorageRequest struct {
 
 func (h *Handler) UpdateStorage(c *gin.Context) {
 	id := c.Param("id")
+	if _, ok := h.storageInMyJK(c, id); !ok {
+		return
+	}
 
 	var req updateStorageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -120,6 +127,14 @@ func (h *Handler) UpdateStorage(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Неверные данные кладовки"})
 			return
 		}
+		if errors.Is(err, service.ErrAlreadyExists) {
+			c.JSON(http.StatusConflict, gin.H{"error": "Кладовка с таким номером уже есть в этом ЖК"})
+			return
+		}
+		if errors.Is(err, service.ErrLocked) {
+			c.JSON(http.StatusConflict, gin.H{"error": "Нельзя менять параметры кладовки, пока она занята или забронирована"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось обновить кладовку"})
 		return
 	}
@@ -129,6 +144,9 @@ func (h *Handler) UpdateStorage(c *gin.Context) {
 
 func (h *Handler) DeleteStorage(c *gin.Context) {
 	id := c.Param("id")
+	if _, ok := h.storageInMyJK(c, id); !ok {
+		return
+	}
 
 	if err := h.svc.DeleteStorage(c.Request.Context(), id); err != nil {
 		if errors.Is(err, service.ErrNotFound) || errors.Is(err, service.ErrInvalid) {
@@ -152,6 +170,10 @@ func (h *Handler) SetStorageTransfer(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Укажи ИИН нового владельца"})
 		return
 	}
+	if _, ok := h.storageInMyJK(c, c.Param("id")); !ok {
+		return
+	}
+
 	userID := middleware.UserID(c)
 	role := middleware.Role(c)
 
@@ -195,4 +217,26 @@ func (h *Handler) SetStorageTransfer(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Передача кладовки назначена на 14 дней"})
+}
+
+// storageInMyJK loads a storage and writes 404 when it does not exist or
+// belongs to a JK other than the caller's (no information leak across JKs).
+func (h *Handler) storageInMyJK(c *gin.Context, id string) (*models.Storage, bool) {
+	storage, err := h.svc.GetStorageByID(c.Request.Context(), id)
+	if err != nil || !middleware.SameJK(c, storage.JKID) {
+		if err != nil && !isNotFound(err) {
+			log.Printf("storageInMyJK: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось получить кладовку"})
+			return nil, false
+		}
+		c.JSON(http.StatusNotFound, gin.H{"error": "Кладовка не найдена"})
+		return nil, false
+	}
+	return storage, true
+}
+
+func isNotFound(err error) bool {
+	return errors.Is(err, service.ErrNotFound) ||
+		errors.Is(err, service.ErrInvalid) ||
+		errors.Is(err, repository.ErrNotFound)
 }

@@ -140,10 +140,9 @@ export class ClientPayments {
     this.loading.set(true);
     this.error.set(false);
 
-    this.paymentService.listByJK(jkId).subscribe({
+    this.paymentService.listMine().subscribe({
       next: (allPayments) => {
         const myPayments = allPayments
-          .filter((payment) => payment.user_id === userId)
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
         this.payments.set(myPayments);

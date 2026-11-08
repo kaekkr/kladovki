@@ -82,8 +82,8 @@ func Load() Config {
 
 	// Настройки ApiPay
 	apiPayKey := os.Getenv("APIPAY_KEY")
-	if apiPayKey == "" {
-		apiPayKey = "22b82f26250099bf359c3c82a114fdc2992cbb20c2e3ae2e67227eae8d772ad1"
+	if apiPayKey == "" && env == "production" {
+		log.Println("WARNING: APIPAY_KEY is not set — Kaspi payments will fail")
 	}
 
 	apiPayBaseURL := os.Getenv("APIPAY_BASE_URL")
@@ -92,8 +92,8 @@ func Load() Config {
 	}
 
 	apiPayWebhookSecret := os.Getenv("APIPAY_WEBHOOK_SECRET")
-	if apiPayWebhookSecret == "" {
-		apiPayWebhookSecret = "462abe230df09c10468689c4d941a5fa2e349561b6be80de8d46b29f3cd1d4d0"
+	if apiPayWebhookSecret == "" && env != "development" {
+		log.Println("WARNING: APIPAY_WEBHOOK_SECRET is not set — payment webhooks will be rejected")
 	}
 
 	return Config{
@@ -107,5 +107,7 @@ func Load() Config {
 		APIPrefix:     apiPrefix,
 		ApiPayKey:     apiPayKey,
 		ApiPayBaseURL: apiPayBaseURL,
+
+		ApiPayWebhookSecret: apiPayWebhookSecret,
 	}
 }

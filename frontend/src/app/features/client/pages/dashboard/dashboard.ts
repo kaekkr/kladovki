@@ -131,9 +131,8 @@ export class ClientDashboard {
     this.loading.set(true);
     this.error.set(false);
 
-    this.rentalService.listByJK(jkId).subscribe({
-      next: (all) => {
-        const mine = userId ? all.filter((r) => r.user_id === userId) : [];
+    this.rentalService.listMine().subscribe({
+      next: (mine) => {
         this.rentals.set(mine);
         this.loading.set(false);
       },

@@ -124,15 +124,8 @@ export class ClientRentalDetails implements OnDestroy {
     this.paying.set(true);
     this.paymentError.set(null);
 
-    const amount = currentRental.price_per_month * currentRental.months;
-    const phone = (currentRental as any).user_phone || (currentRental as any).phone || '';
-
     this.rentalService
-      .createPayment({
-        rental_id: currentRental.id,
-        amount: amount,
-        phone: phone,
-      })
+      .createPayment({ rental_id: currentRental.id })
       .subscribe({
         next: () => {
           // Счет успешно отправлен в Kaspi, запускаем опрос (поллинг) статуса
@@ -149,7 +142,9 @@ export class ClientRentalDetails implements OnDestroy {
             return;
           }
 
-          this.paymentError.set('Не удалось отправить счёт в Kaspi. Попробуйте ещё раз.');
+          this.paymentError.set(
+            error.error?.error || 'Не удалось отправить счёт в Kaspi. Попробуйте ещё раз.',
+          );
         },
       });
   }
