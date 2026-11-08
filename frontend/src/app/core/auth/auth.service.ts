@@ -35,6 +35,13 @@ export class AuthService {
     );
   }
 
+  changePassword(currentPassword: string, newPassword: string) {
+    return this.http.put<{ message: string }>(`${this.baseUrl}/me/password`, {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+  }
+
   /** Whether an IIN already has an account (one password field) or needs first-login setup. */
   iinStatus(iin: string) {
     return this.http.post<{ registered: boolean }>(`${this.baseUrl}/auth/iin-status`, { iin });

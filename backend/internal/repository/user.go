@@ -12,7 +12,7 @@ import (
 )
 
 const userColumns = `id, full_name, phone, email, password_hash, role, jk_id, created_at, iin,
-	status, review_comment, owner_type, premises_kind, premises_number, company_bin, company_name`
+	status, review_comment, owner_type, premises_kind, premises_number, company_bin, company_name, must_change_password`
 
 func (r *Repo) CreateUser(ctx context.Context, u *models.User) error {
 	if u.ID == "" {
@@ -88,6 +88,7 @@ func (r *Repo) scanUser(s rowScanner) (*models.User, error) {
 		&u.CreatedAt,
 		&iin,
 		&u.Status, &u.ReviewComment, &u.OwnerType, &u.PremisesKind, &u.PremisesNumber, &u.CompanyBIN, &u.CompanyName,
+		&u.MustChangePassword,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -176,6 +177,33 @@ func (r *Repo) ResubmitVerification(ctx context.Context, userID string, v models
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
 		return ErrLocked
+	}
+	return nil
+}
+
+// SetPassword stores a new password hash; mustChange forces a change at next login.
+func (r *Repo) SetPassword(ctx context.Context, userID, hash string, mustChange bool) error {
+	res, err := r.db.ExecContext(ctx, `UPDATE users SET password_hash = $2, must_change_password = $3 WHERE id = $1`,
+		userID, hash, mustChange)
+	if err != nil {
+		return fmt.Errorf("repository.SetPassword: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// ResetResidentPassword sets a temporary password for a resident of the given ЖК.
+func (r *Repo) ResetResidentPassword(ctx context.Context, userID, jkID, hash string) error {
+	res, err := r.db.ExecContext(ctx, `
+		UPDATE users SET password_hash = $3, must_change_password = true
+		WHERE id = $1 AND jk_id = $2 AND role = 'resident'`, userID, jkID, hash)
+	if err != nil {
+		return fmt.Errorf("repository.ResetResidentPassword: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
 	}
 	return nil
 }

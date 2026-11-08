@@ -45,6 +45,8 @@ type User struct {
 	PremisesNumber string     `json:"premises_number"`
 	CompanyBIN     string     `json:"company_bin"`
 	CompanyName    string     `json:"company_name"`
+
+	MustChangePassword bool `json:"must_change_password"`
 }
 
 // Verification is what a user declares about the property they own.

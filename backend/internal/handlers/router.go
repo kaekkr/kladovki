@@ -113,11 +113,13 @@ func (h *Handler) Register(r *gin.Engine) {
 			residents.GET("/jk/:jk_id", h.ListResidents)
 			residents.GET("/pending-count", h.CountPendingResidents)
 			residents.PATCH("/:id/:action", h.ReviewResident)
+			residents.POST("/:id/reset-password", h.ResetResidentPassword)
 		}
 
 		me := api.Group("/me", auth)
 		{
 			me.PUT("/verification", h.ResubmitVerification)
+			me.PUT("/password", h.ChangePassword)
 			me.GET("/channels", h.MyChannels)
 			me.POST("/telegram/link", h.TelegramLink)
 			me.DELETE("/telegram", h.TelegramUnlink)

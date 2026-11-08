@@ -33,6 +33,31 @@ export class AdminResidents {
   actionError = signal<string | null>(null);
 
   statusLabel = residentStatusLabel;
+
+  // Password reset: the temporary password is shown once to the ОСИ.
+  resetFor = signal<User | null>(null);
+  tempPassword = signal<string | null>(null);
+  resetError = signal<string | null>(null);
+  copied = signal(false);
+
+  resetPassword(u: User): void {
+    if (!confirm(`Сбросить пароль для ${u.full_name}? Старый пароль перестанет работать.`)) return;
+    this.resetFor.set(u);
+    this.tempPassword.set(null);
+    this.resetError.set(null);
+    this.copied.set(false);
+    this.residents.resetPassword(u.id).subscribe({
+      next: (r) => this.tempPassword.set(r.temporary_password),
+      error: (err) => this.resetError.set(err?.error?.error || 'Не удалось сбросить пароль'),
+    });
+  }
+
+  copyTemp(): void {
+    const p = this.tempPassword();
+    if (!p) return;
+    navigator.clipboard?.writeText(p);
+    this.copied.set(true);
+  }
   filters: { key: Filter; label: string }[] = [
     { key: 'pending', label: 'На проверке' },
     { key: 'active', label: 'Подтверждены' },

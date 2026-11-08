@@ -257,4 +257,7 @@ var migrations = []string{
 	// The expiry worker scans by (status, ends_at) every 10 s; dashboards filter by ЖК.
 	`CREATE INDEX IF NOT EXISTS idx_rentals_status_ends ON rentals(status, ends_at)`,
 	`CREATE INDEX IF NOT EXISTS idx_rentals_jk ON rentals(jk_id)`,
+
+	// Set when the ОСИ resets a resident's password: they must choose a new one.
+	`ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT false`,
 }

@@ -27,6 +27,8 @@ export interface User {
   company_bin?: string;
   company_name?: string;
   created_at?: string;
+  /** Set after the ОСИ reset the password: the user must choose a new one. */
+  must_change_password?: boolean;
 }
 
 export interface LoginPayload {

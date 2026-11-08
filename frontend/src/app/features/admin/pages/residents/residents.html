@@ -75,6 +75,10 @@
                   Подтвердить собственника
                 </button>
               } @else if (u.status === 'active') {
+                <button type="button" (click)="resetPassword(u)"
+                  class="rounded-md border border-brand-line px-3 py-2 text-xs font-medium text-brand-muted hover:text-brand-text">
+                  Сбросить пароль
+                </button>
                 <button type="button" (click)="open(u, 'block')"
                   class="rounded-md border border-brand-line px-3 py-2 text-xs font-medium text-brand-muted hover:text-status-overdue">
                   Заблокировать
@@ -124,6 +128,33 @@
             {{ action() === 'reject' ? 'Отклонить' : 'Заблокировать' }}
           </button>
         </div>
+      </div>
+    </div>
+  }
+
+  @if (resetFor(); as u) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" (click)="resetFor.set(null)">
+      <div class="w-full max-w-sm space-y-3 rounded-xl border border-brand-line bg-brand-surface p-5" (click)="$event.stopPropagation()">
+        <p class="text-sm font-semibold text-brand-text">Временный пароль — {{ u.full_name }}</p>
+        @if (tempPassword(); as p) {
+          <p class="rounded-md bg-brand-elevated px-3 py-3 text-center font-mono text-lg tracking-widest text-brand-text">{{ p }}</p>
+          <p class="text-xs leading-5 text-brand-muted">
+            Передайте пароль жителю лично или продиктуйте по телефону — не отправляйте его в мессенджерах.
+            После входа житель сразу задаст свой пароль. Это окно показывается один раз.
+          </p>
+          <div class="flex gap-2">
+            <button type="button" (click)="copyTemp()" class="flex-1 rounded-md border border-brand-line px-3 py-2 text-xs text-brand-text">
+              {{ copied() ? 'Скопировано' : 'Скопировать' }}
+            </button>
+            <button type="button" (click)="resetFor.set(null)" class="flex-1 rounded-md bg-brand-accent px-3 py-2 text-xs font-semibold text-brand-bg">
+              Готово
+            </button>
+          </div>
+        } @else if (resetError()) {
+          <p class="text-xs text-status-overdue">{{ resetError() }}</p>
+        } @else {
+          <p class="text-xs text-brand-muted">Сбрасываем…</p>
+        }
       </div>
     </div>
   }
