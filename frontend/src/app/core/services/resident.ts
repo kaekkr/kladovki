@@ -24,6 +24,11 @@ export class ResidentService {
     return this.http.patch<{ message: string }>(`${this.baseUrl}/residents/${userId}/${action}`, { comment });
   }
 
+  /** ОСИ sets a temporary password for a resident (shown once, to hand over in person). */
+  resetPassword(userId: string) {
+    return this.http.post<{ temporary_password: string }>(`${this.baseUrl}/residents/${userId}/reset-password`, {});
+  }
+
   /** A pending/rejected user corrects their property data and asks the ОСИ again. */
   resubmit(v: Verification) {
     return this.http.put<{ message: string }>(`${this.baseUrl}/me/verification`, v);

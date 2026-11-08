@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { ChangePassword } from '../../../../shared/components/change-password/change-password';
 
 import { AuthService } from '../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../core/services/notification';
@@ -8,7 +9,7 @@ import { NotificationChannels } from '../../../../core/models/notification';
 @Component({
   selector: 'app-client-profile',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, ChangePassword],
   templateUrl: './profile.html',
 })
 export class ClientProfile {
@@ -21,6 +22,8 @@ export class ClientProfile {
   channels = signal<NotificationChannels | null>(null);
   linking = signal(false);
   linkHint = signal('');
+
+  passwordOpen = signal(false);
 
   constructor() {
     this.loadChannels();

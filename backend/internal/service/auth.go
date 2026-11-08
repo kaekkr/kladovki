@@ -141,7 +141,7 @@ func (s *Service) resolveRegistrationJK(ctx context.Context, requested *string) 
 
 func (s *Service) Login(ctx context.Context, in LoginInput) (*models.User, error) {
 	login := strings.TrimSpace(in.Login)
-	password := strings.TrimSpace(in.Password)
+	password := in.Password // not trimmed: registration keeps spaces too
 
 	if login == "" || password == "" {
 		return nil, ErrInvalid
