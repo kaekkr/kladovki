@@ -21,6 +21,8 @@ type Config struct {
 	ApiPayKey           string
 	ApiPayBaseURL       string
 	ApiPayWebhookSecret string
+	// ApiPayLive: real money mode — sandbox webhook events are then ignored.
+	ApiPayLive bool
 }
 
 func Load() Config {
@@ -109,5 +111,6 @@ func Load() Config {
 		ApiPayBaseURL: apiPayBaseURL,
 
 		ApiPayWebhookSecret: apiPayWebhookSecret,
+		ApiPayLive:          os.Getenv("APIPAY_LIVE") == "true",
 	}
 }

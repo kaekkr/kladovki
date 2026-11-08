@@ -195,7 +195,7 @@ func TestPaymentArrivingAfterLockExpiryStillActivatesFreeStorage(t *testing.T) {
 	assertActiveTwoMonths(t, e, id)
 }
 
-func TestSandboxEventsIgnoredInProduction(t *testing.T) {
+func TestSandboxEventsIgnoredInLiveMode(t *testing.T) {
 	e := newTestEnv(t)
 	id := e.lockAs(e.resident, e.storageA, 2)
 	e.do(http.MethodPost, "/payments", e.resident, map[string]any{"rental_id": id, "phone": "+77001112233"})

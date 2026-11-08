@@ -129,9 +129,9 @@ func (h *Handler) PaymentWebhook(c *gin.Context) {
 		return
 	}
 
-	// Only invoice status changes matter; ignore tests, sandbox in production, unknown events.
+	// Only invoice status changes matter; ignore tests, sandbox events in live mode, unknown events.
 	if ev.Event != "invoice.status_changed" || ev.Invoice.ExternalOrderID == nil ||
-		(ev.IsSandbox && h.cfg.Env == "production") {
+		(ev.IsSandbox && h.cfg.ApiPayLive) {
 		c.Status(http.StatusOK)
 		return
 	}

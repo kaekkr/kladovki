@@ -100,6 +100,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		ApiPayKey:           "test-key",
 		ApiPayBaseURL:       apiSrv.URL,
 		ApiPayWebhookSecret: webhookSecret,
+		ApiPayLive:          true,
 	}
 
 	svc := service.New(repository.New(db))
