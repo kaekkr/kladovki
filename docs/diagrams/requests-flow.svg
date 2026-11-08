@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -120 1500 790" width="1500" height="790" font-family="Helvetica, Arial, sans-serif">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>
+<rect x="-30" y="-120" width="1500" height="790.0" fill="#ffffff"/>
+<rect x="0" y="0" width="250" height="80" rx="14" fill="#e9ecef" stroke="#495057" stroke-width="2"/>
+<rect x="330" y="0" width="290" height="100" rx="14" fill="#d0bfff" stroke="#6741d9" stroke-width="2"/>
+<rect x="700" y="-80" width="320" height="100" rx="14" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<rect x="700" y="80" width="320" height="100" rx="14" fill="#ffec99" stroke="#f08c00" stroke-width="2"/>
+<rect x="0" y="300" width="250" height="100" rx="14" fill="#e9ecef" stroke="#495057" stroke-width="2"/>
+<rect x="330" y="310" width="290" height="80" rx="14" fill="#d0bfff" stroke="#6741d9" stroke-width="2"/>
+<rect x="0" y="480" width="250" height="80" rx="14" fill="#e9ecef" stroke="#495057" stroke-width="2"/>
+<rect x="330" y="490" width="290" height="60" rx="14" fill="#d0bfff" stroke="#6741d9" stroke-width="2"/>
+<rect x="1100" y="300" width="340" height="100" rx="14" fill="#a5d8ff" stroke="#1971c2" stroke-width="2"/>
+<line x1="250" y1="40.0" x2="330" y2="50.0" stroke="#1e1e1e" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="620" y1="50.0" x2="700" y2="-30.0" stroke="#1e1e1e" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="620" y1="50.0" x2="700" y2="130.0" stroke="#1e1e1e" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="250" y1="350.0" x2="330" y2="350.0" stroke="#1e1e1e" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="250" y1="520.0" x2="330" y2="520.0" stroke="#1e1e1e" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="860.0" y1="180" x2="1270.0" y2="300" stroke="#1e1e1e" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="620" y1="350.0" x2="1100" y2="350.0" stroke="#1e1e1e" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="475.0" y1="490" x2="1270.0" y2="400" stroke="#1e1e1e" stroke-width="2" marker-end="url(#ah)"/>
+<text x="0" y="-58" font-size="32" fill="#1e1e1e" text-anchor="start"><tspan x="0" dy="0">Tariff decrease, refunds &amp; early termination</tspan></text>
+<text x="125.0" y="35.05" font-size="18" fill="#1e1e1e" text-anchor="middle"><tspan x="125.0" dy="0">OSI lowers tariff</tspan><tspan x="125.0" dy="22.5">PUT /jks/:id/tariff</tspan></text>
+<text x="475.0" y="25.6" font-size="16" fill="#1e1e1e" text-anchor="middle"><tspan x="475.0" dy="0">tariff_recalc request per</tspan><tspan x="475.0" dy="20.0">active rental: awaiting_choice</tspan><tspan x="475.0" dy="20.0">(resident picks)</tspan><tspan x="475.0" dy="20.0">(older ones → superseded)</tspan></text>
+<text x="860.0" y="-44.4" font-size="16" fill="#1e1e1e" text-anchor="middle"><tspan x="860.0" dy="0">extend</tspan><tspan x="860.0" dy="20.0">ends_at += remaining × (old/new − 1)</tspan><tspan x="860.0" dy="20.0">→ done</tspan></text>
+<text x="860.0" y="115.6" font-size="16" fill="#1e1e1e" text-anchor="middle"><tspan x="860.0" dy="0">refund</tspan><tspan x="860.0" dy="20.0">price ↓, total_paid −= amount</tspan><tspan x="860.0" dy="20.0">→ open (OSI pays back)</tspan></text>
+<text x="125.0" y="325.6" font-size="16" fill="#1e1e1e" text-anchor="middle"><tspan x="125.0" dy="0">Resident: «Досрочное</tspan><tspan x="125.0" dy="20.0">расторжение»</tspan><tspan x="125.0" dy="20.0">POST</tspan><tspan x="125.0" dy="20.0">/rentals/:id/terminate</tspan></text>
+<text x="475.0" y="345.6" font-size="16" fill="#1e1e1e" text-anchor="middle"><tspan x="475.0" dy="0">early_termination: open</tspan><tspan x="475.0" dy="20.0">amount = remaining value</tspan></text>
+<text x="125.0" y="515.6" font-size="16" fill="#1e1e1e" text-anchor="middle"><tspan x="125.0" dy="0">Paid but storage taken</tspan><tspan x="125.0" dy="20.0">(webhook race)</tspan></text>
+<text x="475.0" y="525.6" font-size="16" fill="#1e1e1e" text-anchor="middle"><tspan x="475.0" dy="0">payment_refund: open</tspan></text>
+<text x="1270.0" y="335.6" font-size="16" fill="#1e1e1e" text-anchor="middle"><tspan x="1270.0" dy="0">OSI → Заявки page</tspan><tspan x="1270.0" dy="20.0">PATCH /requests/:id/resolve</tspan><tspan x="1270.0" dy="20.0">approve → done  •  reject → rejected</tspan></text>
+<rect x="746.8" y="331.25" width="226.40000000000003" height="37.5" fill="#ffffff" opacity="0.9"/>
+<text x="860.0" y="345.875" font-size="15" fill="#1e1e1e" text-anchor="middle"><tspan x="860.0" dy="0">approve: rental cancelled,</tspan><tspan x="860.0" dy="18.75">storage free</tspan></text>
+<text x="0" y="636" font-size="16" fill="#495057" text-anchor="start"><tspan x="0" dy="0">remaining value = total_paid × (time left / paid period)</tspan></text>
+</svg>

@@ -5,6 +5,8 @@ node_modules/
 dist/
 tmp/
 .env
+.env.*
+!.env.example
 android/
 
 # Database dumps contain personal data

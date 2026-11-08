@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-410 -220 1980 882" width="1980" height="882" font-family="Helvetica, Arial, sans-serif">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>
+<rect x="-410" y="-220" width="1980" height="882" fill="#ffffff"/>
+<rect x="0" y="0" width="300" height="118" rx="14" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<rect x="380" y="0" width="330" height="184" rx="14" fill="#a5d8ff" stroke="#1971c2" stroke-width="2"/>
+<rect x="-380" y="0" width="300" height="118" rx="14" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<rect x="0" y="470" width="300" height="162" rx="14" fill="#ffec99" stroke="#f08c00" stroke-width="2"/>
+<rect x="400" y="470" width="330" height="162" rx="14" fill="#ffec99" stroke="#f08c00" stroke-width="2"/>
+<rect x="820" y="470" width="300" height="162" rx="14" fill="#ffec99" stroke="#f08c00" stroke-width="2"/>
+<rect x="820" y="220" width="300" height="140" rx="14" fill="#d0bfff" stroke="#6741d9" stroke-width="2"/>
+<rect x="820" y="-40" width="300" height="118" rx="14" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="1240" y="-40" width="300" height="118" rx="14" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="410" y="-190" width="300" height="96" rx="14" fill="#e9ecef" stroke="#495057" stroke-width="2"/>
+<rect x="1240" y="220" width="300" height="96" rx="14" fill="#e9ecef" stroke="#495057" stroke-width="2"/>
+<line x1="380" y1="92.0" x2="300" y2="59.0" stroke="#495057" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="-80" y1="59.0" x2="0" y2="59.0" stroke="#495057" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="150.0" y1="470" x2="150.0" y2="118" stroke="#495057" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="400" y1="551.0" x2="300" y2="551.0" stroke="#495057" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="565.0" y1="470" x2="545.0" y2="184" stroke="#495057" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="820" y1="551.0" x2="730" y2="551.0" stroke="#495057" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="970.0" y1="360" x2="565.0" y2="470" stroke="#495057" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="820" y1="19.0" x2="710" y2="92.0" stroke="#495057" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="1240" y1="19.0" x2="1120" y2="19.0" stroke="#495057" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="560.0" y1="-94" x2="545.0" y2="0" stroke="#495057" stroke-width="2" marker-end="url(#ah)"/>
+<text x="-380" y="-158" font-size="32" fill="#1e1e1e" text-anchor="start"><tspan x="-380" dy="0">Data model (PostgreSQL)</tspan></text>
+<text x="12" y="36.125" font-size="15" fill="#1e1e1e" text-anchor="start"><tspan x="12" dy="0">jks</tspan><tspan x="12" dy="18.75">—</tspan><tspan x="12" dy="18.75">id, name, address</tspan><tspan x="12" dy="18.75">owner_id → users</tspan></text>
+<text x="392" y="41.0" font-size="15" fill="#1e1e1e" text-anchor="start"><tspan x="392" dy="0">users</tspan><tspan x="392" dy="18.75">—</tspan><tspan x="392" dy="18.75">id, full_name, phone (uniq)</tspan><tspan x="392" dy="18.75">iin (uniq), email</tspan><tspan x="392" dy="18.75">password_hash, role</tspan><tspan x="392" dy="18.75">jk_id → jks</tspan><tspan x="392" dy="18.75">telegram_chat_id</tspan></text>
+<text x="-368" y="36.125" font-size="15" fill="#1e1e1e" text-anchor="start"><tspan x="-368" dy="0">tariffs / tariff_history</tspan><tspan x="-368" dy="18.75">—</tspan><tspan x="-368" dy="18.75">jk_id, amount (₸/month)</tspan><tspan x="-368" dy="18.75">changed_at</tspan></text>
+<text x="12" y="509.375" font-size="15" fill="#1e1e1e" text-anchor="start"><tspan x="12" dy="0">storages</tspan><tspan x="12" dy="18.75">—</tspan><tspan x="12" dy="18.75">id, jk_id, number</tspan><tspan x="12" dy="18.75">area, floor, entrance</tspan><tspan x="12" dy="18.75">status, locked_until</tspan><tspan x="12" dy="18.75">transfer_to_iin/_until</tspan></text>
+<text x="412" y="509.375" font-size="15" fill="#1e1e1e" text-anchor="start"><tspan x="412" dy="0">rentals</tspan><tspan x="412" dy="18.75">—</tspan><tspan x="412" dy="18.75">id, storage_id, user_id, jk_id</tspan><tspan x="412" dy="18.75">months, price_per_month</tspan><tspan x="412" dy="18.75">total_paid, starts_at, ends_at</tspan><tspan x="412" dy="18.75">status</tspan></text>
+<text x="832" y="509.375" font-size="15" fill="#1e1e1e" text-anchor="start"><tspan x="832" dy="0">payments</tspan><tspan x="832" dy="18.75">—</tspan><tspan x="832" dy="18.75">id, rental_id, user_id</tspan><tspan x="832" dy="18.75">amount, provider</tspan><tspan x="832" dy="18.75">status</tspan><tspan x="832" dy="18.75">(id = ApiPay external_order_id)</tspan></text>
+<text x="832" y="257.75" font-size="15" fill="#1e1e1e" text-anchor="start"><tspan x="832" dy="0">requests</tspan><tspan x="832" dy="18.75">—</tspan><tspan x="832" dy="18.75">type, status, amount</tspan><tspan x="832" dy="18.75">choice, old/new price</tspan><tspan x="832" dy="18.75">rental_id, user_id, jk_id</tspan></text>
+<text x="832" y="-3.875" font-size="15" fill="#1e1e1e" text-anchor="start"><tspan x="832" dy="0">notifications</tspan><tspan x="832" dy="18.75">—</tspan><tspan x="832" dy="18.75">user_id, kind, title, body</tspan><tspan x="832" dy="18.75">link, dedupe_key, read_at</tspan></text>
+<text x="1252" y="-3.875" font-size="15" fill="#1e1e1e" text-anchor="start"><tspan x="1252" dy="0">notification_deliveries</tspan><tspan x="1252" dy="18.75">—</tspan><tspan x="1252" dy="18.75">channel, status, attempts</tspan><tspan x="1252" dy="18.75">next_attempt_at, last_error</tspan></text>
+<text x="422" y="-155.5" font-size="15" fill="#1e1e1e" text-anchor="start"><tspan x="422" dy="0">telegram_link_tokens</tspan><tspan x="422" dy="18.75">—</tspan><tspan x="422" dy="18.75">token, user_id</tspan></text>
+<text x="1252" y="254.5" font-size="15" fill="#1e1e1e" text-anchor="start"><tspan x="1252" dy="0">leads</tspan><tspan x="1252" dy="18.75">—</tspan><tspan x="1252" dy="18.75">landing-page contacts</tspan></text>
+</svg>
