@@ -447,6 +447,10 @@ func (r *Repo) ReleaseOverdueRental(
 		return nil, fmt.Errorf("repository.ReleaseOverdueRental free storage: %w", err)
 	}
 
+	if _, err := tx.ExecContext(ctx, supersedeRentalRequestsSQL, rt.ID, ""); err != nil {
+		return nil, fmt.Errorf("repository.ReleaseOverdueRental supersede requests: %w", err)
+	}
+
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO terminations (id, rental_id, reason, note, police, costs, created_by)
 		VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, ''))`,
@@ -540,52 +544,25 @@ func (r *Repo) CreateRental(ctx context.Context, rt *models.Rental) error {
 	).Scan(&rt.CreatedAt)
 }
 
+// GetRentalByID reads a rental without side effects. A booking whose hold has
+// passed is reported as expired; the expiry worker persists that within seconds
+// (reads must not write — and must not run before the caller's permission check).
 func (r *Repo) GetRentalByID(ctx context.Context, id string) (*models.Rental, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("repository.GetRentalByID begin tx: %w", err)
-	}
-	defer tx.Rollback()
-
 	query := fmt.Sprintf(`
 		SELECT %s
 		FROM rentals r
 		JOIN storages s ON s.id = r.storage_id
 		JOIN users u ON u.id = r.user_id
 		WHERE r.id = $1
-		FOR UPDATE
 	`, rentalDetailsColumns)
 
-	rt, err := scanRentalDetails(tx.QueryRowContext(ctx, query, id))
+	rt, err := scanRentalDetails(r.db.QueryRowContext(ctx, query, id))
 	if err != nil {
 		return nil, err
 	}
-
-	// Если аренда заблокирована, но время брони вышло — автоматически переводим в expired и освобождаем кладовку
 	if rt.Status == models.RentalStatusLocked && time.Now().UTC().After(rt.EndsAt) {
-		_, err = tx.ExecContext(ctx, `UPDATE rentals SET status = 'expired' WHERE id = $1`, rt.ID)
-		if err != nil {
-			return nil, fmt.Errorf("repository.GetRentalByID expire rental: %w", err)
-		}
-
-		_, err = tx.ExecContext(ctx, `
-    UPDATE storages
-    SET status = 'free',
-        transfer_to_iin = NULL,
-        transfer_until = NULL
-    WHERE id = $1
-`, rt.StorageID)
-		if err != nil {
-			return nil, fmt.Errorf("repository.GetRentalByID free storage: %w", err)
-		}
-
 		rt.Status = models.RentalStatusExpired
 	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("repository.GetRentalByID commit: %w", err)
-	}
-
 	return rt, nil
 }
 
@@ -904,4 +881,19 @@ func (r *Repo) GetTermination(ctx context.Context, rentalID string) (*models.Ter
 		return nil, fmt.Errorf("repository.GetTermination: %w", err)
 	}
 	return &t, nil
+}
+
+// supersedeRentalRequestsSQL closes choices and requests that no longer make
+// sense because the rental ended ($1 rental, $2 request to keep or ”). Refund
+// requests stay: that money is still owed.
+const supersedeRentalRequestsSQL = `
+	UPDATE requests SET status = 'superseded', resolved_at = now()
+	WHERE rental_id = $1 AND id <> $2
+	  AND status IN ('open', 'awaiting_choice') AND type <> 'payment_refund'`
+
+// StorageHasRentals: a storage with any rental history cannot be deleted.
+func (r *Repo) StorageHasRentals(ctx context.Context, storageID string) (bool, error) {
+	var ok bool
+	err := r.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM rentals WHERE storage_id = $1)`, storageID).Scan(&ok)
+	return ok, err
 }

@@ -88,17 +88,29 @@ type PendingDelivery struct {
 	Message   notify.Message
 }
 
-// ClaimPendingDeliveries locks up to `limit` due deliveries for sending.
+// PendingDeliveries claims up to `limit` due deliveries for sending: they are
+// leased for 5 minutes (SKIP LOCKED), so a second server instance never picks
+// the same ones; FinishDelivery then records the outcome. If the sender dies,
+// the lease runs out and the delivery is retried.
 func (r *Repo) PendingDeliveries(ctx context.Context, limit int) ([]PendingDelivery, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT d.id, d.channel, d.attempts, u.full_name, COALESCE(u.email, ''), u.phone,
+		WITH claimed AS (
+			UPDATE notification_deliveries d
+			SET next_attempt_at = now() + interval '5 minutes'
+			WHERE d.id IN (
+				SELECT id FROM notification_deliveries
+				WHERE status = 'pending' AND next_attempt_at <= now()
+				ORDER BY created_at
+				LIMIT $1
+				FOR UPDATE SKIP LOCKED)
+			RETURNING d.id, d.channel, d.attempts, d.notification_id, d.created_at
+		)
+		SELECT c.id, c.channel, c.attempts, u.full_name, COALESCE(u.email, ''), u.phone,
 		       COALESCE(u.telegram_chat_id, ''), n.title, n.body, n.link
-		FROM notification_deliveries d
-		JOIN notifications n ON n.id = d.notification_id
+		FROM claimed c
+		JOIN notifications n ON n.id = c.notification_id
 		JOIN users u ON u.id = n.user_id
-		WHERE d.status = 'pending' AND d.next_attempt_at <= now()
-		ORDER BY d.created_at
-		LIMIT $1`, limit)
+		ORDER BY c.created_at`, limit)
 	if err != nil {
 		return nil, err
 	}

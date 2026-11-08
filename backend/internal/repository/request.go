@@ -114,6 +114,19 @@ func (r *Repo) ApplyTariffChoice(ctx context.Context, requestID, userID, choice 
 		return ErrConflict
 	}
 
+	// The rental may have ended since the request was created (early termination,
+	// release, cancel): then there is nothing to extend or refund.
+	var active bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM rentals WHERE id = $1 AND status = 'active')`, rentalID).
+		Scan(&active); err != nil {
+		return err
+	}
+	if !active {
+		_, _ = tx.ExecContext(ctx, `UPDATE requests SET status = 'superseded', resolved_at = now() WHERE id = $1`, requestID)
+		_ = tx.Commit()
+		return ErrConflict
+	}
+
 	switch choice {
 	case "extend":
 		_, err = tx.ExecContext(ctx, `
@@ -229,6 +242,9 @@ func (r *Repo) ResolveRequest(ctx context.Context, requestID, jkID, adminID, act
 					WHERE id = $1 AND status = 'occupied'`, storageID); err != nil {
 					return err
 				}
+			}
+			if _, err := tx.ExecContext(ctx, supersedeRentalRequestsSQL, rentalID, requestID); err != nil {
+				return err
 			}
 		}
 	}

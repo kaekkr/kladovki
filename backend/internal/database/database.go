@@ -253,4 +253,8 @@ var migrations = []string{
 		created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 	)`,
 	`CREATE UNIQUE INDEX IF NOT EXISTS idx_terminations_rental ON terminations(rental_id)`,
+
+	// The expiry worker scans by (status, ends_at) every 10 s; dashboards filter by ЖК.
+	`CREATE INDEX IF NOT EXISTS idx_rentals_status_ends ON rentals(status, ends_at)`,
+	`CREATE INDEX IF NOT EXISTS idx_rentals_jk ON rentals(jk_id)`,
 }
