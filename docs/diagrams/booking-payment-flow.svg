@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -120 1990 630" width="1990" height="630" font-family="Helvetica, Arial, sans-serif">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>
+<rect x="-30" y="-120" width="1990" height="630" fill="#ffffff"/>
+<rect x="0" y="0" width="250" height="100" rx="14" fill="#e9ecef" stroke="#495057" stroke-width="2"/>
+<rect x="280" y="160" width="250" height="100" rx="14" fill="#a5d8ff" stroke="#1971c2" stroke-width="2"/>
+<rect x="560" y="0" width="250" height="100" rx="14" fill="#a5d8ff" stroke="#1971c2" stroke-width="2"/>
+<rect x="840" y="160" width="250" height="100" rx="14" fill="#ffec99" stroke="#f08c00" stroke-width="2"/>
+<rect x="1120" y="0" width="250" height="100" rx="14" fill="#ffec99" stroke="#f08c00" stroke-width="2"/>
+<rect x="1400" y="160" width="250" height="100" rx="14" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<rect x="1680" y="0" width="250" height="100" rx="14" fill="#d0bfff" stroke="#6741d9" stroke-width="2"/>
+<line x1="125.0" y1="100" x2="405.0" y2="160" stroke="#1e1e1e" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="405.0" y1="160" x2="685.0" y2="100" stroke="#1e1e1e" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="685.0" y1="100" x2="965.0" y2="160" stroke="#1e1e1e" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="965.0" y1="160" x2="1245.0" y2="100" stroke="#1e1e1e" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="1245.0" y1="100" x2="1525.0" y2="160" stroke="#1e1e1e" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="1525.0" y1="160" x2="1805.0" y2="100" stroke="#1e1e1e" stroke-width="2" marker-end="url(#ah)"/>
+<rect x="1120" y="380" width="290" height="100" rx="14" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="1450" y="380" width="290" height="100" rx="14" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<line x1="1245.0" y1="100" x2="1265.0" y2="380" stroke="#e03131" stroke-width="2" stroke-dasharray="8 6" marker-end="url(#ah)"/>
+<line x1="1525.0" y1="260" x2="1595.0" y2="380" stroke="#e03131" stroke-width="2" stroke-dasharray="8 6" marker-end="url(#ah)"/>
+<text x="0" y="-58" font-size="32" fill="#1e1e1e" text-anchor="start"><tspan x="0" dy="0">Booking &amp; Kaspi payment flow</tspan></text>
+<text x="125.0" y="45.6" font-size="16" fill="#1e1e1e" text-anchor="middle"><tspan x="125.0" dy="0">1. Resident opens a free</tspan><tspan x="125.0" dy="20.0">storage, picks months</tspan></text>
+<text x="405.0" y="195.6" font-size="16" fill="#1e1e1e" text-anchor="middle"><tspan x="405.0" dy="0">2. POST /rentals/lock</tspan><tspan x="405.0" dy="20.0">storage → locked</tspan><tspan x="405.0" dy="20.0">rental → locked (2 min)</tspan></text>
+<text x="685.0" y="35.6" font-size="16" fill="#1e1e1e" text-anchor="middle"><tspan x="685.0" dy="0">3. POST /payments</tspan><tspan x="685.0" dy="20.0">server computes amount</tspan><tspan x="685.0" dy="20.0">ApiPay invoice, hold → 10 min</tspan></text>
+<text x="965.0" y="205.6" font-size="16" fill="#1e1e1e" text-anchor="middle"><tspan x="965.0" dy="0">4. Resident confirms</tspan><tspan x="965.0" dy="20.0">the invoice in Kaspi</tspan></text>
+<text x="1245.0" y="35.6" font-size="16" fill="#1e1e1e" text-anchor="middle"><tspan x="1245.0" dy="0">5. ApiPay webhook</tspan><tspan x="1245.0" dy="20.0">invoice.status_changed</tspan><tspan x="1245.0" dy="20.0">signature verified</tspan></text>
+<text x="1525.0" y="195.6" font-size="16" fill="#1e1e1e" text-anchor="middle"><tspan x="1525.0" dy="0">6. ActivatePaidRental</tspan><tspan x="1525.0" dy="20.0">rental → active, dates set</tspan><tspan x="1525.0" dy="20.0">storage → occupied</tspan></text>
+<text x="1805.0" y="45.6" font-size="16" fill="#1e1e1e" text-anchor="middle"><tspan x="1805.0" dy="0">7. Notification</tspan><tspan x="1805.0" dy="20.0">«Оплата прошла»</tspan></text>
+<text x="1265.0" y="416.5" font-size="15" fill="#1e1e1e" text-anchor="middle"><tspan x="1265.0" dy="0">cancelled / expired / error</tspan><tspan x="1265.0" dy="18.75">→ payment failed;</tspan><tspan x="1265.0" dy="18.75">lock times out → storage free</tspan></text>
+<text x="1595.0" y="416.5" font-size="15" fill="#1e1e1e" text-anchor="middle"><tspan x="1595.0" dy="0">paid, but storage was taken</tspan><tspan x="1595.0" dy="18.75">→ payment_refund request</tspan><tspan x="1595.0" dy="18.75">for the OSI</tspan></text>
+<rect x="1217.4" y="230.625" width="75.2" height="18.75" fill="#ffffff" opacity="0.9"/>
+<text x="1255.0" y="245.25" font-size="15" fill="#e03131" text-anchor="middle"><tspan x="1255.0" dy="0">not paid</tspan></text>
+<rect x="1522.4" y="310.625" width="75.2" height="18.75" fill="#ffffff" opacity="0.9"/>
+<text x="1560.0" y="325.25" font-size="15" fill="#e03131" text-anchor="middle"><tspan x="1560.0" dy="0">conflict</tspan></text>
+<text x="0" y="436" font-size="16" fill="#495057" text-anchor="start"><tspan x="0" dy="0">Idempotent: repeated webhooks for the same invoice change nothing.</tspan><tspan x="0" dy="20.0">Sandbox events are ignored only when APIPAY_LIVE=true.</tspan></text>
+</svg>

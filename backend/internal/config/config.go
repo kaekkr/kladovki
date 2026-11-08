@@ -25,10 +25,40 @@ type Config struct {
 	ApiPayLive bool
 }
 
+// envFiles are read in order; a value from an earlier file wins, and real
+// environment variables always win over files. /etc/secrets is where Render
+// mounts "Secret Files" — upload your .env.local there instead of typing
+// every variable into the dashboard.
+var envFiles = []string{".env.local", "/etc/secrets/.env.local", ".env", "/etc/secrets/.env"}
+
+// loadEnvFiles loads the files that exist and returns their paths.
+func loadEnvFiles(paths ...string) []string {
+	var loaded []string
+	for _, p := range paths {
+		if _, err := os.Stat(p); err != nil {
+			continue
+		}
+		vals, err := godotenv.Read(p)
+		if err != nil {
+			log.Printf("WARNING: could not parse %s: %v", p, err)
+			continue
+		}
+		for k, v := range vals {
+			// Empty placeholders (KEY=) must not hide a value from a later file.
+			if _, set := os.LookupEnv(k); v != "" && !set {
+				_ = os.Setenv(k, v)
+			}
+		}
+		loaded = append(loaded, p)
+	}
+	return loaded
+}
+
 func Load() Config {
-	// Attempts to load .env file from working directory
-	if err := godotenv.Load(); err != nil {
-		log.Println("Info: No .env file found, relying on system environment variables")
+	if loaded := loadEnvFiles(envFiles...); len(loaded) > 0 {
+		log.Printf("Info: env loaded from %v", loaded)
+	} else {
+		log.Println("Info: no .env files found, relying on system environment variables")
 	}
 
 	// Supports both APP_ENV and standard ENV variables
