@@ -28,12 +28,6 @@ export class RentalService {
     });
   }
 
-  confirmPayment(rentalId: string) {
-    return this.http.post<Rental>(`${this.baseUrl}/rentals/confirm-payment`, {
-      rental_id: rentalId,
-    });
-  }
-
   cancel(id: string) {
     return this.http.patch<Rental>(`${this.baseUrl}/rentals/${id}/cancel`, {});
   }

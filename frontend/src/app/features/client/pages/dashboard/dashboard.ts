@@ -127,6 +127,10 @@ export class ClientDashboard {
     return new Intl.NumberFormat('ru-RU').format(value) + ' ₸';
   }
 
+  reload(): void {
+    this.load();
+  }
+
   private load(): void {
     const user = this.auth.currentUser();
     const jkId = user?.jk_id;

@@ -8,6 +8,7 @@ import { StorageService } from '../../../../../core/services/storage';
 import { RequestService } from '../../../../../core/services/request';
 import { SettingsService } from '../../../../../core/services/settings';
 import { LegalService } from '../../../../../core/services/legal';
+import { PaymentService } from '../../../../../core/services/payment';
 import { ConsentCheckbox } from '../../../../../shared/components/consent-checkbox/consent-checkbox';
 import { TenantRequest } from '../../../../../core/models/request';
 import { requestStatusLabel, requestTitle } from '../../../../../core/utils/request-display';
@@ -33,6 +34,7 @@ export class ClientRentalDetails implements OnDestroy {
   private storageService = inject(StorageService);
   private requestService = inject(RequestService);
   private settingsService = inject(SettingsService);
+  private paymentService = inject(PaymentService);
 
   // Ticking "I accept the agreement" next to the pay button is the rental contract.
   private termsVersion = toSignal(inject(LegalService).version('resident_terms'), { initialValue: '' });
@@ -225,6 +227,18 @@ export class ClientRentalDetails implements OnDestroy {
         },
         error: () => {
           // Игнорируем сетевые ошибки во время поллинга, пробуем снова
+        },
+      });
+      // The invoice may be declined or cancelled in Kaspi while the hold is still
+      // valid — then stop waiting and let the resident send a new one.
+      this.paymentService.listMine().subscribe({
+        next: (payments) => {
+          const latest = payments.find((p) => p.rental_id === rentalId);
+          if (latest?.status === 'failed' && this.paying()) {
+            this.stopPolling();
+            this.paying.set(false);
+            this.paymentError.set('Счёт отклонён или отменён в Kaspi. Можно отправить новый, пока действует бронь.');
+          }
         },
       });
     }, 3000); // Проверяем каждые 3 секунды

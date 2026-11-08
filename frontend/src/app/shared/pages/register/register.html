@@ -19,12 +19,13 @@
     <form (submit)="$event.preventDefault(); register()" class="space-y-4">
       <!-- ФИО -->
       <div>
-        <label class="block text-xs text-brand-muted mb-1.5">ФИО</label>
+        <label for="reg-fullName" class="block text-xs text-brand-muted mb-1.5">ФИО</label>
         <input
           type="text"
           [ngModel]="fullName()"
           (ngModelChange)="fullName.set($event)"
           name="fullName"
+            id="reg-fullName"
           placeholder="Иванов Иван Иванович"
           required
           class="w-full px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent"
@@ -32,12 +33,13 @@
       </div>
 
       <div>
-        <label class="block text-xs text-brand-muted mb-1.5">ИИН</label>
+        <label for="reg-iin" class="block text-xs text-brand-muted mb-1.5">ИИН</label>
         <input
           type="text"
           [ngModel]="iin()"
           (ngModelChange)="iin.set($event)"
           name="iin"
+            id="reg-iin"
           [readOnly]="iinLocked"
           inputmode="numeric"
           maxlength="12"
@@ -48,12 +50,13 @@
       </div>
       <!-- Телефон -->
       <div>
-        <label class="block text-xs text-brand-muted mb-1.5">Номер телефона</label>
+        <label for="reg-phone" class="block text-xs text-brand-muted mb-1.5">Номер телефона</label>
         <input
           type="tel"
           [ngModel]="phone()"
           (ngModelChange)="phone.set($event)"
           name="phone"
+            id="reg-phone"
           placeholder="+7 (777) 000-00-00"
           required
           class="w-full px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent"
@@ -79,23 +82,25 @@
 
       @if (ownerType() === 'company') {
         <div>
-          <label class="block text-xs text-brand-muted mb-1.5">Название компании</label>
+          <label for="reg-companyName" class="block text-xs text-brand-muted mb-1.5">Название компании</label>
           <input
             type="text"
             [ngModel]="companyName()"
             (ngModelChange)="companyName.set($event)"
             name="companyName"
+            id="reg-companyName"
             placeholder="ТОО «Аптека Плюс»"
             class="w-full px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent"
           />
         </div>
         <div>
-          <label class="block text-xs text-brand-muted mb-1.5">БИН компании</label>
+          <label for="reg-companyBin" class="block text-xs text-brand-muted mb-1.5">БИН компании</label>
           <input
             type="text"
             [ngModel]="companyBin()"
             (ngModelChange)="companyBin.set($event)"
             name="companyBin"
+            id="reg-companyBin"
             inputmode="numeric"
             maxlength="12"
             placeholder="12 цифр"
@@ -107,11 +112,12 @@
 
       <div class="grid grid-cols-2 gap-2">
         <div>
-          <label class="block text-xs text-brand-muted mb-1.5">Помещение</label>
+          <label for="reg-premisesKind" class="block text-xs text-brand-muted mb-1.5">Помещение</label>
           <select
             [ngModel]="premisesKind()"
             (ngModelChange)="premisesKind.set($event)"
             name="premisesKind"
+            id="reg-premisesKind"
             class="w-full px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent"
           >
             <option value="flat">Квартира</option>
@@ -119,12 +125,13 @@
           </select>
         </div>
         <div>
-          <label class="block text-xs text-brand-muted mb-1.5">Номер</label>
+          <label for="reg-premisesNumber" class="block text-xs text-brand-muted mb-1.5">Номер</label>
           <input
             type="text"
             [ngModel]="premisesNumber()"
             (ngModelChange)="premisesNumber.set($event)"
             name="premisesNumber"
+            id="reg-premisesNumber"
             placeholder="Например, 45"
             class="w-full px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent"
           />
@@ -136,13 +143,14 @@
 
       <!-- Пароль ×2 -->
       <div>
-        <label class="block text-xs text-brand-muted mb-1.5">Придумайте пароль</label>
+        <label for="reg-password" class="block text-xs text-brand-muted mb-1.5">Придумайте пароль</label>
         <div class="relative">
           <input
             [type]="showPassword() ? 'text' : 'password'"
             [ngModel]="password()"
             (ngModelChange)="password.set($event)"
             name="password"
+            id="reg-password"
             autocomplete="new-password"
             placeholder="Минимум 6 символов"
             required
@@ -151,6 +159,7 @@
           <button
             type="button"
             (click)="showPassword.set(!showPassword())"
+            [attr.aria-label]="showPassword() ? 'Скрыть пароль' : 'Показать пароль'"
             class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-brand-muted hover:text-brand-text"
           >
             <i [class]="showPassword() ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
@@ -158,12 +167,13 @@
         </div>
       </div>
       <div>
-        <label class="block text-xs text-brand-muted mb-1.5">Повторите пароль</label>
+        <label for="reg-passwordRepeat" class="block text-xs text-brand-muted mb-1.5">Повторите пароль</label>
         <input
           [type]="showPassword() ? 'text' : 'password'"
           [ngModel]="passwordRepeat()"
           (ngModelChange)="passwordRepeat.set($event)"
           name="passwordRepeat"
+            id="reg-passwordRepeat"
           autocomplete="new-password"
           placeholder="••••••••"
           required
