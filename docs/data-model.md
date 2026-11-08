@@ -11,7 +11,7 @@ IDs are UUID strings (`VARCHAR(36)`). Money is `BIGINT` whole tenge. Times are `
 | Table | Purpose | Key columns |
 |---|---|---|
 | `jks` | Residential complexes | `name`, `address`, `owner_id → users`, `lock_minutes` (booking hold, default 2) |
-| `users` | Residents and ОСИ admins | `phone` UNIQUE, `iin` UNIQUE (when set), `email`, `password_hash` (bcrypt), `role` (`user_role`), `jk_id → jks`, `telegram_chat_id` |
+| `users` | Residents and ОСИ admins | `phone` UNIQUE, `iin` UNIQUE (when set), `email`, `password_hash` (bcrypt), `role` (`user_role`), `jk_id → jks`, `telegram_chat_id`, `status` (`pending`/`active`/`rejected`/`blocked`), `owner_type` (`person`/`company`), `premises_kind` (`flat`/`commercial`), `premises_number`, `company_bin`, `company_name`, `review_comment`, `reviewed_by`, `reviewed_at` |
 | `storages` | Storage rooms | `jk_id`, `number` (unique per ЖК, case/space-insensitive), `area`, `floor`, `entrance`, `status` (`storage_status`), `locked_until`, `transfer_to_iin`, `transfer_until` |
 | `tariffs` | Current price per ЖК, **₸ per m² per month** | `jk_id`, `amount`, `updated_at` |
 | `tariff_history` | Every tariff change | `jk_id`, `amount`, `changed_at` |
@@ -33,7 +33,7 @@ IDs are UUID strings (`VARCHAR(36)`). Money is `BIGINT` whole tenge. Times are `
 | `payment_status` | `pending`, `success`, `failed` |
 | `requests.type` | `tariff_recalc`, `early_termination`, `payment_refund` |
 | `requests.status` | `awaiting_choice` (resident must choose), `open` (ОСИ must act), `done`, `rejected`, `superseded` |
-| `notifications.kind` | `payment_success`, `rental_expiring`, `rental_overdue`, `debt_warning`, `tariff_changed`, `tariff_recalc`, `request_new`, `request_resolved`, `refund_pending` |
+| `notifications.kind` | `payment_success`, `rental_expiring`, `rental_overdue`, `debt_warning`, `tariff_changed`, `tariff_recalc`, `request_new`, `request_resolved`, `refund_pending`, `resident_new`, `account_status` |
 
 ## Invariants
 

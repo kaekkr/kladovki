@@ -24,6 +24,19 @@
 
 Users of one ЖК can never see or change anything in another ЖК. See [security.md](security.md).
 
+## Who may rent
+
+Per the user agreement (п. 2.1), only **owners of a flat or commercial premises** in the ЖК may rent. This covers individuals and companies; one owner may rent several rooms. Flat tenants and outsiders may not.
+
+- At registration the user states **what they own**: a flat or commercial premises, and its number. They also say whether they act as a person or **represent a company**. A company representative adds the company's **БИН** (12 digits) and name; the ИИН stays the representative's own. An ИП registers as a person, since its БИН is the ИИН.
+- The account starts as **pending**: they can log in and browse, but booking and renewal are refused (403).
+- The ОСИ checks them on **Жители** (`/admin/residents`):
+  - **Подтвердить**: the user becomes `active`;
+  - **Отклонить**: a reason is required, and the user sees it, fixes the data, and resubmits;
+  - **Заблокировать**: existing rentals stay, but no new bookings or renewals.
+- Users who existed before this feature are `active`.
+- **Later:** an automatic ownership check via egov.kz (п. 2.2), replacing the manual check.
+
 ## Registration & login (IIN flow)
 
 1. The ОСИ prints the QR code from **Настройки**. It links to `/login?jk=<jk_id>`.

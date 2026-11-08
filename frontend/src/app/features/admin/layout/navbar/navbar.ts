@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
 
 import { RequestService } from '../../../../core/services/request';
+import { ResidentService } from '../../../../core/services/resident';
 
 @Component({
   selector: 'app-admin-navbar',
@@ -16,7 +17,9 @@ import { RequestService } from '../../../../core/services/request';
 })
 export class AdminNavbar {
   private requests = inject(RequestService);
+  private residents = inject(ResidentService);
   openRequests = signal(0);
+  pendingResidents = signal(0);
 
   constructor() {
     this.refresh();
@@ -33,6 +36,10 @@ export class AdminNavbar {
     this.requests.openCount().subscribe({
       next: (r) => this.openRequests.set(r.open),
       error: () => this.openRequests.set(0),
+    });
+    this.residents.pendingCount().subscribe({
+      next: (r) => this.pendingResidents.set(r.pending),
+      error: () => this.pendingResidents.set(0),
     });
   }
 }

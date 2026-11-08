@@ -44,7 +44,7 @@ func TestIINStatusTellsFirstLoginApart(t *testing.T) {
 func TestFirstLoginRegistersIntoQRJK(t *testing.T) {
 	e := newTestEnv(t)
 	r := e.do(http.MethodPost, "/auth/register", "", map[string]any{
-		"iin": "010101500009", "full_name": "Асель", "phone": "+77019998877", "password": "secret1", "jk_id": e.jkB,
+		"iin": "010101500009", "full_name": "Асель", "phone": "+77019998877", "password": "secret1", "jk_id": e.jkB, "premises_number": "45",
 	})
 	if r.Code != http.StatusOK {
 		t.Fatalf("register: %d %s", r.Code, r.Body)
@@ -61,7 +61,7 @@ func TestFirstLoginRegistersIntoQRJK(t *testing.T) {
 
 func TestRegisterWithoutQRUsesTheOnlyJK(t *testing.T) {
 	e := newTestEnv(t)
-	body := map[string]any{"iin": "010101500009", "full_name": "Асель", "phone": "+77019998877", "password": "secret1"}
+	body := map[string]any{"iin": "010101500009", "full_name": "Асель", "phone": "+77019998877", "password": "secret1", "premises_number": "45"}
 
 	// Two JKs exist → must come through the OSI's QR link.
 	if r := e.do(http.MethodPost, "/auth/register", "", body); r.Code != http.StatusBadRequest {
@@ -84,7 +84,7 @@ func TestRegisterWithoutQRUsesTheOnlyJK(t *testing.T) {
 func TestRegisterValidation(t *testing.T) {
 	e := newTestEnv(t)
 	base := func() map[string]any {
-		return map[string]any{"iin": "010101500009", "full_name": "Асель", "phone": "+77019998877", "password": "secret1", "jk_id": e.jkA}
+		return map[string]any{"iin": "010101500009", "full_name": "Асель", "phone": "+77019998877", "password": "secret1", "jk_id": e.jkA, "premises_number": "45"}
 	}
 	cases := []struct {
 		name string
@@ -95,6 +95,15 @@ func TestRegisterValidation(t *testing.T) {
 		{"phone taken", func(m map[string]any) { m["phone"] = "+77000000003" }, http.StatusConflict},
 		{"short password", func(m map[string]any) { m["password"] = "123" }, http.StatusBadRequest},
 		{"unknown JK", func(m map[string]any) { m["jk_id"] = "nope" }, http.StatusBadRequest},
+		{"no flat/premises number", func(m map[string]any) { delete(m, "premises_number") }, http.StatusBadRequest},
+		{"bad premises kind", func(m map[string]any) { m["premises_kind"] = "garage" }, http.StatusBadRequest},
+		{"company without BIN", func(m map[string]any) { m["owner_type"] = "company"; m["company_name"] = "ТОО Аптека" }, http.StatusBadRequest},
+		{"company BIN not 12 digits", func(m map[string]any) {
+			m["owner_type"] = "company"
+			m["company_name"] = "ТОО Аптека"
+			m["company_bin"] = "12345"
+		}, http.StatusBadRequest},
+		{"company without name", func(m map[string]any) { m["owner_type"] = "company"; m["company_bin"] = "180940012345" }, http.StatusBadRequest},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

@@ -103,7 +103,7 @@ func TestOverdueNotifiesTenantAndOSI(t *testing.T) {
 func TestDebtOverTwoMonthsWarning(t *testing.T) {
 	e := newTestEnv(t)
 	id := e.activeRental(e.resident, e.storageA)
-	e.exec(`UPDATE rentals SET starts_at = now() - interval '150 days', ends_at = now() - interval '61 days' WHERE id=$1`, id)
+	e.exec(`UPDATE rentals SET starts_at = now() - interval '150 days', ends_at = now() - interval '62 days' WHERE id=$1`, id) // margin: DB and Go clocks differ by ms
 	if err := e.svc.RunReminders(context.Background()); err != nil {
 		t.Fatal(err)
 	}

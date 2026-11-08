@@ -16,11 +16,12 @@ type LoginInput struct {
 }
 
 type RegisterInput struct {
-	FullName string
-	Phone    string
-	IIN      string
-	Password string
-	JKID     *string
+	FullName     string
+	Phone        string
+	IIN          string
+	Password     string
+	JKID         *string
+	Verification models.Verification
 }
 
 // Registration errors with user-facing meaning.
@@ -72,6 +73,10 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (*models.User,
 	if len([]rune(password)) < minPasswordLen {
 		return nil, ErrWeakPassword
 	}
+	verification, err := normalizeVerification(in.Verification)
+	if err != nil {
+		return nil, err
+	}
 
 	jkID, err := s.resolveRegistrationJK(ctx, in.JKID)
 	if err != nil {
@@ -101,10 +106,18 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (*models.User,
 		Role:         models.RoleResident,
 		JKID:         &jkID,
 		IIN:          iin,
+
+		Status:         models.UserPending,
+		OwnerType:      verification.OwnerType,
+		PremisesKind:   verification.PremisesKind,
+		PremisesNumber: verification.PremisesNumber,
+		CompanyBIN:     verification.CompanyBIN,
+		CompanyName:    verification.CompanyName,
 	}
 	if err := s.repo.CreateUser(ctx, user); err != nil {
 		return nil, err
 	}
+	s.notifyResidentNew(ctx, user)
 	return user, nil
 }
 

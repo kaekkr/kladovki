@@ -13,6 +13,7 @@ export function notificationTone(kind: NotificationKind): NotificationTone {
     case 'tariff_recalc':
     case 'request_new':
     case 'refund_pending':
+    case 'resident_new':
       return 'warning';
     default:
       return 'neutral';
@@ -38,6 +39,10 @@ export function notificationIcon(kind: NotificationKind): string {
       return 'fa-circle-check';
     case 'refund_pending':
       return 'fa-rotate-left';
+    case 'resident_new':
+      return 'fa-user-clock';
+    case 'account_status':
+      return 'fa-user-check';
   }
 }
 

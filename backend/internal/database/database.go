@@ -214,4 +214,16 @@ var migrations = []string{
 	`ALTER TABLE payments ADD COLUMN IF NOT EXISTS months INT NOT NULL DEFAULT 0`,
 	// How long a booking is held before payment (ОСИ setting).
 	`ALTER TABLE jks ADD COLUMN IF NOT EXISTS lock_minutes INT NOT NULL DEFAULT 2`,
+
+	// ОСИ approval of new users (only owners may rent). Existing users stay active.
+	`ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(16) NOT NULL DEFAULT 'active'`,
+	`ALTER TABLE users ADD COLUMN IF NOT EXISTS owner_type VARCHAR(16) NOT NULL DEFAULT 'person'`,
+	`ALTER TABLE users ADD COLUMN IF NOT EXISTS premises_kind VARCHAR(16) NOT NULL DEFAULT 'flat'`,
+	`ALTER TABLE users ADD COLUMN IF NOT EXISTS premises_number VARCHAR(50) NOT NULL DEFAULT ''`,
+	`ALTER TABLE users ADD COLUMN IF NOT EXISTS company_bin VARCHAR(12) NOT NULL DEFAULT ''`,
+	`ALTER TABLE users ADD COLUMN IF NOT EXISTS company_name VARCHAR(255) NOT NULL DEFAULT ''`,
+	`ALTER TABLE users ADD COLUMN IF NOT EXISTS review_comment TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE users ADD COLUMN IF NOT EXISTS reviewed_by VARCHAR(36)`,
+	`ALTER TABLE users ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ`,
+	`CREATE INDEX IF NOT EXISTS idx_users_jk_status ON users(jk_id, status)`,
 }

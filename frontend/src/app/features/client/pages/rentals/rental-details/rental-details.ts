@@ -383,7 +383,7 @@ export class ClientRentalDetails implements OnDestroy {
             this.stopRenewPoll();
             this.renewing.set(false);
             this.rental.set(r);
-            this.renewMessage.set(`Оплачено. Аренда продлена до ${this.formatDate(r.ends_at)}.`);
+            this.renewMessage.set(`Оплачено. Аренда продлена до ${this.formatDate(r.ends_at)}`);
           } else if (Date.now() > deadline) {
             this.stopRenewPoll();
             this.renewing.set(false);

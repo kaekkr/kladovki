@@ -207,6 +207,8 @@ func (h *Handler) RenewRental(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Аренда не найдена"})
 		case errors.Is(err, service.ErrLocked):
 			c.JSON(http.StatusConflict, gin.H{"error": "Продлить можно только оплаченную аренду"})
+		case errors.Is(err, service.ErrNotApproved):
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		case errors.Is(err, service.ErrTransferPending):
 			c.JSON(http.StatusConflict, gin.H{"error": "Кладовка передаётся новому владельцу — продление недоступно"})
 		case errors.Is(err, service.ErrInvalid):
