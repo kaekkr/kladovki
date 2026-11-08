@@ -94,6 +94,7 @@ remaining value = total_paid × (time left until ends_at / whole paid period)
 
 ## Known gaps
 
+- **No self-service renewal**: a tenant can't pay for more months on their own active rental (`/rentals/lock` accepts only free rooms or a transfer takeover).
 - The lock-duration setting in **Настройки** is not saved on the server yet; the hold is always 2 minutes.
 - Password reset and eGov/GBD ownership checks aren't built yet.
 - When a payment arrives after the room was taken, only the ОСИ is notified, not the resident.
