@@ -131,6 +131,9 @@ func (r *Repo) ActivatePaidRental(ctx context.Context, paymentID string) error {
 		return fmt.Errorf("repository.ActivatePaidRental check storage: %w", err)
 	}
 	if taken || rentalStatus == string(models.RentalStatusCancelled) {
+		if err := insertPaymentRefundRequest(ctx, tx, paymentID); err != nil {
+			return fmt.Errorf("repository.ActivatePaidRental refund request: %w", err)
+		}
 		if err := tx.Commit(); err != nil {
 			return err
 		}

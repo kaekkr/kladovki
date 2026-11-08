@@ -23,6 +23,10 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./pages/rentals/rentals').then((m) => m.AdminRentals),
       },
       {
+        path: 'requests',
+        loadComponent: () => import('./pages/requests/requests').then((m) => m.AdminRequests),
+      },
+      {
         path: 'payments',
         loadComponent: () => import('./pages/payments/payments').then((m) => m.AdminPayments),
       },

@@ -68,7 +68,17 @@ func (h *Handler) Register(r *gin.Engine) {
 			rentals.PATCH("/:id/force-release", admin, h.ForceReleaseLocked)
 			rentals.PATCH("/:id/release-overdue", admin, h.ReleaseOverdueRental)
 
+			rentals.POST("/:id/terminate", h.RequestEarlyTermination)
 			rentals.GET("/:id", h.GetRentalByID)
+		}
+
+		requests := api.Group("/requests", auth)
+		{
+			requests.GET("/my", h.ListMyRequests)
+			requests.POST("/:id/choice", h.ChooseTariffOption)
+			requests.GET("/jk/:jk_id", admin, h.ListRequestsByJK)
+			requests.GET("/open-count", admin, h.CountOpenRequests)
+			requests.PATCH("/:id/resolve", admin, h.ResolveRequest)
 		}
 
 		payments := api.Group("/payments")

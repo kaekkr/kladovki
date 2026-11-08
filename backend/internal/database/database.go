@@ -152,4 +152,25 @@ var migrations = []string{
 	`CREATE INDEX IF NOT EXISTS idx_rentals_user ON rentals(user_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_rentals_storage ON rentals(storage_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_payments_rental ON payments(rental_id)`,
+
+	// --- 2026-11: requests (заявки) between tenants and the OSI ---
+	`CREATE TABLE IF NOT EXISTS requests (
+		id          VARCHAR(36) PRIMARY KEY,
+		jk_id       VARCHAR(36) NOT NULL REFERENCES jks(id) ON DELETE CASCADE,
+		user_id     VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+		rental_id   VARCHAR(36) REFERENCES rentals(id) ON DELETE SET NULL,
+		type        VARCHAR(32) NOT NULL,
+		status      VARCHAR(32) NOT NULL,
+		amount      BIGINT NOT NULL DEFAULT 0,
+		choice      VARCHAR(16) NOT NULL DEFAULT '',
+		old_price   BIGINT NOT NULL DEFAULT 0,
+		new_price   BIGINT NOT NULL DEFAULT 0,
+		comment     TEXT NOT NULL DEFAULT '',
+		resolution  TEXT NOT NULL DEFAULT '',
+		created_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		resolved_at TIMESTAMPTZ,
+		resolved_by VARCHAR(36)
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_requests_jk_status ON requests(jk_id, status)`,
+	`CREATE INDEX IF NOT EXISTS idx_requests_user ON requests(user_id)`,
 }

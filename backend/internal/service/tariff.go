@@ -18,20 +18,27 @@ func (s *Service) GetTariffPreview(ctx context.Context, jkID string, newAmount i
 	if jkID == "" || newAmount <= 0 {
 		return models.TariffPreviewResponse{}, ErrInvalid
 	}
-	return s.repo.GetTariffPreview(ctx, jkID, newAmount)
+	return s.repo.TariffDecreasePreview(ctx, jkID, newAmount)
 }
 
-func (s *Service) SetTariff(ctx context.Context, in SetTariffInput) error {
+// SetTariff saves the new tariff. Already-paid periods keep their price; when
+// the tariff goes down every affected tenant gets a request to choose between
+// extending the period and a refund. Returns how many tenants were asked.
+func (s *Service) SetTariff(ctx context.Context, in SetTariffInput) (int64, error) {
 	jkID := strings.TrimSpace(in.JKID)
 	if jkID == "" || in.Amount <= 0 {
-		return ErrInvalid
+		return 0, ErrInvalid
 	}
 
 	if err := s.repo.SetTariff(ctx, jkID, in.Amount); err != nil {
-		return fmt.Errorf("service.SetTariff: %w", err)
+		return 0, fmt.Errorf("service.SetTariff: %w", err)
 	}
 
-	return nil
+	n, err := s.repo.CreateTariffRecalcRequests(ctx, jkID, in.Amount)
+	if err != nil {
+		return 0, fmt.Errorf("service.SetTariff recalc requests: %w", err)
+	}
+	return n, nil
 }
 
 func (s *Service) GetTariff(ctx context.Context, jkID string) (int64, error) {

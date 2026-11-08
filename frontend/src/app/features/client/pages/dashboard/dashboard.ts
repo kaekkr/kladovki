@@ -7,6 +7,8 @@ import { Rental } from '../../../../core/models/rental';
 import { RentalService } from '../../../../core/services/rental';
 import { Storage } from '../../../../core/models/storage';
 import { StorageService } from '../../../../core/services/storage';
+import { RequestService } from '../../../../core/services/request';
+import { TenantRequest } from '../../../../core/models/request';
 
 @Component({
   selector: 'app-client-dashboard',
@@ -18,6 +20,10 @@ export class ClientDashboard {
   private auth = inject(AuthService);
   private rentalService = inject(RentalService);
   private storageService = inject(StorageService);
+  private requestService = inject(RequestService);
+
+  /** Tariff decreased: tenant still has to choose extend/refund. */
+  pendingChoices = signal<TenantRequest[]>([]);
 
   transferInvitations = signal<Storage[]>([]);
 
@@ -96,6 +102,10 @@ export class ClientDashboard {
 
   constructor() {
     this.load();
+    this.requestService.listMine().subscribe({
+      next: (list) => this.pendingChoices.set(list.filter((r) => r.status === 'awaiting_choice')),
+      error: () => this.pendingChoices.set([]),
+    });
   }
 
   statusLabel(status: string): string {
