@@ -25,6 +25,8 @@ DispatchPending (every 30 s) ─► channel.Send() ─► sent | retry (backoff 
 | `tariff_changed` | Tariff raised | residents with active rentals | no |
 | `request_new` | A new early_termination / payment_refund request | ОСИ | no |
 | `request_resolved` | The ОСИ approved or rejected a request | resident | no |
+| `resident_new` | A user registered or resubmitted their data and waits for confirmation | ОСИ | no |
+| `account_status` | The ОСИ approved, rejected or blocked the account | resident | no |
 | `refund_pending` | A payment arrived but couldn't be applied (room taken / rental ended), so a refund is coming | resident | no |
 
 "Paid channels" (SMS, WhatsApp) are used only for the kinds marked **yes**, to keep costs down. In-app, email and Telegram receive everything.

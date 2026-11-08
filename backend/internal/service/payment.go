@@ -148,6 +148,9 @@ func (s *Service) PrepareRenewal(ctx context.Context, in RenewRentalInput) (*mod
 	if err != nil || rental.UserID != in.UserID {
 		return nil, ErrNotFound
 	}
+	if err := s.requireApproved(ctx, in.UserID); err != nil {
+		return nil, err
+	}
 	st, err := s.repo.GetStorageByID(ctx, rental.StorageID)
 	if err != nil {
 		return nil, fmt.Errorf("service.PrepareRenewal storage: %w", err)

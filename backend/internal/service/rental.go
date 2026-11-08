@@ -66,6 +66,9 @@ func (s *Service) LockStorage(
 	if in.Months < 1 || in.Months > 120 {
 		return nil, ErrInvalid
 	}
+	if err := s.requireApproved(ctx, userID); err != nil {
+		return nil, err
+	}
 
 	months := in.Months
 

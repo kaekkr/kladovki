@@ -25,6 +25,7 @@ type registerRequest struct {
 	Password string  `json:"password" binding:"required"`
 	JKID     *string `json:"jk_id"`
 	IIN      string  `json:"iin" binding:"required"`
+	models.Verification
 }
 
 func (h *Handler) RegisterResident(c *gin.Context) {
@@ -40,13 +41,16 @@ func (h *Handler) RegisterResident(c *gin.Context) {
 		Password: req.Password,
 		JKID:     req.JKID,
 		IIN:      req.IIN,
+
+		Verification: req.Verification,
 	})
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrIINTaken), errors.Is(err, service.ErrPhoneTaken):
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		case errors.Is(err, service.ErrInvalidIIN), errors.Is(err, service.ErrWeakPassword),
-			errors.Is(err, service.ErrJKRequired), errors.Is(err, service.ErrMissingFields):
+			errors.Is(err, service.ErrJKRequired), errors.Is(err, service.ErrMissingFields),
+			isVerificationError(err):
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		default:
 			log.Printf("RegisterResident: %v", err)
@@ -62,15 +66,7 @@ func (h *Handler) RegisterResident(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"id":        user.ID,
-		"full_name": user.FullName,
-		"phone":     user.Phone,
-		"email":     user.Email,
-		"role":      user.Role,
-		"jk_id":     user.JKID,
-		"iin":       user.IIN,
-	})
+	c.JSON(http.StatusOK, userJSON(user))
 }
 
 func (h *Handler) Login(c *gin.Context) {
@@ -109,15 +105,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"id":        user.ID,
-		"full_name": user.FullName,
-		"phone":     user.Phone,
-		"email":     user.Email,
-		"role":      user.Role,
-		"jk_id":     user.JKID,
-		"iin":       user.IIN,
-	})
+	c.JSON(http.StatusOK, userJSON(user))
 }
 
 func (h *Handler) Me(c *gin.Context) {
@@ -144,15 +132,7 @@ func (h *Handler) Me(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"id":        user.ID,
-		"full_name": user.FullName,
-		"phone":     user.Phone,
-		"email":     user.Email,
-		"role":      user.Role,
-		"jk_id":     user.JKID,
-		"iin":       user.IIN,
-	})
+	c.JSON(http.StatusOK, userJSON(user))
 }
 
 func (h *Handler) Logout(c *gin.Context) {
@@ -231,4 +211,33 @@ func (h *Handler) IINStatus(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"registered": registered})
+}
+
+// userJSON is the profile returned by register, login and /auth/me.
+func userJSON(user *models.User) gin.H {
+	return gin.H{
+		"id":              user.ID,
+		"full_name":       user.FullName,
+		"phone":           user.Phone,
+		"email":           user.Email,
+		"role":            user.Role,
+		"jk_id":           user.JKID,
+		"iin":             user.IIN,
+		"status":          user.Status,
+		"review_comment":  user.ReviewComment,
+		"owner_type":      user.OwnerType,
+		"premises_kind":   user.PremisesKind,
+		"premises_number": user.PremisesNumber,
+		"company_bin":     user.CompanyBIN,
+		"company_name":    user.CompanyName,
+	}
+}
+
+func isVerificationError(err error) bool {
+	for _, e := range []error{service.ErrPremisesRequired, service.ErrPremisesKind, service.ErrInvalidBIN, service.ErrCompanyName} {
+		if errors.Is(err, e) {
+			return true
+		}
+	}
+	return false
 }

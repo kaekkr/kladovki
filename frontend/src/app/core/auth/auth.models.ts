@@ -1,3 +1,16 @@
+export type UserStatus = 'pending' | 'active' | 'rejected' | 'blocked';
+export type OwnerType = 'person' | 'company';
+export type PremisesKind = 'flat' | 'commercial';
+
+/** What a user declares about the property they own in the ЖК. */
+export interface Verification {
+  owner_type: OwnerType;
+  premises_kind: PremisesKind;
+  premises_number: string;
+  company_bin?: string;
+  company_name?: string;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -6,6 +19,14 @@ export interface User {
   phone?: string;
   jk_id?: string;
   iin?: string;
+  status?: UserStatus;
+  review_comment?: string;
+  owner_type?: OwnerType;
+  premises_kind?: PremisesKind;
+  premises_number?: string;
+  company_bin?: string;
+  company_name?: string;
+  created_at?: string;
 }
 
 export interface LoginPayload {
@@ -15,7 +36,7 @@ export interface LoginPayload {
   password: string;
 }
 
-export interface RegisterPayload {
+export interface RegisterPayload extends Verification {
   full_name: string;
   phone: string;
   password: string;

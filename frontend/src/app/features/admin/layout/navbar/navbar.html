@@ -31,6 +31,20 @@
     </a>
 
     <a
+      routerLink="/admin/residents"
+      routerLinkActive="bg-brand-elevated text-brand-text"
+      class="group flex items-center gap-3 px-3 py-2 rounded-md text-[13px] text-brand-muted hover:text-brand-text hover:bg-brand-elevated transition-colors"
+    >
+      <i class="fas fa-users w-4 text-center text-[12px]"></i>
+      <span>Жители</span>
+      @if (pendingResidents() > 0) {
+        <span class="ml-auto rounded bg-orange-500/15 px-1.5 text-[10px] font-semibold text-orange-500">
+          {{ pendingResidents() }}
+        </span>
+      }
+    </a>
+
+    <a
       routerLink="/admin/requests"
       routerLinkActive="bg-brand-elevated text-brand-text"
       class="group flex items-center gap-3 px-3 py-2 rounded-md text-[13px] text-brand-muted hover:text-brand-text hover:bg-brand-elevated transition-colors"

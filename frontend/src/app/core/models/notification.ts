@@ -7,7 +7,9 @@ export type NotificationKind =
   | 'tariff_recalc'
   | 'request_new'
   | 'request_resolved'
-  | 'refund_pending';
+  | 'refund_pending'
+  | 'resident_new'
+  | 'account_status';
 
 export interface AppNotification {
   id: string;

@@ -21,9 +21,9 @@ Source of truth: [`backend/internal/handlers/router.go`](../backend/internal/han
 |---|---|---|---|
 | POST | `/auth/iin-status` | — | `{iin}` → `{registered: bool}`. Step 1 of the IIN login |
 | POST | `/auth/login` | — | `{login, password}`. `login` = ИИН, phone or email. 401 means bad credentials; 503 means the DB is unavailable |
-| POST | `/auth/register` | — | `{iin, full_name, phone, password, jk_id?}`. First login of a resident. 409 if the ИИН or phone is already taken |
+| POST | `/auth/register` | — | `{iin, full_name, phone, password, jk_id?, premises_kind (flat\|commercial), premises_number, owner_type (person\|company), company_bin?, company_name?}`. First login of a resident; the account is **pending** until the ОСИ confirms ownership. 409 if the ИИН or phone is taken |
 | POST | `/auth/logout` | — | Clears the cookie |
-| GET | `/auth/me` | 🔑 | The current user |
+| GET | `/auth/me` | 🔑 | The current user, including `status` (`pending`/`active`/`rejected`/`blocked`), `review_comment`, and the property fields |
 
 ## ЖК & tariff
 
@@ -94,6 +94,19 @@ Source of truth: [`backend/internal/handlers/router.go`](../backend/internal/han
 | POST | `/me/telegram/link` | 🔑 | `{url}`, a `t.me/<bot>?start=<token>` deep link (valid 1 day). 503 if the bot isn't configured |
 | DELETE | `/me/telegram` | 🔑 | Unlink Telegram |
 | POST | `/telegram/webhook` | Telegram | Requires `X-Telegram-Bot-Api-Secret-Token`. Handles `/start <token>` |
+
+## Residents (ОСИ approval)
+
+Only owners of a flat or commercial premises may rent (user agreement п. 2.1). New users are `pending`, and `/rentals/lock` and `/rentals/:id/renew` return **403** until the ОСИ approves them.
+
+| Method | Path | Who | Body / notes |
+|---|---|---|---|
+| GET | `/residents/jk/:jk_id?status=` | 🛡 ЖК | Residents of the ЖК, optionally by status |
+| GET | `/residents/pending-count` | 🛡 | `{pending}` for the nav badge |
+| PATCH | `/residents/:id/approve` | 🛡 ЖК | Approve, or unblock |
+| PATCH | `/residents/:id/reject` | 🛡 ЖК | `{comment}`, **required**: the user sees it |
+| PATCH | `/residents/:id/block` | 🛡 ЖК | `{comment?}`. Existing rentals stay; no new bookings or renewals |
+| PUT | `/me/verification` | 🔑 | `{premises_kind, premises_number, owner_type, company_bin?, company_name?}`. A pending or rejected user corrects the data and goes back to `pending`; 409 if already approved |
 
 ## ОСИ dashboard
 

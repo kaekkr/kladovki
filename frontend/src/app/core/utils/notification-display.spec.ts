@@ -16,7 +16,7 @@ describe('notification display', () => {
   it('has an icon for every kind', () => {
     for (const k of [
       'payment_success', 'rental_expiring', 'rental_overdue', 'debt_warning',
-      'tariff_changed', 'tariff_recalc', 'request_new', 'request_resolved', 'refund_pending',
+      'tariff_changed', 'tariff_recalc', 'request_new', 'request_resolved', 'refund_pending', 'resident_new', 'account_status',
     ] as const) {
       expect(notificationIcon(k)).toMatch(/^fa-/);
     }

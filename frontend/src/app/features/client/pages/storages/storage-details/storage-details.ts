@@ -7,6 +7,7 @@ import { StorageService } from '../../../../../core/services/storage';
 import { SettingsService } from '../../../../../core/services/settings';
 import { Storage } from '../../../../../core/models/storage';
 import { RentalService } from '../../../../../core/services/rental';
+import { canBook } from '../../../../../core/utils/resident-display';
 
 @Component({
   selector: 'app-client-storage-details',
@@ -40,6 +41,9 @@ export class ClientStorageDetails {
       storage.transfer_to_iin === userIin && !!storage.transfer_until &&
       new Date(storage.transfer_until).getTime() > this.now();
   });
+
+  /** Only owners confirmed by the ОСИ may book. */
+  approved = computed(() => canBook(this.auth.currentUser()));
 
   canRent = computed(() => {
     const storage = this.storage();
@@ -173,6 +177,11 @@ export class ClientStorageDetails {
       },
       error: (error) => {
         this.renting.set(false);
+
+        if (error.status === 403) {
+          this.rentalError.set(error.error?.error || 'Аккаунт ожидает подтверждения ОСИ.');
+          return;
+        }
 
         if (error.status === 409) {
           this.rentalError.set(

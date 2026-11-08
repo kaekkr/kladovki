@@ -93,8 +93,16 @@ func (h *Handler) Register(r *gin.Engine) {
 			notifications.POST("/:id/read", h.MarkNotificationRead)
 		}
 
+		residents := api.Group("/residents", auth, admin)
+		{
+			residents.GET("/jk/:jk_id", h.ListResidents)
+			residents.GET("/pending-count", h.CountPendingResidents)
+			residents.PATCH("/:id/:action", h.ReviewResident)
+		}
+
 		me := api.Group("/me", auth)
 		{
+			me.PUT("/verification", h.ResubmitVerification)
 			me.GET("/channels", h.MyChannels)
 			me.POST("/telegram/link", h.TelegramLink)
 			me.DELETE("/telegram", h.TelegramUnlink)

@@ -24,6 +24,10 @@ Integration tests in `backend/internal/handlers/security_test.go` cover the rule
 - residents see only their own rentals and payments;
 - storage creation is forced to the admin's ЖК.
 
+## Who may rent
+
+New users are `pending` until the ОСИ confirms they own property in the ЖК. Booking and renewal check `users.status = 'active'` on the server (`requireApproved`). The UI hiding the button is not the protection; the server check is.
+
 ## Webhooks
 
 | Endpoint | Verified by | If the secret is missing |
