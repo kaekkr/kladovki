@@ -54,15 +54,25 @@ export class RentalService {
   }
 
   /** Amount is calculated on the server from the rental; phone defaults to the user's phone. */
-  createPayment(data: { rental_id: string; phone?: string }): Observable<{ amount: number }> {
+  createPayment(data: {
+    rental_id: string;
+    phone?: string;
+    accepted_terms_version: string;
+  }): Observable<{ amount: number }> {
     return this.http.post<{ amount: number }>(`${this.baseUrl}/payments`, data);
   }
 
   /** Sends a Kaspi invoice; once paid, the rental is extended by `months` from its current end. */
-  renew(id: string, months: number, phone?: string): Observable<{ id: string; amount: number }> {
+  renew(
+    id: string,
+    months: number,
+    acceptedTermsVersion: string,
+    phone?: string,
+  ): Observable<{ id: string; amount: number }> {
     return this.http.post<{ id: string; amount: number }>(`${this.baseUrl}/rentals/${id}/renew`, {
       months,
       phone,
+      accepted_terms_version: acceptedTermsVersion,
     });
   }
 }

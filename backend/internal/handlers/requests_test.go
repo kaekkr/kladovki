@@ -12,7 +12,7 @@ import (
 func (e *testEnv) activeRental(userID, storageID string) string {
 	e.t.Helper()
 	id := e.lockAs(userID, storageID, 2)
-	e.do(http.MethodPost, "/payments", userID, map[string]any{"rental_id": id, "phone": "+77001112233"})
+	e.do(http.MethodPost, "/payments", userID, map[string]any{"accepted_terms_version": termsV, "rental_id": id, "phone": "+77001112233"})
 	if r := e.webhook(paidEvent(e.paymentIDFor(id)), "valid"); r.Code != http.StatusOK {
 		e.t.Fatalf("activate: %d", r.Code)
 	}
@@ -191,7 +191,7 @@ func TestEarlyTerminationRejectKeepsRental(t *testing.T) {
 func TestPaidButTakenCreatesRefundRequest(t *testing.T) {
 	e := newTestEnv(t)
 	late := e.lockAs(e.resident, e.storageA, 2)
-	e.do(http.MethodPost, "/payments", e.resident, map[string]any{"rental_id": late, "phone": "+77001112233"})
+	e.do(http.MethodPost, "/payments", e.resident, map[string]any{"accepted_terms_version": termsV, "rental_id": late, "phone": "+77001112233"})
 	// Lock expires; someone else books and pays.
 	e.exec(`UPDATE rentals SET status='expired', ends_at=now() - interval '1 minute' WHERE id=$1`, late)
 	e.exec(`UPDATE storages SET status='free' WHERE id=$1`, e.storageA)

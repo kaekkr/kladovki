@@ -1,5 +1,6 @@
 import { Component, inject, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SettingsService } from '../../../../core/services/settings';
 import { AdminSettings } from '../../../../core/models/settings';
@@ -7,7 +8,7 @@ import { AdminSettings } from '../../../../core/models/settings';
 @Component({
   selector: 'app-admin-settings',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './settings.html',
 })
 export class AdminSettingsPage {

@@ -114,7 +114,7 @@ func TestConfirmPaymentShortcutDisabledInProduction(t *testing.T) {
 func TestPaymentAmountIsComputedOnServer(t *testing.T) {
 	e := newTestEnv(t)
 	id := e.lockAs(e.resident, e.storageA, 2)
-	r := e.do(http.MethodPost, "/payments", e.resident, map[string]any{"rental_id": id, "amount": 1, "phone": "+77001112233"})
+	r := e.do(http.MethodPost, "/payments", e.resident, map[string]any{"accepted_terms_version": termsV, "rental_id": id, "amount": 1, "phone": "+77001112233"})
 	if r.Code != http.StatusOK {
 		t.Fatalf("create payment: %d %s", r.Code, r.Body)
 	}
@@ -132,7 +132,7 @@ func TestPaymentAmountIsComputedOnServer(t *testing.T) {
 func TestCannotPayForSomeoneElsesRental(t *testing.T) {
 	e := newTestEnv(t)
 	id := e.lockAs(e.other, e.storageA, 1)
-	r := e.do(http.MethodPost, "/payments", e.resident, map[string]any{"rental_id": id, "phone": "+77001112233"})
+	r := e.do(http.MethodPost, "/payments", e.resident, map[string]any{"accepted_terms_version": termsV, "rental_id": id, "phone": "+77001112233"})
 	if r.Code != http.StatusNotFound {
 		t.Fatalf("want 404, got %d %s", r.Code, r.Body)
 	}
@@ -149,7 +149,7 @@ func paidEvent(paymentID string) map[string]any {
 func TestWebhookRequiresValidSignature(t *testing.T) {
 	e := newTestEnv(t)
 	id := e.lockAs(e.resident, e.storageA, 2)
-	e.do(http.MethodPost, "/payments", e.resident, map[string]any{"rental_id": id, "phone": "+77001112233"})
+	e.do(http.MethodPost, "/payments", e.resident, map[string]any{"accepted_terms_version": termsV, "rental_id": id, "phone": "+77001112233"})
 	pid := e.paymentIDFor(id)
 
 	for _, sig := range []string{"", "sha256=deadbeef", sign([]byte("other"), webhookSecret)} {
@@ -167,7 +167,7 @@ func TestWebhookRequiresValidSignature(t *testing.T) {
 func TestPaidWebhookActivatesRentalWithRealPeriodAndTotal(t *testing.T) {
 	e := newTestEnv(t)
 	id := e.lockAs(e.resident, e.storageA, 2)
-	e.do(http.MethodPost, "/payments", e.resident, map[string]any{"rental_id": id, "phone": "+77001112233"})
+	e.do(http.MethodPost, "/payments", e.resident, map[string]any{"accepted_terms_version": termsV, "rental_id": id, "phone": "+77001112233"})
 
 	if r := e.webhook(paidEvent(e.paymentIDFor(id)), "valid"); r.Code != http.StatusOK {
 		t.Fatalf("webhook: %d %s", r.Code, r.Body)
@@ -184,7 +184,7 @@ func TestPaidWebhookActivatesRentalWithRealPeriodAndTotal(t *testing.T) {
 func TestPaymentArrivingAfterLockExpiryStillActivatesFreeStorage(t *testing.T) {
 	e := newTestEnv(t)
 	id := e.lockAs(e.resident, e.storageA, 2)
-	e.do(http.MethodPost, "/payments", e.resident, map[string]any{"rental_id": id, "phone": "+77001112233"})
+	e.do(http.MethodPost, "/payments", e.resident, map[string]any{"accepted_terms_version": termsV, "rental_id": id, "phone": "+77001112233"})
 	// Simulate the lock running out and the worker freeing the storage.
 	e.exec(`UPDATE rentals SET status='expired', ends_at=now() - interval '1 minute' WHERE id=$1`, id)
 	e.exec(`UPDATE storages SET status='free' WHERE id=$1`, e.storageA)
@@ -198,7 +198,7 @@ func TestPaymentArrivingAfterLockExpiryStillActivatesFreeStorage(t *testing.T) {
 func TestSandboxEventsIgnoredInLiveMode(t *testing.T) {
 	e := newTestEnv(t)
 	id := e.lockAs(e.resident, e.storageA, 2)
-	e.do(http.MethodPost, "/payments", e.resident, map[string]any{"rental_id": id, "phone": "+77001112233"})
+	e.do(http.MethodPost, "/payments", e.resident, map[string]any{"accepted_terms_version": termsV, "rental_id": id, "phone": "+77001112233"})
 	ev := paidEvent(e.paymentIDFor(id))
 	ev["is_sandbox"] = true
 	if r := e.webhook(ev, "valid"); r.Code != http.StatusOK {
@@ -262,7 +262,7 @@ func TestDuplicateStorageNumberRejected(t *testing.T) {
 func TestOccupiedStorageParametersAreFrozen(t *testing.T) {
 	e := newTestEnv(t)
 	id := e.lockAs(e.resident, e.storageA, 1)
-	e.do(http.MethodPost, "/payments", e.resident, map[string]any{"rental_id": id, "phone": "+77001112233"})
+	e.do(http.MethodPost, "/payments", e.resident, map[string]any{"accepted_terms_version": termsV, "rental_id": id, "phone": "+77001112233"})
 	e.webhook(paidEvent(e.paymentIDFor(id)), "valid")
 
 	r := e.do(http.MethodPut, "/storages/"+e.storageA, e.adminA, map[string]any{"number": "1", "area": 50, "floor": 1, "entrance": 1})

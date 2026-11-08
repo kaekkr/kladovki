@@ -226,4 +226,18 @@ var migrations = []string{
 	`ALTER TABLE users ADD COLUMN IF NOT EXISTS reviewed_by VARCHAR(36)`,
 	`ALTER TABLE users ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ`,
 	`CREATE INDEX IF NOT EXISTS idx_users_jk_status ON users(jk_id, status)`,
+
+	// Proof of consent to the user agreement: who accepted which version, when, where.
+	`CREATE TABLE IF NOT EXISTS agreement_acceptances (
+		id          VARCHAR(36) PRIMARY KEY,
+		user_id     VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		document    VARCHAR(32) NOT NULL,
+		version     VARCHAR(32) NOT NULL,
+		context     VARCHAR(16) NOT NULL,
+		rental_id   VARCHAR(36),
+		ip          VARCHAR(64) NOT NULL DEFAULT '',
+		user_agent  TEXT NOT NULL DEFAULT '',
+		accepted_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_acceptances_user ON agreement_acceptances(user_id, document, version)`,
 }

@@ -1,15 +1,18 @@
 import { Component, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { OwnerType, PremisesKind, RegisterPayload } from '../../../core/auth/auth.models';
 import { passwordsProblem } from '../../../core/utils/login-input';
 import { verificationProblem } from '../../../core/utils/resident-display';
+import { LegalService } from '../../../core/services/legal';
+import { ConsentCheckbox } from '../../components/consent-checkbox/consent-checkbox';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, ConsentCheckbox],
   templateUrl: './register.html',
 })
 export class Register {
@@ -39,8 +42,8 @@ export class Register {
   loading = signal(false);
   errorMessage = signal('');
 
-  // Состояние модального окна с регламентом
-  showTerms = signal(false);
+  /** Version of the agreement shown in the checkbox — sent as proof of consent. */
+  private termsVersion = toSignal(inject(LegalService).version('resident_terms'), { initialValue: '' });
 
   // ЖК ID из query параметров (например, /auth/register?jk=UUID)
   jkId = signal(this.route.snapshot.queryParamMap.get('jk') ?? '');
@@ -86,7 +89,7 @@ export class Register {
     }
 
     if (!this.acceptedRules()) {
-      this.errorMessage.set('Необходимо принять регламент использования сервиса');
+      this.errorMessage.set('Необходимо принять Пользовательское соглашение');
       return;
     }
 
@@ -100,6 +103,7 @@ export class Register {
       jk_id: this.jkId() || undefined,
       iin: this.iin(),
       ...property,
+      accepted_terms_version: this.termsVersion(),
     };
 
     this.authService.register(payload).subscribe({

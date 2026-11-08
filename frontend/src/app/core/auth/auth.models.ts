@@ -37,6 +37,8 @@ export interface LoginPayload {
 }
 
 export interface RegisterPayload extends Verification {
+  /** Version of the resident agreement the user accepted on the form. */
+  accepted_terms_version: string;
   full_name: string;
   phone: string;
   password: string;

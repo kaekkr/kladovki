@@ -30,10 +30,6 @@ export const CLIENT_ROUTES: Routes = [
     path: 'payments',
     loadComponent: () => import('./pages/payments/payments').then((m) => m.ClientPayments),
   },
-  // {
-  //   path: 'documents',
-  //   loadComponent: () => import('./pages/documents/documents').then((m) => m.ClientDocuments),
-  // },
   {
     path: 'notifications',
     loadComponent: () =>
