@@ -46,7 +46,7 @@ export class AdminSettingsPage {
     const id = this.jkId();
     if (!id) return '';
     const origin = window.location.origin;
-    return `${origin}/auth/register?jk=${id}`;
+    return `${origin}/login?jk=${id}`;
   });
 
   getQrCodeUrl(): string {

@@ -56,7 +56,7 @@ func (r *Repo) GetUserByPhone(ctx context.Context, phone string) (*models.User, 
 func (r *Repo) GetUserByLogin(ctx context.Context, login string) (*models.User, error) {
 	query := fmt.Sprintf(`
 		SELECT %s FROM users 
-		WHERE phone = $1 OR (email IS NOT NULL AND email = $1)
+		WHERE phone = $1 OR (email IS NOT NULL AND lower(email) = lower($1)) OR (iin IS NOT NULL AND iin = $1)
 	`, userColumns)
 	return r.scanUser(r.db.QueryRowContext(ctx, query, login))
 }
@@ -95,4 +95,16 @@ func (r *Repo) scanUser(s rowScanner) (*models.User, error) {
 	}
 
 	return &u, nil
+}
+
+func (r *Repo) IINRegistered(ctx context.Context, iin string) (bool, error) {
+	var ok bool
+	err := r.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM users WHERE iin = $1)`, iin).Scan(&ok)
+	return ok, err
+}
+
+func (r *Repo) PhoneRegistered(ctx context.Context, phone string) (bool, error) {
+	var ok bool
+	err := r.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM users WHERE phone = $1)`, phone).Scan(&ok)
+	return ok, err
 }

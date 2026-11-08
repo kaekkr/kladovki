@@ -33,6 +33,11 @@ export class AuthService {
       .pipe(tap(() => this.currentUser.set(null)));
   }
 
+  /** Whether an IIN already has an account (one password field) or needs first-login setup. */
+  iinStatus(iin: string) {
+    return this.http.post<{ registered: boolean }>(`${this.baseUrl}/auth/iin-status`, { iin });
+  }
+
   register(payload: RegisterPayload) {
     return this.http
       .post<User>(`${this.baseUrl}/auth/register`, payload)

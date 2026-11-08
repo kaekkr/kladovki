@@ -2,9 +2,9 @@
   <div class="max-w-md w-full space-y-6 bg-brand-surface p-8 rounded-xl border border-brand-line">
     <!-- Заголовок -->
     <div>
-      <h1 class="text-2xl font-semibold tracking-tight text-brand-text">Регистрация жителя</h1>
+      <h1 class="text-2xl font-semibold tracking-tight text-brand-text">Первый вход</h1>
       <p class="mt-1 text-sm text-brand-muted">
-        Создайте аккаунт для доступа к кладовкам вашего ЖК
+        Вы впервые входите в систему. Придумайте пароль.
       </p>
     </div>
 
@@ -38,6 +38,7 @@
           [ngModel]="iin()"
           (ngModelChange)="iin.set($event)"
           name="iin"
+          [readOnly]="iinLocked"
           inputmode="numeric"
           maxlength="12"
           placeholder="Введите 12 цифр"
@@ -59,14 +60,37 @@
         />
       </div>
 
-      <!-- Пароль -->
+      <!-- Пароль ×2 -->
       <div>
-        <label class="block text-xs text-brand-muted mb-1.5">Пароль</label>
+        <label class="block text-xs text-brand-muted mb-1.5">Придумайте пароль</label>
+        <div class="relative">
+          <input
+            [type]="showPassword() ? 'text' : 'password'"
+            [ngModel]="password()"
+            (ngModelChange)="password.set($event)"
+            name="password"
+            autocomplete="new-password"
+            placeholder="Минимум 6 символов"
+            required
+            class="w-full px-3 py-2 pr-10 bg-brand-elevated/30 border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent"
+          />
+          <button
+            type="button"
+            (click)="showPassword.set(!showPassword())"
+            class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-brand-muted hover:text-brand-text"
+          >
+            <i [class]="showPassword() ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+          </button>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs text-brand-muted mb-1.5">Повторите пароль</label>
         <input
-          type="password"
-          [ngModel]="password()"
-          (ngModelChange)="password.set($event)"
-          name="password"
+          [type]="showPassword() ? 'text' : 'password'"
+          [ngModel]="passwordRepeat()"
+          (ngModelChange)="passwordRepeat.set($event)"
+          name="passwordRepeat"
+          autocomplete="new-password"
           placeholder="••••••••"
           required
           class="w-full px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent"
@@ -104,7 +128,7 @@
         [disabled]="loading()"
         class="w-full py-2.5 rounded-md bg-brand-accent text-brand-bg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 mt-4"
       >
-        {{ loading() ? 'Регистрация…' : 'Зарегистрироваться' }}
+        {{ loading() ? 'Сохранение…' : 'Войти' }}
       </button>
     </form>
 

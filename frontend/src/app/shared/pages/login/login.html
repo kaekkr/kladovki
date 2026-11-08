@@ -38,7 +38,7 @@
         <!-- email / phone input -->
         <div class="space-y-2">
           <label for="login" class="text-sm font-medium text-gray-400 ml-1"
-            >email или телефон</label
+            >ИИН (для жителей) или email</label
           >
           <div class="relative">
             <span class="absolute left-5 top-1/2 -translate-y-1/2 text-gray-500">
@@ -48,20 +48,27 @@
               id="login"
               type="text"
               formControlName="login"
-              placeholder="example@mail.kz"
+              inputmode="text"
+              autocomplete="username"
+              [readOnly]="step() === 'password'"
+              placeholder="ИИН — 12 цифр"
               class="w-full bg-[#0b1120]/70 border border-[#374151]/60 rounded-2xl pl-12 pr-6 py-4 outline-none focus:border-[#22d3ee] transition-colors text-white placeholder-gray-500"
             />
           </div>
-          @if (form.controls.login.touched && form.controls.login.invalid) {
-            <span class="text-xs text-red-400 ml-1 block">введите логин</span>
+          @if (step() === 'password') {
+            <button type="button" (click)="changeLogin()" class="ml-1 text-xs text-[#22d3ee] hover:underline">
+              изменить
+            </button>
           }
         </div>
+
+        @if (step() === 'password') {
 
         <!-- password input -->
         <div class="space-y-2">
           <div class="flex justify-between items-center px-1">
             <label for="password" class="text-sm font-medium text-gray-400">пароль</label>
-            <a href="#" class="text-xs text-[#22d3ee] hover:underline">забыли пароль?</a>
+            <span class="text-xs text-gray-500">забыли пароль? обратитесь в ОСИ</span>
           </div>
           <div class="relative">
             <span class="absolute left-5 top-1/2 -translate-y-1/2 text-gray-500">
@@ -71,6 +78,7 @@
               id="password"
               [type]="showPassword() ? 'text' : 'password'"
               formControlName="password"
+              autocomplete="current-password"
               placeholder="••••••••"
               class="w-full bg-[#0b1120]/70 border border-[#374151]/60 rounded-2xl pl-12 pr-12 py-4 outline-none focus:border-[#22d3ee] transition-colors text-white placeholder-gray-500"
             />
@@ -83,10 +91,8 @@
               <i [class]="showPassword() ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
             </button>
           </div>
-          @if (form.controls.password.touched && form.controls.password.invalid) {
-            <span class="text-xs text-red-400 ml-1 block">минимум 6 символов</span>
-          }
         </div>
+        }
 
         <!-- submit button -->
         <div class="pt-2">
@@ -95,7 +101,7 @@
             [disabled]="isLoading()"
             class="w-full bg-[#22d3ee] text-[#0b1120] flex items-center justify-center gap-2 py-4 rounded-2xl font-bold hover:brightness-110 active:scale-[0.98] transition-all text-lg shadow-lg shadow-[#22d3ee]/20 disabled:opacity-50"
           >
-            <span>{{ isLoading() ? 'авторизация...' : 'войти в кабинет' }}</span>
+            <span>{{ isLoading() ? 'подождите...' : step() === 'identify' ? 'продолжить' : 'войти в кабинет' }}</span>
           </button>
         </div>
       </form>
