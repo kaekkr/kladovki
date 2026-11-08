@@ -9,6 +9,7 @@ export interface User {
 }
 
 export interface LoginPayload {
+  login?: string; // IIN, email or phone
   email?: string;
   phone?: string;
   password: string;

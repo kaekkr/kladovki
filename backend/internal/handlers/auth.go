@@ -13,6 +13,7 @@ import (
 )
 
 type loginRequest struct {
+	Login    string `json:"login"` // IIN, phone or email
 	Email    string `json:"email"`
 	Phone    string `json:"phone"`
 	Password string `json:"password" binding:"required"`
@@ -41,7 +42,16 @@ func (h *Handler) RegisterResident(c *gin.Context) {
 		IIN:      req.IIN,
 	})
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		switch {
+		case errors.Is(err, service.ErrIINTaken), errors.Is(err, service.ErrPhoneTaken):
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		case errors.Is(err, service.ErrInvalidIIN), errors.Is(err, service.ErrWeakPassword),
+			errors.Is(err, service.ErrJKRequired), errors.Is(err, service.ErrMissingFields):
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		default:
+			log.Printf("RegisterResident: %v", err)
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Сервер временно недоступен. Попробуйте позже."})
+		}
 		return
 	}
 
@@ -70,7 +80,10 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	loginIdentifier := req.Email
+	loginIdentifier := req.Login
+	if loginIdentifier == "" {
+		loginIdentifier = req.Email
+	}
 	if loginIdentifier == "" {
 		loginIdentifier = req.Phone
 	}
@@ -197,4 +210,25 @@ func (h *Handler) issueToken(c *gin.Context, u *models.User) (string, error) {
 	}
 	h.setAuthCookie(c, token, exp)
 	return token, nil
+}
+
+type iinStatusRequest struct {
+	IIN string `json:"iin"`
+}
+
+// IINStatus tells the login screen whether to ask for the password once
+// (registered) or show first-login registration (new).
+func (h *Handler) IINStatus(c *gin.Context) {
+	var req iinStatusRequest
+	_ = c.ShouldBindJSON(&req)
+	registered, err := h.svc.IINRegistered(c.Request.Context(), req.IIN)
+	if err != nil {
+		if errors.Is(err, service.ErrInvalidIIN) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Сервер временно недоступен. Попробуйте позже."})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"registered": registered})
 }

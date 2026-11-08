@@ -29,6 +29,7 @@ func (h *Handler) Register(r *gin.Engine) {
 		{
 			authGroup.POST("/register", h.RegisterResident)
 			authGroup.POST("/login", h.Login)
+			authGroup.POST("/iin-status", h.IINStatus)
 			authGroup.POST("/logout", h.Logout)
 			authGroup.GET("/me", auth, h.Me)
 		}
