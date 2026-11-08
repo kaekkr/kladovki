@@ -7,6 +7,12 @@
       <p class="mt-1 text-sm text-brand-muted">Управление кладовыми вашего ЖК</p>
     </div>
 
+    <div class="flex gap-2">
+    <button type="button" (click)="downloadReport()" [disabled]="downloading()"
+      class="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-brand-line text-sm text-brand-text hover:bg-brand-elevated disabled:opacity-50">
+      <i class="fas fa-file-excel text-brand-accent"></i>
+      {{ downloading() ? 'Формируем…' : 'Скачать (Excel)' }}
+    </button>
     <button
       type="button"
       class="px-4 py-2 bg-brand-accent text-brand-bg rounded-md text-sm font-medium transition-opacity hover:opacity-90"
@@ -14,6 +20,7 @@
     >
       + Добавить кладовую
     </button>
+    </div>
   </div>
 
   <!-- Filters -->

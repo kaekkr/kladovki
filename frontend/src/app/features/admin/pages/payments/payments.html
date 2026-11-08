@@ -15,10 +15,29 @@
         <i class="fas fa-wallet text-lg"></i>
       </div>
       <div>
-        <p class="text-[10px] uppercase tracking-wider text-brand-muted font-bold">Общая выручка</p>
+        <p class="text-[10px] uppercase tracking-wider text-brand-muted font-bold">Поступило за период</p>
         <p class="text-xl font-bold text-brand-text">{{ formatMoney(totalRevenue()) }}</p>
       </div>
     </div>
+  </div>
+
+  <!-- Period + export -->
+  <div class="flex flex-wrap items-end gap-3">
+    <label class="text-xs text-brand-muted">
+      С
+      <input type="date" [value]="from()" (change)="from.set($any($event.target).value); loadPayments()"
+        class="mt-1 block px-3 py-2 bg-brand-surface border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent" />
+    </label>
+    <label class="text-xs text-brand-muted">
+      По
+      <input type="date" [value]="to()" (change)="to.set($any($event.target).value); loadPayments()"
+        class="mt-1 block px-3 py-2 bg-brand-surface border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent" />
+    </label>
+    <button type="button" (click)="downloadReport()" [disabled]="downloading()"
+      class="ml-auto inline-flex items-center gap-2 px-4 py-2 rounded-md border border-brand-line text-sm text-brand-text hover:bg-brand-elevated disabled:opacity-50">
+      <i class="fas fa-file-excel text-brand-accent"></i>
+      {{ downloading() ? 'Формируем…' : 'Скачать отчёт (Excel)' }}
+    </button>
   </div>
 
   <!-- Filters -->
@@ -81,6 +100,9 @@
 
                 <td class="px-5 py-4 font-medium text-brand-text">
                   {{ payment.user_name }}
+                  @if (payment.company_name) {
+                    <span class="block text-[11px] text-brand-subtle">{{ payment.company_name }}</span>
+                  }
                 </td>
 
                 <td class="px-5 py-4 text-brand-text">№{{ payment.storage_number }}</td>

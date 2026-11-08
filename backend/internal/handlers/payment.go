@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -26,7 +27,17 @@ func (h *Handler) ListPaymentsByJK(c *gin.Context) {
 		return
 	}
 
-	payments, err := h.svc.ListPaymentsByJK(c.Request.Context(), jkID)
+	// Optional ?from=&to= (YYYY-MM-DD, Kazakhstan days) for the Платежи page.
+	var from, to *time.Time
+	if c.Query("from") != "" || c.Query("to") != "" {
+		f, t, ok := parsePeriod(c)
+		if !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный период (формат ГГГГ-ММ-ДД)"})
+			return
+		}
+		from, to = &f, &t
+	}
+	payments, err := h.svc.ListPaymentsByJKPeriod(c.Request.Context(), jkID, from, to)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось загрузить список платежей"})
 		return

@@ -13,8 +13,12 @@ export class PaymentService {
 
   private baseUrl = environment.apiUrl;
 
-  listByJK(jkId: string) {
-    return this.http.get<Payment[]>(`${this.baseUrl}/payments/jk/${jkId}`);
+  /** Optional period: YYYY-MM-DD, inclusive Kazakhstan days. */
+  listByJK(jkId: string, period?: { from: string; to: string }) {
+    const params: Record<string, string> = {};
+    if (period?.from) params['from'] = period.from;
+    if (period?.to) params['to'] = period.to;
+    return this.http.get<Payment[]>(`${this.baseUrl}/payments/jk/${jkId}`, { params });
   }
 
   listMine() {

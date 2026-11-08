@@ -3,6 +3,7 @@ import { DatePipe, UpperCasePipe } from '@angular/common';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { Payment, PaymentStatus } from '../../../../core/models/payment';
 import { PaymentService } from '../../../../core/services/payment';
+import { ReportService } from '../../../../core/services/report';
 
 @Component({
   selector: 'app-admin-payments',
@@ -13,6 +14,12 @@ import { PaymentService } from '../../../../core/services/payment';
 export class AdminPayments {
   private authService = inject(AuthService);
   private paymentService = inject(PaymentService);
+  private reports = inject(ReportService);
+
+  // Period (regulation п. 5.1: reports for any period). Default: this month.
+  from = signal(monthStart());
+  to = signal(today());
+  downloading = signal(false);
 
   payments = signal<Payment[]>([]);
   loading = signal(true);
@@ -36,6 +43,17 @@ export class AdminPayments {
     });
   });
 
+  /** Income report (payments + refunds paid out) for the selected period, as an Excel file. */
+  downloadReport(): void {
+    const jkId = this.authService.currentUser()?.jk_id;
+    if (!jkId) return;
+    this.downloading.set(true);
+    this.reports.download(jkId, 'payments', { from: this.from(), to: this.to() }).subscribe({
+      next: () => this.downloading.set(false),
+      error: () => this.downloading.set(false),
+    });
+  }
+
   // Calculate total successful revenue
   totalRevenue = computed(() => {
     return this.payments()
@@ -55,7 +73,7 @@ export class AdminPayments {
     }
 
     this.loading.set(true);
-    this.paymentService.listByJK(jkId).subscribe({
+    this.paymentService.listByJK(jkId, { from: this.from(), to: this.to() }).subscribe({
       next: (data) => {
         this.payments.set(data);
         this.loading.set(false);
@@ -84,4 +102,12 @@ export class AdminPayments {
         return status;
     }
   }
+}
+
+const KZ_OFFSET_MS = 5 * 3600 * 1000;
+function today(): string {
+  return new Date(Date.now() + KZ_OFFSET_MS).toISOString().slice(0, 10);
+}
+function monthStart(): string {
+  return today().slice(0, 8) + '01';
 }

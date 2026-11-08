@@ -24,4 +24,5 @@ type PaymentResponse struct {
 	Payment
 	UserName      string `json:"user_name"`
 	StorageNumber string `json:"storage_number"`
+	CompanyName   string `json:"company_name,omitempty"`
 }

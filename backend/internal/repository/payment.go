@@ -84,21 +84,25 @@ func (r *Repo) ListPaymentsByRentalID(ctx context.Context, rentalID string) ([]*
 	return payments, nil
 }
 
-func (r *Repo) ListPaymentsByJK(ctx context.Context, jkID string) ([]*models.PaymentResponse, error) {
+// ListPaymentsByJK lists payments of a ЖК; from/to (optional) limit created_at to [from, to).
+func (r *Repo) ListPaymentsByJK(ctx context.Context, jkID string, from, to *time.Time) ([]*models.PaymentResponse, error) {
 	query := `
-		SELECT 
+		SELECT
 			p.id, p.rental_id, p.user_id, p.amount, p.provider, p.status, p.created_at,
 			u.full_name,
-			s.number
+			s.number,
+			u.company_name
 		FROM payments p
 		JOIN users u ON p.user_id = u.id
 		JOIN rentals r ON p.rental_id = r.id
 		JOIN storages s ON r.storage_id = s.id
 		WHERE s.jk_id = $1
+		  AND ($2::timestamptz IS NULL OR p.created_at >= $2)
+		  AND ($3::timestamptz IS NULL OR p.created_at < $3)
 		ORDER BY p.created_at DESC
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, jkID)
+	rows, err := r.db.QueryContext(ctx, query, jkID, from, to)
 	if err != nil {
 		return nil, fmt.Errorf("repository.ListPaymentsByJK: %w", err)
 	}
@@ -109,7 +113,7 @@ func (r *Repo) ListPaymentsByJK(ctx context.Context, jkID string) ([]*models.Pay
 		p := &models.PaymentResponse{}
 		err := rows.Scan(
 			&p.ID, &p.RentalID, &p.UserID, &p.Amount, &p.Provider, &p.Status, &p.CreatedAt,
-			&p.UserName, &p.StorageNumber,
+			&p.UserName, &p.StorageNumber, &p.CompanyName,
 		)
 		if err != nil {
 			return nil, err

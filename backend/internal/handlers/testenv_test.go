@@ -194,8 +194,9 @@ func (e *testEnv) token(userID string) string {
 }
 
 type resp struct {
-	Code int
-	Body []byte
+	Code   int
+	Body   []byte
+	Header http.Header
 }
 
 func (r resp) json(t *testing.T, v any) {
@@ -219,7 +220,7 @@ func (e *testEnv) do(method, path, userID string, body any) resp {
 	}
 	w := httptest.NewRecorder()
 	e.router.ServeHTTP(w, req)
-	return resp{Code: w.Code, Body: w.Body.Bytes()}
+	return resp{Code: w.Code, Body: w.Body.Bytes(), Header: w.Header()}
 }
 
 func sign(body []byte, secret string) string {

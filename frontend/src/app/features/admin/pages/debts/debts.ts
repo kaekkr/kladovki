@@ -3,6 +3,7 @@ import { DatePipe } from '@angular/common';
 import { ChargeService } from '../../../../core/services/charge';
 import { chargeStatusLabel } from '../../../../core/utils/charge-display';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { ReportService } from '../../../../core/services/report';
 import { Charge, ChargeStatus } from '../../../../core/models/charge';
 
 @Component({
@@ -13,6 +14,19 @@ import { Charge, ChargeStatus } from '../../../../core/models/charge';
 })
 export class AdminDebts {
   private authService = inject(AuthService);
+  private reports = inject(ReportService);
+  downloading = signal(false);
+
+  /** Excel-friendly report (ОСИ regulation п. 5.1). */
+  downloadReport(): void {
+    const jkId = this.authService.currentUser()?.jk_id;
+    if (!jkId) return;
+    this.downloading.set(true);
+    this.reports.download(jkId, 'charges').subscribe({
+      next: () => this.downloading.set(false),
+      error: () => this.downloading.set(false),
+    });
+  }
   private chargeService = inject(ChargeService);
 
   debts = signal<Charge[]>([]);

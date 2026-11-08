@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { storageStatusLabel } from '../../../../core/utils/storage-status';
 
 import { AuthService } from '../../../../core/auth/auth.service';
+import { ReportService } from '../../../../core/services/report';
 import { Storage, StorageStatus } from '../../../../core/models/storage';
 import { StorageService } from '../../../../core/services/storage';
 import { AdminStorageDetailsModal } from './components/storage_details_modal/storage_details_modal';
@@ -15,6 +16,19 @@ import { AdminStorageCreateModal } from './components/storage_create_modal/stora
 })
 export class AdminStorages {
   private authService = inject(AuthService);
+  private reports = inject(ReportService);
+  downloading = signal(false);
+
+  /** Excel-friendly report (ОСИ regulation п. 5.1). */
+  downloadReport(): void {
+    const jkId = this.authService.currentUser()?.jk_id;
+    if (!jkId) return;
+    this.downloading.set(true);
+    this.reports.download(jkId, 'storages').subscribe({
+      next: () => this.downloading.set(false),
+      error: () => this.downloading.set(false),
+    });
+  }
   private storageService = inject(StorageService);
 
   storages = signal<Storage[]>([]);
