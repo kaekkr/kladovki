@@ -189,42 +189,6 @@
           </div>
         </div>
 
-        <div class="mt-6 rounded-xl border border-white/10 bg-white/[0.04] p-5">
-          <h3 class="text-lg font-semibold text-white">Передача кладовки</h3>
-
-          <p class="mt-2 text-sm text-gray-400">
-            Укажите ИИН нового владельца, чтобы он мог оформить аренду.
-          </p>
-
-          <div class="mt-4 flex flex-col gap-3 sm:flex-row">
-            <input
-              type="text"
-              inputmode="numeric"
-              maxlength="12"
-              placeholder="ИИН — 12 цифр"
-              [value]="transferIIN()"
-              (input)="transferIIN.set($any($event.target).value)"
-              class="w-full rounded-lg border border-white/10 bg-[#1c1c1c] px-4 py-3 text-white placeholder:text-gray-500 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-            />
-
-            <button
-              type="button"
-              (click)="setTransfer()"
-              [disabled]="transferLoading()"
-              class="shrink-0 rounded-lg bg-amber-500 px-5 py-3 font-medium text-black transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {{ transferLoading() ? 'Сохранение...' : 'Указать владельца' }}
-            </button>
-          </div>
-
-          @if (transferError()) {
-            <p class="mt-3 text-sm text-red-400">{{ transferError() }}</p>
-          }
-
-          @if (transferMessage()) {
-            <p class="mt-3 text-sm text-emerald-400">{{ transferMessage() }}</p>
-          }
-        </div>
       </section>
     } @else if (rental()!.status === 'active') {
       <section class="rounded-2xl border border-brand-accent/20 bg-brand-accent/5 px-4 py-4">
@@ -430,6 +394,33 @@
             </p>
           </div>
         </div>
+      </section>
+    }
+
+
+    <!-- Передача кладовки новому владельцу (по ИИН), п. 6.2: ОСИ получает уведомление -->
+    @if (rental()!.status === 'active' && isOverdue(rental()!.ends_at)) {
+      <section class="rounded-2xl border border-brand-line bg-brand-surface px-4 py-4">
+        <p class="text-xs font-semibold text-brand-text">Передать кладовку новому владельцу</p>
+        <p class="mt-1 text-[10px] leading-4 text-brand-muted">
+          Например, при продаже квартиры. Укажите ИИН нового собственника — он сможет оформить аренду
+          в течение 14 дней. ОСИ получит уведомление.
+        </p>
+        <div class="mt-3 flex gap-2">
+          <input type="text" inputmode="numeric" maxlength="12" placeholder="ИИН — 12 цифр" aria-label="ИИН нового владельца"
+            [value]="transferIIN()" (input)="transferIIN.set($any($event.target).value)"
+            class="min-w-0 flex-1 rounded-xl border border-brand-line bg-brand-elevated/30 px-3 py-2 text-xs text-brand-text outline-none focus:border-brand-accent" />
+          <button type="button" (click)="setTransfer()" [disabled]="transferLoading()"
+            class="h-9 shrink-0 rounded-xl bg-brand-accent px-4 text-xs font-semibold text-brand-bg disabled:opacity-40">
+            {{ transferLoading() ? 'Сохранение…' : 'Указать' }}
+          </button>
+        </div>
+        @if (transferError()) {
+          <p class="mt-2 text-[11px] text-status-overdue">{{ transferError() }}</p>
+        }
+        @if (transferMessage()) {
+          <p class="mt-2 text-[11px] text-brand-accent">{{ transferMessage() }}</p>
+        }
       </section>
     }
 

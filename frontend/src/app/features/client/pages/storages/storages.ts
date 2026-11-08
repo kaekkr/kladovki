@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { floorLabel } from '../../../../core/utils/floor';
 import { storageStatusLabel } from '../../../../core/utils/storage-status';
 import { RouterLink } from '@angular/router';
 import { Storage } from '../../../../core/models/storage';
@@ -94,17 +95,7 @@ export class ClientStorages {
 
   statusLabel = storageStatusLabel;
 
-  floorLabel(floor: number): string {
-    if (floor === -1) {
-      return 'Подземный этаж';
-    }
-
-    if (floor === 0) {
-      return '1 этаж';
-    }
-
-    return `${floor} этаж`;
-  }
+  floorLabel = floorLabel;
 
   private load(): void {
     const user = this.auth.currentUser();
