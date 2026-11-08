@@ -52,14 +52,10 @@ export class SettingsService {
     });
   }
 
-  saveTariff(
-    jkId: string,
-    amount: number,
-    recalculationStrategy?: 'extend' | 'refund',
-  ): Observable<void> {
-    return this.http.put<void>(`${this.baseUrl}/jks/${jkId}/tariff`, {
+  /** Returns how many tenants were asked to choose extend/refund (tariff decrease). */
+  saveTariff(jkId: string, amount: number): Observable<{ recalc_requests: number }> {
+    return this.http.put<{ recalc_requests: number }>(`${this.baseUrl}/jks/${jkId}/tariff`, {
       amount,
-      recalculation_strategy: recalculationStrategy,
     });
   }
 

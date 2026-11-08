@@ -41,7 +41,6 @@ export class AdminSettingsPage {
   showRecalculateModal = signal(false);
   affectedRentalsCount = signal(0);
   totalDifferenceAmount = signal(0);
-  recalculationStrategy = signal<'extend' | 'refund'>('extend');
 
   registrationLink = computed(() => {
     const id = this.jkId();
@@ -112,7 +111,10 @@ export class AdminSettingsPage {
       this.settingsService.previewTariffReduction(jkId, newTariff).subscribe({
         next: (res) => {
           this.saving.set(false);
-          // Подставляем реальные данные из бэкенда в сигналы модального окна
+          if (res.affected_count === 0) {
+            this.executeSave();
+            return;
+          }
           this.affectedRentalsCount.set(res.affected_count);
           this.totalDifferenceAmount.set(res.total_difference);
           this.showRecalculateModal.set(true);
@@ -131,10 +133,10 @@ export class AdminSettingsPage {
 
   confirmRecalculation(): void {
     this.showRecalculateModal.set(false);
-    this.executeSave(this.recalculationStrategy());
+    this.executeSave();
   }
 
-  executeSave(strategy?: 'extend' | 'refund'): void {
+  executeSave(): void {
     const jkId = this.authService.currentUser()?.jk_id;
     if (!jkId) return;
 
@@ -145,13 +147,17 @@ export class AdminSettingsPage {
     const amount = Number(this.tariffAmount()) || 0;
     const lock = Math.max(1, Number(this.lockMinutes()) || 2);
 
-    this.settingsService.saveTariff(jkId, amount, strategy).subscribe({
-      next: () => {
+    this.settingsService.saveTariff(jkId, amount).subscribe({
+      next: (res) => {
         this.settingsService.saveRentalSettings(jkId, { lock_duration_minutes: lock }).subscribe({
           next: () => {
             this.saving.set(false);
             this.initialTariffAmount.set(amount); // Обновляем базовый тариф
-            this.saveMessage.set('Настройки и перерасчет успешно сохранены');
+            this.saveMessage.set(
+              res.recalc_requests > 0
+                ? `Тариф сохранён. Запрос на перерасчёт отправлен арендаторам: ${res.recalc_requests}`
+                : 'Настройки сохранены',
+            );
             setTimeout(() => this.saveMessage.set(''), 3000);
           },
           error: () => {

@@ -1,0 +1,150 @@
+<div class="space-y-6">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight text-brand-text">Заявки</h1>
+    <p class="mt-1 text-sm text-brand-muted">
+      Досрочное завершение аренды, возвраты после снижения тарифа и поздние оплаты
+    </p>
+  </div>
+
+  <div class="flex flex-wrap gap-2">
+    @for (f of [
+      { key: 'open', label: 'Требуют решения', count: counts().open },
+      { key: 'awaiting_choice', label: 'Ждут арендатора', count: counts().awaiting },
+      { key: 'closed', label: 'Закрытые', count: null },
+      { key: 'all', label: 'Все', count: null }
+    ]; track f.key) {
+      <button
+        type="button"
+        (click)="filter.set($any(f.key))"
+        class="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors"
+        [class]="
+          filter() === f.key
+            ? 'border-brand-accent bg-brand-accent/10 text-brand-accent'
+            : 'border-brand-line text-brand-muted hover:text-brand-text'
+        "
+      >
+        {{ f.label }}
+        @if (f.count) {
+          <span class="ml-1 rounded bg-orange-500/15 px-1.5 text-orange-500">{{ f.count }}</span>
+        }
+      </button>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="h-40 animate-pulse rounded-lg border border-brand-line bg-brand-surface"></div>
+  } @else if (error()) {
+    <div class="rounded-lg border border-brand-line bg-brand-surface p-5 text-sm text-status-overdue">
+      Не удалось загрузить заявки.
+    </div>
+  } @else if (visible().length === 0) {
+    <div class="rounded-lg border border-brand-line bg-brand-surface p-8 text-center text-sm text-brand-muted">
+      Заявок нет
+    </div>
+  } @else {
+    <div class="space-y-3">
+      @for (r of visible(); track r.id) {
+        <div class="rounded-lg border border-brand-line bg-brand-surface p-4">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <p class="text-sm font-semibold text-brand-text">{{ title(r) }}</p>
+                <span class="rounded-full px-2 py-0.5 text-[10px] font-medium" [class]="statusClass(r)">
+                  {{ statusLabel(r) }}
+                </span>
+              </div>
+              <p class="mt-1 text-xs text-brand-muted">
+                Кладовка №{{ r.storage_number || '—' }} · {{ r.user_name }} · {{ r.user_phone }}
+              </p>
+              @if (r.type === 'tariff_recalc') {
+                <p class="mt-1 text-xs text-brand-muted">
+                  Тариф: {{ formatMoney(r.old_price) }} → {{ formatMoney(r.new_price) }} в месяц
+                </p>
+              }
+              @if (r.comment) {
+                <p class="mt-2 text-xs text-brand-text">«{{ r.comment }}»</p>
+              }
+              @if (r.resolution) {
+                <p class="mt-2 text-xs text-brand-muted">Решение ОСИ: {{ r.resolution }}</p>
+              }
+              <p class="mt-2 text-[10px] text-brand-subtle">{{ r.created_at | date: 'dd.MM.yyyy HH:mm' }}</p>
+            </div>
+
+            <div class="shrink-0 text-left sm:text-right">
+              <p class="text-[10px] text-brand-subtle">К возврату</p>
+              <p class="text-lg font-semibold text-brand-text">{{ formatMoney(r.amount) }}</p>
+            </div>
+          </div>
+
+          @if (needsAction(r)) {
+            <div class="mt-4 flex flex-col gap-2 border-t border-brand-line pt-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                (click)="open(r, 'reject')"
+                class="rounded-md border border-brand-line px-3 py-2 text-xs font-medium text-brand-muted hover:text-brand-text"
+              >
+                Отклонить
+              </button>
+              <button
+                type="button"
+                (click)="open(r, 'approve')"
+                class="rounded-md bg-brand-accent px-3 py-2 text-xs font-semibold text-brand-bg hover:opacity-90"
+              >
+                {{ approveLabel(r) }}
+              </button>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  @if (active(); as r) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+      <div class="w-full max-w-md space-y-4 rounded-xl border border-brand-line bg-brand-surface p-6">
+        <h2 class="text-base font-semibold text-brand-text">
+          {{ action() === 'approve' ? approveLabel(r) : 'Отклонить заявку' }}
+        </h2>
+        <p class="text-xs leading-5 text-brand-muted">
+          @if (action() === 'approve' && r.type === 'early_termination') {
+            Аренда кладовки №{{ r.storage_number }} будет завершена, кладовка станет свободной.
+            Верните арендатору {{ formatMoney(r.amount) }} удобным способом — приложение деньги
+            автоматически не возвращает.
+          } @else if (action() === 'approve') {
+            Подтвердите, что вернули арендатору {{ formatMoney(r.amount) }}.
+          } @else {
+            Арендатор увидит, что заявка отклонена, и ваш комментарий.
+          }
+        </p>
+        <textarea
+          rows="3"
+          placeholder="Комментарий для арендатора (необязательно)"
+          [value]="comment()"
+          (input)="comment.set($any($event.target).value)"
+          class="w-full rounded-md border border-brand-line bg-brand-bg px-3 py-2 text-sm text-brand-text outline-none focus:border-brand-accent"
+        ></textarea>
+        @if (actionError()) {
+          <p class="text-xs text-status-overdue">{{ actionError() }}</p>
+        }
+        <div class="flex justify-end gap-2">
+          <button
+            type="button"
+            (click)="active.set(null)"
+            class="rounded-md border border-brand-line px-4 py-2 text-xs font-medium text-brand-text"
+          >
+            Отмена
+          </button>
+          <button
+            type="button"
+            [disabled]="saving()"
+            (click)="submit()"
+            class="rounded-md px-4 py-2 text-xs font-semibold disabled:opacity-50"
+            [class]="action() === 'approve' ? 'bg-brand-accent text-brand-bg' : 'bg-status-overdue text-white'"
+          >
+            {{ saving() ? 'Сохранение…' : 'Подтвердить' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

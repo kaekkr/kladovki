@@ -1,9 +1,12 @@
-import { Component, inject, OnDestroy, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { Rental, RentalStatus } from '../../../../../core/models/rental';
 import { RentalService } from '../../../../../core/services/rental';
 import { StorageService } from '../../../../../core/services/storage';
+import { RequestService } from '../../../../../core/services/request';
+import { TenantRequest } from '../../../../../core/models/request';
+import { requestStatusLabel, requestTitle } from '../../../../../core/utils/request-display';
 import {
   isUnpaidExpired,
   rentalDisplayEndsAt,
@@ -21,6 +24,21 @@ export class ClientRentalDetails implements OnDestroy {
   private route = inject(ActivatedRoute);
   private rentalService = inject(RentalService);
   private storageService = inject(StorageService);
+  private requestService = inject(RequestService);
+
+  requests = signal<TenantRequest[]>([]);
+  requestTitle = requestTitle;
+  requestStatusLabel = requestStatusLabel;
+  choosing = signal(false);
+  requestError = signal<string | null>(null);
+  terminateOpen = signal(false);
+  terminateComment = signal('');
+
+  pendingChoice = computed(() => this.requests().find((r) => r.status === 'awaiting_choice') ?? null);
+  openTermination = computed(
+    () =>
+      this.requests().find((r) => r.type === 'early_termination' && r.status === 'open') ?? null,
+  );
 
   loading = signal(true);
   error = signal(false);
@@ -233,6 +251,7 @@ export class ClientRentalDetails implements OnDestroy {
       next: (rental) => {
         this.rental.set(rental);
         this.loading.set(false);
+        this.loadRequests(rental.id);
 
         if (rental.status === 'locked') {
           this.startTimer(rental.ends_at);
@@ -246,6 +265,54 @@ export class ClientRentalDetails implements OnDestroy {
         this.loading.set(false);
         this.error.set(true);
         this.stopTimer();
+      },
+    });
+  }
+
+  private loadRequests(rentalId: string): void {
+    this.requestService.listMine().subscribe({
+      next: (list) => this.requests.set(list.filter((r) => r.rental_id === rentalId)),
+      error: () => this.requests.set([]),
+    });
+  }
+
+  choose(choice: 'extend' | 'refund'): void {
+    const req = this.pendingChoice();
+    const rental = this.rental();
+    if (!req || !rental) return;
+    this.choosing.set(true);
+    this.requestError.set(null);
+    this.requestService.choose(req.id, choice).subscribe({
+      next: () => {
+        this.choosing.set(false);
+        this.load();
+      },
+      error: (err) => {
+        this.choosing.set(false);
+        this.requestError.set(err?.error?.error || 'Не удалось сохранить выбор');
+      },
+    });
+  }
+
+  canTerminate(): boolean {
+    const r = this.rental();
+    return !!r && r.status === 'active' && !this.isOverdue(r.ends_at) && !this.openTermination();
+  }
+
+  terminate(): void {
+    const rental = this.rental();
+    if (!rental) return;
+    this.choosing.set(true);
+    this.requestError.set(null);
+    this.requestService.terminateRental(rental.id, this.terminateComment().trim()).subscribe({
+      next: () => {
+        this.choosing.set(false);
+        this.terminateOpen.set(false);
+        this.loadRequests(rental.id);
+      },
+      error: (err) => {
+        this.choosing.set(false);
+        this.requestError.set(err?.error?.error || 'Не удалось отправить заявку');
       },
     });
   }

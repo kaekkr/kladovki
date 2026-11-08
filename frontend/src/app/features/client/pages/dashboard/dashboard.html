@@ -17,6 +17,24 @@
       <div class="h-28 animate-pulse rounded-2xl bg-brand-surface"></div>
     </div>
   } @else {
+    @for (req of pendingChoices(); track req.id) {
+      <a
+        [routerLink]="['/app/rentals', req.rental_id]"
+        class="flex items-center gap-3 rounded-2xl border border-status-locked/30 bg-status-locked/5 p-4"
+      >
+        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-status-locked/10">
+          <i class="fas fa-percent text-sm text-status-locked"></i>
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-xs font-semibold text-brand-text">Тариф снижен — кладовка №{{ req.storage_number }}</p>
+          <p class="mt-0.5 text-[10px] leading-4 text-brand-muted">
+            Выберите: продлить аренду или вернуть разницу
+          </p>
+        </div>
+        <i class="fas fa-chevron-right text-[10px] text-brand-muted"></i>
+      </a>
+    }
+
     <!-- Storage transfer invitations -->
     @for (invitation of transferInvitations(); track invitation.id) {
       <section

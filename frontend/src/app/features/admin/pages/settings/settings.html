@@ -216,40 +216,15 @@
               <span class="font-semibold">{{ affectedRentalsCount() }}</span>
             </p>
             <p>
-              💰 Общая сумма разницы к перерасчету:
+              💰 Сумма разницы за неиспользованный период:
               <span class="font-semibold">{{ formatMoney(totalDifferenceAmount()) }}</span>
             </p>
           </div>
 
-          <div>
-            <label class="block text-xs text-brand-muted mb-2">
-              Выберите способ перерасчета для жителей:
-            </label>
-            <div class="space-y-2">
-              <label class="flex items-center gap-2 text-xs text-brand-text cursor-pointer">
-                <input
-                  type="radio"
-                  name="strategy"
-                  value="extend"
-                  [ngModel]="recalculationStrategy()"
-                  (ngModelChange)="recalculationStrategy.set($event)"
-                  class="text-brand-accent focus:ring-0"
-                />
-                <span>Удлинение оплаченного периода аренды</span>
-              </label>
-              <label class="flex items-center gap-2 text-xs text-brand-text cursor-pointer">
-                <input
-                  type="radio"
-                  name="strategy"
-                  value="refund"
-                  [ngModel]="recalculationStrategy()"
-                  (ngModelChange)="recalculationStrategy.set($event)"
-                  class="text-brand-accent focus:ring-0"
-                />
-                <span>Засчитать разницу в счет будущих платежей (возврат)</span>
-              </label>
-            </div>
-          </div>
+          <p class="text-xs leading-5 text-brand-muted">
+            Каждому затронутому арендатору придёт запрос: удлинить оплаченный период или вернуть
+            разницу. Заявки на возврат появятся в разделе «Заявки».
+          </p>
         </div>
 
         <div class="pt-3 border-t border-brand-line flex justify-end gap-2">
@@ -265,7 +240,7 @@
             (click)="confirmRecalculation()"
             class="px-4 py-2 bg-brand-accent text-brand-bg text-xs font-semibold rounded-md hover:opacity-90 transition-opacity"
           >
-            Подтвердить и пересчитать
+            Сохранить и отправить запросы
           </button>
         </div>
       </div>

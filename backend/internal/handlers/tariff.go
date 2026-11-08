@@ -67,7 +67,7 @@ func (h *Handler) SetTariff(c *gin.Context) {
 		return
 	}
 
-	err := h.svc.SetTariff(c.Request.Context(), service.SetTariffInput{JKID: jkID, Amount: req.Amount})
+	affected, err := h.svc.SetTariff(c.Request.Context(), service.SetTariffInput{JKID: jkID, Amount: req.Amount})
 	if err != nil {
 		if errors.Is(err, service.ErrInvalid) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Тариф должен быть больше нуля"})
@@ -78,5 +78,5 @@ func (h *Handler) SetTariff(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "tariff updated", "amount": req.Amount})
+	c.JSON(http.StatusOK, gin.H{"message": "tariff updated", "amount": req.Amount, "recalc_requests": affected})
 }
