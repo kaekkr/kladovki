@@ -221,6 +221,8 @@ type ReminderRental struct {
 	JKID          string
 	StorageNumber string
 	EndsAt        time.Time
+	PricePerMonth int64   // ActiveRentalsOfJK only
+	Area          float64 // ActiveRentalsOfJK only
 }
 
 // RentalsForReminders returns active rentals ending before `until`
@@ -264,7 +266,7 @@ func (r *Repo) RentalIDForPayment(ctx context.Context, paymentID string) (string
 // ActiveRentalsOfJK lists active rentals for tariff-change notices.
 func (r *Repo) ActiveRentalsOfJK(ctx context.Context, jkID string) ([]ReminderRental, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT r.id, r.user_id, r.jk_id, s.number, r.ends_at
+		SELECT r.id, r.user_id, r.jk_id, s.number, r.ends_at, r.price_per_month, s.area
 		FROM rentals r JOIN storages s ON s.id = r.storage_id
 		WHERE r.jk_id = $1 AND r.status = 'active' AND r.ends_at > now()`, jkID)
 	if err != nil {
@@ -274,7 +276,7 @@ func (r *Repo) ActiveRentalsOfJK(ctx context.Context, jkID string) ([]ReminderRe
 	var out []ReminderRental
 	for rows.Next() {
 		var x ReminderRental
-		if err := rows.Scan(&x.RentalID, &x.UserID, &x.JKID, &x.StorageNumber, &x.EndsAt); err != nil {
+		if err := rows.Scan(&x.RentalID, &x.UserID, &x.JKID, &x.StorageNumber, &x.EndsAt, &x.PricePerMonth, &x.Area); err != nil {
 			return nil, err
 		}
 		out = append(out, x)

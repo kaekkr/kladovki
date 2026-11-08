@@ -25,6 +25,7 @@ const (
 	KindResidentNew     = "resident_new"
 	KindAccountStatus   = "account_status"
 	KindRentalCancelled = "rental_cancelled"
+	KindTransferNew     = "transfer_new"
 )
 
 // Paid channels (SMS, WhatsApp) are used only for messages that matter.
@@ -33,6 +34,7 @@ var importantKinds = map[string]bool{
 	KindRentalOverdue:  true,
 	KindDebtWarning:    true,
 	KindTariffRecalc:   true,
+	KindTariffChanged:  true, // agreement п. 3.3: tariff changes also by SMS
 }
 
 var paidChannels = map[string]bool{"sms": true, "whatsapp": true}
@@ -179,6 +181,12 @@ func (s *Service) RunReminders(ctx context.Context) error {
 					r.StorageNumber),
 				Link: link,
 			}, "debt60:"+base)
+			s.notifyJKAdmins(ctx, r.JKID, KindDebtWarning, notify.Message{
+				Title: fmt.Sprintf("Задолженность более 2 месяцев: кладовка №%s", r.StorageNumber),
+				Body: fmt.Sprintf("Аренда закончилась %s (%s назад). По соглашению (п. 5.2) ОСИ вправе расторгнуть договор и освободить кладовку.",
+					end, daysWord(days)),
+				Link: "/admin/debts",
+			}, "debt60:"+base)
 		}
 	}
 	return nil
@@ -288,10 +296,12 @@ func (s *Service) notifyTariffChange(ctx context.Context, jkID string, oldTariff
 		return
 	}
 	for _, r := range rentals {
+		newPrice := int64(math.Round(r.Area * float64(newTariff)))
 		s.Notify(ctx, r.UserID, KindTariffChanged, notify.Message{
 			Title: "Тариф изменён",
-			Body: fmt.Sprintf("ОСИ повысило тариф. Для кладовки №%s прежняя цена сохраняется до конца оплаченного периода (%s), далее — по новому тарифу.",
-				r.StorageNumber, kzDate(r.EndsAt)),
+			Body: fmt.Sprintf("ОСИ повысило тариф с %s. Для кладовки №%s прежняя цена %s в месяц сохраняется до конца оплаченного периода (%s), "+
+				"далее — %s в месяц.",
+				kzDate(time.Now()), r.StorageNumber, money(r.PricePerMonth), kzDate(r.EndsAt), money(newPrice)),
 			Link: "/app/rentals/" + r.RentalID,
 		}, "")
 	}

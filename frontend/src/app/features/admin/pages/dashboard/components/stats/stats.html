@@ -58,6 +58,9 @@
         <p class="mt-2 text-2xl font-semibold tracking-tight text-brand-text">
           {{ formatMoney(data.received) }} ₸
         </p>
+        @if ((data.refunded ?? 0) > 0) {
+          <p class="mt-1 text-[11px] text-brand-subtle">за вычетом возвратов {{ formatMoney(data.refunded!) }} ₸</p>
+        }
 
         <p
           class="mt-2 text-xs"

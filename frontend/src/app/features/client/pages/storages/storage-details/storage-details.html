@@ -77,7 +77,7 @@
               @if (transferInvitation()) {
                 Закреплена за вами
               } @else {
-                Свободна
+                Свободно
               }
             </span>
           } @else if (storage()!.status === 'locked') {
@@ -85,14 +85,14 @@
               class="inline-flex items-center gap-1.5 rounded-full bg-status-locked/10 px-2.5 py-1.5 text-[10px] font-medium text-status-locked"
             >
               <span class="h-1.5 w-1.5 rounded-full bg-status-locked"></span>
-              Забронирована
+              Забронировано
             </span>
           } @else {
             <span
               class="inline-flex items-center gap-1.5 rounded-full bg-brand-elevated px-2.5 py-1.5 text-[10px] font-medium text-brand-muted"
             >
               <span class="h-1.5 w-1.5 rounded-full bg-brand-muted/50"></span>
-              Занята
+              Занято
             </span>
           }
         </div>

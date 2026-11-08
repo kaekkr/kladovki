@@ -49,7 +49,6 @@ export class AdminStats {
 
     this.dashboardService.getStats(this.selectedPeriod()).subscribe({
       next: (stats) => {
-        console.log('API Stats response:', stats); // <-- Добавьте это
         this.stats.set(stats);
         this.loading.set(false);
       },

@@ -15,6 +15,7 @@ export function notificationTone(kind: NotificationKind): NotificationTone {
     case 'request_new':
     case 'refund_pending':
     case 'resident_new':
+    case 'transfer_new':
       return 'warning';
     default:
       return 'neutral';
@@ -46,6 +47,8 @@ export function notificationIcon(kind: NotificationKind): string {
       return 'fa-user-check';
     case 'rental_cancelled':
       return 'fa-ban';
+    case 'transfer_new':
+      return 'fa-right-left';
   }
 }
 

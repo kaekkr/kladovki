@@ -77,6 +77,7 @@ func (s *Service) GetDashboardStats(
 	return &models.DashboardStats{
 		Received:       row.Received,
 		ReceivedChange: receivedChange,
+		Refunded:       row.Refunded,
 
 		Debt:           debt,
 		DebtApartments: debtors,
