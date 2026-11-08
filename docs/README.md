@@ -14,6 +14,7 @@ The building's management (**ОСИ**, the admin) manages storage rooms, the tar
 | [notifications.md](notifications.md) | In-app, email, Telegram, SMS, WhatsApp — how messages are produced and delivered |
 | [security.md](security.md) | Authentication, roles, ЖК isolation, secrets |
 | [operations.md](operations.md) | Running locally, tests, CI, deploy to Render, environment variables, runbook |
+| [test-accounts.ru.md](test-accounts.ru.md) | Тестовые аккаунты и сценарии проверки (на русском, для тестировщиков) |
 
 ## Diagrams
 
