@@ -9,7 +9,8 @@ export type NotificationKind =
   | 'request_resolved'
   | 'refund_pending'
   | 'resident_new'
-  | 'account_status';
+  | 'account_status'
+  | 'rental_cancelled';
 
 export interface AppNotification {
   id: string;

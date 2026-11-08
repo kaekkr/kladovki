@@ -758,17 +758,32 @@ func (r *Repo) CancelRental(
 		)
 	}
 
-	if rt.Status == models.RentalStatusCancelled {
-		return &rt, nil
-	}
-
-	if rt.Status == models.RentalStatusExpired {
-		return nil, fmt.Errorf("rental already expired")
-	}
-
 	if rt.Status != models.RentalStatusActive {
-		return nil, fmt.Errorf("rental cannot be cancelled")
+		return nil, ErrLocked
 	}
+
+	// The unused, already paid part is owed back to the tenant (agreement 4.2:
+	// refunds are handled by the ОСИ through a request).
+	var refund int64
+	if err := tx.QueryRowContext(ctx, `SELECT ROUND(COALESCE(`+remainingValueSQL+`, 0))::bigint FROM rentals r WHERE r.id = $1`,
+		rentalID).Scan(&refund); err != nil {
+		return nil, fmt.Errorf("repository.CancelRental remaining value: %w", err)
+	}
+	if refund > 0 {
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO requests (id, jk_id, user_id, rental_id, type, status, amount, comment)
+			VALUES ($1, $2, $3, $4, 'payment_refund', 'open', $5, 'Аренда отменена ОСИ — возврат за неиспользованный период')`,
+			uuid.NewString(), rt.JKID, rt.UserID, rt.ID, refund); err != nil {
+			return nil, fmt.Errorf("repository.CancelRental refund request: %w", err)
+		}
+	}
+	// Choices and termination requests about this rental are moot now.
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE requests SET status = 'superseded', resolved_at = now()
+		WHERE rental_id = $1 AND status IN ('open', 'awaiting_choice') AND type <> 'payment_refund'`, rentalID); err != nil {
+		return nil, fmt.Errorf("repository.CancelRental supersede requests: %w", err)
+	}
+	rt.RefundDue = refund
 
 	_, err = tx.ExecContext(ctx, `
 		UPDATE rentals
@@ -784,7 +799,7 @@ func (r *Repo) CancelRental(
 
 	_, err = tx.ExecContext(ctx, `
 		UPDATE storages
-		SET status = 'free'
+		SET status = 'free', transfer_to_iin = NULL, transfer_until = NULL
 		WHERE id = $1
 	`, rt.StorageID)
 	if err != nil {

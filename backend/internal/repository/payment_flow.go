@@ -17,6 +17,9 @@ import (
 // ended. The payment is recorded as success and must be refunded by the OSI.
 var ErrPaidButStorageTaken = errors.New("payment received but storage is no longer available")
 
+// ErrPaymentPending: a Kaspi invoice for this booking is already waiting to be paid.
+var ErrPaymentPending = errors.New("payment already pending")
+
 // ErrTransferPending: the storage is being handed over to another resident by IIN.
 var ErrTransferPending = errors.New("storage transfer pending")
 
@@ -28,6 +31,7 @@ const (
 const (
 	refundReasonBookingLost = "Оплата поступила после окончания брони, кладовка уже занята"
 	refundReasonRentalEnded = "Оплата продления поступила, когда аренда уже была завершена"
+	refundReasonDuplicate   = "Повторная оплата уже оплаченной брони"
 )
 
 // PrepareRenewalPayment creates a pending payment that, once paid, extends the
@@ -126,6 +130,17 @@ func (r *Repo) PreparePayment(ctx context.Context, rentalID, userID string, wind
 	if status != string(models.RentalStatusLocked) || !endsAt.After(now) {
 		return nil, ErrLocked
 	}
+	// One open invoice per booking: a double tap must not send a second Kaspi
+	// invoice (both could be paid) nor push the hold further each time.
+	var pending bool
+	if err := tx.QueryRowContext(ctx, `
+		SELECT EXISTS (SELECT 1 FROM payments WHERE rental_id = $1 AND status = 'pending')`,
+		rentalID).Scan(&pending); err != nil {
+		return nil, fmt.Errorf("repository.PreparePayment check pending: %w", err)
+	}
+	if pending {
+		return nil, ErrPaymentPending
+	}
 
 	p := &models.Payment{
 		ID:       uuid.NewString(),
@@ -200,7 +215,14 @@ func (r *Repo) ActivatePaidRental(ctx context.Context, paymentID string) error {
 		return fmt.Errorf("repository.ActivatePaidRental get rental: %w", err)
 	}
 	if rentalStatus == string(models.RentalStatusActive) {
-		return tx.Commit()
+		// This booking was already paid by another invoice — return this money.
+		if err := insertPaymentRefundRequest(ctx, tx, paymentID, refundReasonDuplicate); err != nil {
+			return fmt.Errorf("repository.ActivatePaidRental duplicate refund: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		return ErrPaidButStorageTaken
 	}
 
 	now := time.Now().UTC()

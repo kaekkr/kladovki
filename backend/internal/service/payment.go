@@ -68,6 +68,8 @@ func (s *Service) CreatePaymentInvoice(ctx context.Context, in CreatePaymentInpu
 			return nil, ErrNotFound
 		case errors.Is(err, repository.ErrLocked):
 			return nil, ErrLocked
+		case errors.Is(err, repository.ErrPaymentPending):
+			return nil, ErrPaymentPending
 		}
 		return nil, err
 	}
