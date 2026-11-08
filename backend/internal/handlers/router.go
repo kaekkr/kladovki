@@ -81,6 +81,24 @@ func (h *Handler) Register(r *gin.Engine) {
 			requests.PATCH("/:id/resolve", admin, h.ResolveRequest)
 		}
 
+		notifications := api.Group("/notifications", auth)
+		{
+			notifications.GET("", h.ListNotifications)
+			notifications.GET("/unread-count", h.UnreadNotifications)
+			notifications.POST("/read-all", h.MarkAllNotificationsRead)
+			notifications.POST("/:id/read", h.MarkNotificationRead)
+		}
+
+		me := api.Group("/me", auth)
+		{
+			me.GET("/channels", h.MyChannels)
+			me.POST("/telegram/link", h.TelegramLink)
+			me.DELETE("/telegram", h.TelegramUnlink)
+		}
+
+		// Telegram bot updates; authenticated by the secret-token header.
+		api.POST("/telegram/webhook", h.TelegramWebhook)
+
 		payments := api.Group("/payments")
 		{
 			// Called by ApiPay; authenticated by HMAC signature, not by user token.

@@ -12,13 +12,19 @@
   </div>
 
   <div class="flex items-center gap-2">
-    <button
-      class="relative w-8 h-8 rounded-md text-brand-muted hover:text-brand-text hover:bg-brand-elevated transition-colors"
+    <a
+      routerLink="/admin/notifications"
+      class="relative flex w-8 h-8 items-center justify-center rounded-md text-brand-muted hover:text-brand-text hover:bg-brand-elevated transition-colors"
       title="Уведомления"
     >
       <i class="fas fa-bell text-[13px]"></i>
-
-      <span class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-brand-accent"></span>
-    </button>
+      @if (unread() > 0) {
+        <span
+          class="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-1 text-[9px] font-bold text-white"
+        >
+          {{ unread() > 9 ? '9+' : unread() }}
+        </span>
+      }
+    </a>
   </div>
 </header>

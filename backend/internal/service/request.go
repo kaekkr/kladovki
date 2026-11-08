@@ -46,10 +46,18 @@ func (s *Service) RequestEarlyTermination(ctx context.Context, rentalID, userID,
 		comment = comment[:1000]
 	}
 	q, err := s.repo.CreateEarlyTermination(ctx, rentalID, userID, comment)
-	return q, mapRepoErr(err)
+	if err != nil {
+		return nil, mapRepoErr(err)
+	}
+	s.notifyNewRequest(ctx, q)
+	return q, nil
 }
 
 func (s *Service) ResolveRequest(ctx context.Context, requestID, jkID, adminID, action, resolution string) error {
 	resolution = strings.TrimSpace(resolution)
-	return mapRepoErr(s.repo.ResolveRequest(ctx, requestID, jkID, adminID, action, resolution))
+	if err := s.repo.ResolveRequest(ctx, requestID, jkID, adminID, action, resolution); err != nil {
+		return mapRepoErr(err)
+	}
+	s.notifyRequestResolved(ctx, requestID)
+	return nil
 }

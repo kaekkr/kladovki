@@ -17,6 +17,7 @@ import (
 	"github.com/kaekkr/kladovki/internal/database"
 	"github.com/kaekkr/kladovki/internal/handlers"
 	"github.com/kaekkr/kladovki/internal/middleware"
+	"github.com/kaekkr/kladovki/internal/notify"
 	"github.com/kaekkr/kladovki/internal/repository"
 	"github.com/kaekkr/kladovki/internal/service"
 )
@@ -37,6 +38,12 @@ func main() {
 
 	repo := repository.New(db)
 	svc := service.New(repo)
+
+	notifyCfg := notify.ConfigFromEnv()
+	svc.SetNotifier(notifyCfg)
+	for _, ch := range notifyCfg.Channels() {
+		log.Printf("notifications: %s channel enabled", ch.Name())
+	}
 
 	// 2. Auth & Middleware
 	tokens := service.NewTokenService(
@@ -111,6 +118,16 @@ func main() {
 	defer workerCancel()
 
 	go svc.StartRentalWorker(workerCtx)
+	go svc.StartNotificationWorker(workerCtx)
+
+	if notifyCfg.TelegramToken != "" && notifyCfg.AppBaseURL != "" && notifyCfg.TelegramWebhookSecret != "" {
+		hook := notifyCfg.AppBaseURL + cfg.APIPrefix + "/telegram/webhook"
+		if err := notify.NewTelegram(notifyCfg).SetWebhook(context.Background(), hook); err != nil {
+			log.Printf("telegram webhook: %v", err)
+		} else {
+			log.Printf("telegram webhook registered: %s", hook)
+		}
+	}
 
 	// 6. Routes
 	for _, route := range r.Routes() {
