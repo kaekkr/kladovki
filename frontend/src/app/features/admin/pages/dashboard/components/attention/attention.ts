@@ -39,6 +39,9 @@ export class AdminAttention {
 
   getTypeLabel(item: DashboardAttention): string {
     switch (item.type) {
+      case 'rental_overdue':
+        return `Просрочка ${item.days_overdue ?? 0} дн.`;
+
       case 'rental_expiring':
         return 'Аренда заканчивается';
 
@@ -48,6 +51,10 @@ export class AdminAttention {
       default:
         return 'Требует внимания';
     }
+  }
+
+  formatMoney(value: number): string {
+    return new Intl.NumberFormat('ru-RU').format(value) + ' ₸';
   }
 
   getDaysLabel(days: number): string {

@@ -38,6 +38,7 @@ type AttentionType string
 const (
 	AttentionRentalExpiring AttentionType = "rental_expiring"
 	AttentionStorageLocked  AttentionType = "storage_locked"
+	AttentionRentalOverdue  AttentionType = "rental_overdue"
 )
 
 type DashboardAttention struct {
@@ -55,6 +56,10 @@ type DashboardAttention struct {
 	EndsAt time.Time `json:"ends_at"`
 
 	DaysLeft int `json:"days_left,omitempty"`
+
+	// rental_overdue: started days since the paid period ended, and the debt so far.
+	DaysOverdue int   `json:"days_overdue,omitempty"`
+	Debt        int64 `json:"debt,omitempty"`
 }
 
 type ActivityType string

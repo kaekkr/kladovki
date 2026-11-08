@@ -41,6 +41,8 @@ func (h *Handler) Register(r *gin.Engine) {
 			authGroup.GET("/me", auth, h.Me)
 		}
 
+		api.GET("/charges/jk/:jk_id", auth, admin, h.ListCharges)
+
 		dashboard := api.Group("/dashboard", auth, admin)
 		{
 			dashboard.GET("/stats", h.GetDashboardStats)

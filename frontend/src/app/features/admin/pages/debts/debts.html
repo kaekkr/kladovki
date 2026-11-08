@@ -48,9 +48,7 @@
       class="px-3 py-2 bg-brand-surface border border-brand-line rounded-md text-sm text-brand-text outline-none"
     >
       <option value="all">Все статусы</option>
-      <option value="pending">Ожидает</option>
-      <option value="partial">Частично</option>
-      <option value="overdue">Просрочено</option>
+      <option value="overdue">Просрочка</option>
     </select>
   </div>
 
@@ -123,7 +121,7 @@
                     [class.text-status-overdue]="debt.status === 'overdue'"
                     [class.text-brand-muted]="debt.status !== 'overdue'"
                   >
-                    {{ statusLabel(debt.status) }}
+                    {{ statusLabel(debt) }}
                   </span>
                 </td>
               </tr>

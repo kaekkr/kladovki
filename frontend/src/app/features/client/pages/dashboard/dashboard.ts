@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { Rental } from '../../../../core/models/rental';
 import { RentalService } from '../../../../core/services/rental';
+import { isOverdue } from '../../../../core/utils/charge-display';
 import { Storage } from '../../../../core/models/storage';
 import { StorageService } from '../../../../core/services/storage';
 import { RequestService } from '../../../../core/services/request';
@@ -96,9 +97,8 @@ export class ClientDashboard {
 
   lockedRentals = computed(() => this.rentals().filter((r) => r.status === 'locked'));
 
-  hasDebt = computed(() =>
-    this.activeRentals().some((r) => r.total_paid < r.price_per_month * r.months),
-  );
+  /** Debt = a paid rental kept after its paid period (same rule as the server ledger). */
+  hasDebt = computed(() => this.activeRentals().some((r) => isOverdue(r)));
 
   constructor() {
     this.load();

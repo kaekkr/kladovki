@@ -53,9 +53,8 @@
     >
       <option value="all">Все статусы</option>
       <option value="paid">Оплачено</option>
-      <option value="partial">Частично</option>
-      <option value="pending">Ожидает</option>
-      <option value="overdue">Просрочено</option>
+      <option value="overdue">Просрочка</option>
+      <option value="ended">Завершена</option>
     </select>
   </div>
 
@@ -136,7 +135,7 @@
                     [class.text-brand-muted]="charge.status !== 'paid'"
                     [class.text-status-overdue]="charge.status === 'overdue'"
                   >
-                    {{ statusLabel(charge.status) }}
+                    {{ statusLabel(charge) }}
                   </span>
                 </td>
               </tr>
