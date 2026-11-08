@@ -59,7 +59,9 @@ func main() {
 	r.Use(cors.New(cors.Config{
 		AllowOriginFunc: func(origin string) bool {
 			return origin == "http://localhost:4200" ||
-				origin == "https://localhost" ||
+				origin == "http://127.0.0.1:4200" || // local cross-site testing (like the mobile app)
+				origin == "https://localhost" || // Capacitor Android
+				origin == "capacitor://localhost" || // Capacitor iOS
 				strings.HasSuffix(origin, ".onrender.com")
 		},
 		AllowMethods: []string{
@@ -76,6 +78,7 @@ func main() {
 			"Accept",
 			"Authorization",
 			"X-Requested-With",
+			"X-Kladovki-Client", // mobile app asks for a bearer token
 		},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
