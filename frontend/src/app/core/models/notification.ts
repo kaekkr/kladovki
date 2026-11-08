@@ -6,7 +6,8 @@ export type NotificationKind =
   | 'tariff_changed'
   | 'tariff_recalc'
   | 'request_new'
-  | 'request_resolved';
+  | 'request_resolved'
+  | 'refund_pending';
 
 export interface AppNotification {
   id: string;

@@ -145,7 +145,7 @@ export class AdminSettingsPage {
     this.saveError.set('');
 
     const amount = Number(this.tariffAmount()) || 0;
-    const lock = Math.max(1, Number(this.lockMinutes()) || 2);
+    const lock = Math.min(60, Math.max(1, Math.round(Number(this.lockMinutes()) || 2)));
 
     this.settingsService.saveTariff(jkId, amount).subscribe({
       next: (res) => {
@@ -153,6 +153,7 @@ export class AdminSettingsPage {
           next: () => {
             this.saving.set(false);
             this.initialTariffAmount.set(amount); // Обновляем базовый тариф
+            this.lockMinutes.set(lock);
             this.saveMessage.set(
               res.recalc_requests > 0
                 ? `Тариф сохранён. Запрос на перерасчёт отправлен арендаторам: ${res.recalc_requests}`
@@ -160,9 +161,9 @@ export class AdminSettingsPage {
             );
             setTimeout(() => this.saveMessage.set(''), 3000);
           },
-          error: () => {
+          error: (err) => {
             this.saving.set(false);
-            this.saveError.set('Не удалось сохранить настройки аренды');
+            this.saveError.set(err?.error?.error || 'Не удалось сохранить настройки аренды');
           },
         });
       },

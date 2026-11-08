@@ -204,6 +204,9 @@ func TestPaidButTakenCreatesRefundRequest(t *testing.T) {
 	if len(list) != 1 || list[0].Type != "payment_refund" || list[0].Amount != 10000 || list[0].Status != "open" {
 		t.Fatalf("admin list = %+v", list)
 	}
+	if n := kinds(e.notifications(e.resident))["refund_pending"]; n != 1 {
+		t.Fatalf("payer must be told the money will be returned; refund_pending = %d", n)
+	}
 }
 
 func (e *testEnv) adminRequests(adminID string) []request {

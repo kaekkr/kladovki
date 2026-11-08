@@ -19,7 +19,7 @@ In the ApiPay dashboard, set the webhook URL to `https://<host>/api/v1/payments/
 
 1. The resident must own the rental, and the rental must be in `locked` state.
 2. In `PreparePayment` (one transaction), the server:
-   - computes `amount = price_per_month × months`;
+   - computes `amount = price_per_month × months` (the price fixed at booking = area × tariff);
    - inserts a `payments` row (`pending`);
    - extends the hold to **now + 10 min**, so the resident has time to open Kaspi.
 3. It calls `POST {base}/v1/invoices` with `amount`, `phone_number` (the Kaspi phone; defaults to the profile phone) and `external_order_id = payment.id`, with a 15-second timeout. On failure the response is **502**.
@@ -47,7 +47,14 @@ Processing:
 
 **Idempotency.** A payment that is already `success` is not processed again, so ApiPay can retry safely.
 
-**Race.** If the payment arrives after the hold expired and *someone else* has taken the storage room in the meantime, we don't double-book. A `payment_refund` request (status `open`) is created, and the ОСИ gets a «Нужен возврат оплаты» notification. (The resident is not notified automatically yet; see the known gaps in [domain.md](domain.md).)
+**Race.** If the payment arrives after the hold expired and *someone else* has taken the storage room in the meantime, we don't double-book. A `payment_refund` request (status `open`) is created. The ОСИ gets «Нужен возврат оплаты», and the payer gets «Оплата будет возвращена» (`refund_pending`).
+
+## Renewal payments
+
+`POST /rentals/:id/renew` creates a payment with `kind = 'renewal'` and `months = N`. Booking payments have `kind = 'booking'`. The webhook branches on `kind`:
+
+- **booking**: activate the hold, as above;
+- **renewal**: if the rental is still `active`, `ends_at += N months` from the current end, `total_paid += amount`, `price_per_month = amount / N`. Otherwise the money goes to a `payment_refund` request.
 
 ## Why it is built this way
 

@@ -5,10 +5,14 @@ import { Rental, RentalStatus } from '../../../../../core/models/rental';
 import { RentalService } from '../../../../../core/services/rental';
 import { StorageService } from '../../../../../core/services/storage';
 import { RequestService } from '../../../../../core/services/request';
+import { SettingsService } from '../../../../../core/services/settings';
 import { TenantRequest } from '../../../../../core/models/request';
 import { requestStatusLabel, requestTitle } from '../../../../../core/utils/request-display';
 import {
+  canRenew,
   isUnpaidExpired,
+  renewalEndsAt,
+  renewalPrice,
   rentalDisplayEndsAt,
   rentalStatusLabel,
   rentalTotalCost,
@@ -25,6 +29,28 @@ export class ClientRentalDetails implements OnDestroy {
   private rentalService = inject(RentalService);
   private storageService = inject(StorageService);
   private requestService = inject(RequestService);
+  private settingsService = inject(SettingsService);
+
+  // Renewal (продление): pay for more months on an active rental.
+  canRenew = canRenew;
+  renewOptions = [1, 3, 6, 12];
+  renewMonths = signal(1);
+  renewing = signal(false);
+  renewError = signal<string | null>(null);
+  renewMessage = signal<string | null>(null);
+  private storageArea = signal<number | null>(null);
+  private tariff = signal<number | null>(null);
+  private renewPoll: ReturnType<typeof setInterval> | null = null;
+
+  renewEnds = computed(() => {
+    const r = this.rental();
+    return r ? renewalEndsAt(r, this.renewMonths()) : '';
+  });
+  renewPriceValue = computed(() => {
+    const area = this.storageArea();
+    const tariff = this.tariff();
+    return area === null || tariff === null ? null : renewalPrice(area, tariff, this.renewMonths());
+  });
 
   requests = signal<TenantRequest[]>([]);
   requestTitle = requestTitle;
@@ -252,6 +278,7 @@ export class ClientRentalDetails implements OnDestroy {
         this.rental.set(rental);
         this.loading.set(false);
         this.loadRequests(rental.id);
+        if (canRenew(rental)) this.loadRenewalPrice(rental);
 
         if (rental.status === 'locked') {
           this.startTimer(rental.ends_at);
@@ -317,6 +344,65 @@ export class ClientRentalDetails implements OnDestroy {
     });
   }
 
+  private loadRenewalPrice(rental: Rental): void {
+    this.storageService.getById(rental.storage_id).subscribe({
+      next: (st) => this.storageArea.set(st.area),
+      error: () => this.storageArea.set(null),
+    });
+    this.settingsService.getTariff(rental.jk_id).subscribe({
+      next: (t) => this.tariff.set(t.amount > 0 ? t.amount : null),
+      error: () => this.tariff.set(null),
+    });
+  }
+
+  renew(): void {
+    const rental = this.rental();
+    if (!rental || this.renewing()) return;
+    const previousEnd = rental.ends_at;
+    this.renewing.set(true);
+    this.renewError.set(null);
+    this.renewMessage.set(null);
+
+    this.rentalService.renew(rental.id, this.renewMonths()).subscribe({
+      next: () => this.pollRenewal(rental.id, previousEnd),
+      error: (err) => {
+        this.renewing.set(false);
+        this.renewError.set(err?.error?.error || 'Не удалось отправить счёт в Kaspi. Попробуйте ещё раз.');
+      },
+    });
+  }
+
+  /** Waits (up to 15 min) until the webhook moves ends_at forward. */
+  private pollRenewal(rentalId: string, previousEnd: string): void {
+    this.stopRenewPoll();
+    const deadline = Date.now() + 15 * 60_000;
+    const check = () => {
+      this.rentalService.getById(rentalId).subscribe({
+        next: (r) => {
+          if (r.ends_at !== previousEnd) {
+            this.stopRenewPoll();
+            this.renewing.set(false);
+            this.rental.set(r);
+            this.renewMessage.set(`Оплачено. Аренда продлена до ${this.formatDate(r.ends_at)}.`);
+          } else if (Date.now() > deadline) {
+            this.stopRenewPoll();
+            this.renewing.set(false);
+            this.renewError.set('Оплата пока не поступила. Если вы оплатили — обновите страницу позже.');
+          }
+        },
+      });
+    };
+    check();
+    this.renewPoll = setInterval(check, 3000);
+  }
+
+  private stopRenewPoll(): void {
+    if (this.renewPoll) {
+      clearInterval(this.renewPoll);
+      this.renewPoll = null;
+    }
+  }
+
   cancelPaymentLoading(): void {
     this.stopPolling();
     this.paying.set(false);
@@ -329,5 +415,6 @@ export class ClientRentalDetails implements OnDestroy {
   ngOnDestroy(): void {
     this.stopTimer();
     this.stopPolling();
+    this.stopRenewPoll();
   }
 }

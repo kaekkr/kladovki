@@ -9,7 +9,7 @@
 | **Житель** | Resident, the **resident** role. Rents storage rooms in their own ЖК |
 | **Кладовка** (`storages`) | A storage room: number, area (м²), floor, entrance |
 | **Аренда** (`rentals`) | A rental of one storage room by one resident for N months at a fixed monthly price |
-| **Тариф** (`tariffs`) | Monthly price in ₸ for one storage room in this ЖК (the same for every room) |
+| **Тариф** (`tariffs`) | Monthly price in ₸ **per m²** in this ЖК. A room's monthly price = `round(area × tariff)`, fixed into the rental when it is booked or renewed |
 | **Заявка** (`requests`) | Something the ОСИ must act on, or a resident must answer (refund, early termination, tariff choice) |
 | **Долг** | Money owed for an overdue rental (time used after `ends_at` × tariff) |
 | **ИИН** | 12-digit Kazakh personal ID number, used as the resident's login |
@@ -41,7 +41,7 @@ No password-reset flow exists yet. The login page tells residents to contact the
 
 | Step | Rule |
 |---|---|
-| Lock | Only a `free` storage room can be locked. The hold lasts **2 minutes** (`service.LockDuration`). A second resident gets 409 "ожидается подтверждение оплаты" |
+| Lock | Only a `free` storage room can be locked. The hold lasts the ЖК's **lock duration**: set by the ОСИ in Настройки (1–60 min, default 2; `jks.lock_minutes`). A second resident gets 409 "ожидается подтверждение оплаты" |
 | Invoice | `POST /payments` with `rental_id` (+ optional Kaspi phone). The amount is `price_per_month × months`, **computed on the server**. The hold is extended to **10 minutes** (`service.PaymentWindow`) |
 | Paid | The webhook sets the rental to `active`, `starts_at = now`, `ends_at = now + months`, `total_paid = amount`, and the storage room to `occupied`. Repeated webhooks are no-ops |
 | Paid late | If the hold expired but the storage room is still free, the rental is activated anyway |
@@ -58,6 +58,14 @@ No password-reset flow exists yet. The login page tells residents to contact the
   - **release-overdue** (rental → `expired`, room → `free`);
   - **force-release** (clear a stuck hold).
 - The UI shows an unpaid expired hold as "Бронь истекла". The cost of a hold is shown as `price × months`; once paid, it's `total_paid`.
+
+## Renewal (продление)
+
+- Any **active** rental can be renewed by its tenant, **overdue included**: «Оплатить продление» on the rental page → choose 1/3/6/12 months → Kaspi invoice (`POST /rentals/:id/renew`).
+- The price is the **current** tariff: `round(area × tariff) × months`. After payment the rental's `price_per_month` becomes that price.
+- When paid: `ends_at += months` **from the current end date**, not from today. An overdue tenant therefore pays for the overdue time first. `total_paid += amount`, `months += months`.
+- Not allowed while a transfer to a successor is pending (409).
+- If the rental was ended (cancelled or released) before the money arrived, it is not revived. A `payment_refund` request is opened instead.
 
 ## Remaining value
 
@@ -94,8 +102,5 @@ remaining value = total_paid × (time left until ends_at / whole paid period)
 
 ## Known gaps
 
-- **No self-service renewal**: a tenant can't pay for more months on their own active rental (`/rentals/lock` accepts only free rooms or a transfer takeover).
-- The lock-duration setting in **Настройки** is not saved on the server yet; the hold is always 2 minutes.
 - Password reset and eGov/GBD ownership checks aren't built yet.
-- When a payment arrives after the room was taken, only the ОСИ is notified, not the resident.
 - Refunds are tracked as requests. The money itself is returned manually by the ОСИ; ApiPay refund isn't automated.

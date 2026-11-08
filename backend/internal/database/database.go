@@ -208,4 +208,10 @@ var migrations = []string{
 	)`,
 	`CREATE INDEX IF NOT EXISTS idx_deliveries_pending ON notification_deliveries(next_attempt_at)
 		WHERE status = 'pending'`,
+
+	// Renewal payments extend an active rental by `months`; booking payments activate a hold.
+	`ALTER TABLE payments ADD COLUMN IF NOT EXISTS kind VARCHAR(16) NOT NULL DEFAULT 'booking'`,
+	`ALTER TABLE payments ADD COLUMN IF NOT EXISTS months INT NOT NULL DEFAULT 0`,
+	// How long a booking is held before payment (ОСИ setting).
+	`ALTER TABLE jks ADD COLUMN IF NOT EXISTS lock_minutes INT NOT NULL DEFAULT 2`,
 }

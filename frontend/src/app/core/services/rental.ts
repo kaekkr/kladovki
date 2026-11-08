@@ -57,4 +57,12 @@ export class RentalService {
   createPayment(data: { rental_id: string; phone?: string }): Observable<{ amount: number }> {
     return this.http.post<{ amount: number }>(`${this.baseUrl}/payments`, data);
   }
+
+  /** Sends a Kaspi invoice; once paid, the rental is extended by `months` from its current end. */
+  renew(id: string, months: number, phone?: string): Observable<{ id: string; amount: number }> {
+    return this.http.post<{ id: string; amount: number }>(`${this.baseUrl}/rentals/${id}/renew`, {
+      months,
+      phone,
+    });
+  }
 }

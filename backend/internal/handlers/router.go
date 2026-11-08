@@ -24,6 +24,8 @@ func (h *Handler) Register(r *gin.Engine) {
 		api.GET("/jks/:id/tariff", auth, h.GetTariff)
 		api.PUT("/jks/:id/tariff", auth, admin, h.SetTariff)
 		api.GET("/jks/:id/tariff/preview", auth, admin, h.GetTariffPreview)
+		api.GET("/jks/:id/rental-settings", auth, h.GetRentalSettings)
+		api.PUT("/jks/:id/rental-settings", auth, admin, h.SetRentalSettings)
 
 		authGroup := api.Group("/auth")
 		{
@@ -70,6 +72,7 @@ func (h *Handler) Register(r *gin.Engine) {
 			rentals.PATCH("/:id/release-overdue", admin, h.ReleaseOverdueRental)
 
 			rentals.POST("/:id/terminate", h.RequestEarlyTermination)
+			rentals.POST("/:id/renew", h.RenewRental)
 			rentals.GET("/:id", h.GetRentalByID)
 		}
 

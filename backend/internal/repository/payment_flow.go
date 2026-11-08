@@ -12,10 +12,90 @@ import (
 	"github.com/kaekkr/kladovki/internal/models"
 )
 
-// ErrPaidButStorageTaken: money arrived for a booking whose storage was
-// meanwhile rented by someone else. The payment is recorded as success and
-// must be refunded by the OSI.
+// ErrPaidButStorageTaken: money arrived but cannot be applied — the booking's
+// storage was meanwhile rented by someone else, or the rental being renewed has
+// ended. The payment is recorded as success and must be refunded by the OSI.
 var ErrPaidButStorageTaken = errors.New("payment received but storage is no longer available")
+
+// ErrTransferPending: the storage is being handed over to another resident by IIN.
+var ErrTransferPending = errors.New("storage transfer pending")
+
+const (
+	PaymentKindBooking = "booking"
+	PaymentKindRenewal = "renewal"
+)
+
+const (
+	refundReasonBookingLost = "Оплата поступила после окончания брони, кладовка уже занята"
+	refundReasonRentalEnded = "Оплата продления поступила, когда аренда уже была завершена"
+)
+
+// PrepareRenewalPayment creates a pending payment that, once paid, extends the
+// caller's active rental by `months` at `pricePerMonth` (the current tariff).
+func (r *Repo) PrepareRenewalPayment(ctx context.Context, rentalID, userID string, months int, pricePerMonth int64) (*models.Payment, error) {
+	var status, transferIIN string
+	err := r.db.QueryRowContext(ctx, `
+		SELECT r.status, COALESCE(s.transfer_to_iin, '')
+		FROM rentals r JOIN storages s ON s.id = r.storage_id
+		WHERE r.id = $1 AND r.user_id = $2`, rentalID, userID).Scan(&status, &transferIIN)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("repository.PrepareRenewalPayment get rental: %w", err)
+	}
+	if status != string(models.RentalStatusActive) {
+		return nil, ErrLocked
+	}
+	if transferIIN != "" {
+		return nil, ErrTransferPending
+	}
+
+	p := &models.Payment{
+		ID:       uuid.NewString(),
+		RentalID: rentalID,
+		UserID:   userID,
+		Amount:   pricePerMonth * int64(months),
+		Provider: "apipay",
+		Status:   models.PaymentStatusPending,
+	}
+	err = r.db.QueryRowContext(ctx, `
+		INSERT INTO payments (id, rental_id, user_id, amount, provider, status, kind, months, created_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8, now()) RETURNING created_at`,
+		p.ID, p.RentalID, p.UserID, p.Amount, p.Provider, p.Status, PaymentKindRenewal, months).Scan(&p.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("repository.PrepareRenewalPayment insert: %w", err)
+	}
+	return p, nil
+}
+
+// applyRenewal extends an active rental from its current end (so an overdue
+// period is paid first). If the rental has ended meanwhile, a refund request is opened.
+func applyRenewal(ctx context.Context, tx *sql.Tx, paymentID, rentalID string, months int, amount int64) error {
+	var status string
+	var endsAt time.Time
+	err := tx.QueryRowContext(ctx, `SELECT status, ends_at FROM rentals WHERE id = $1 FOR UPDATE`, rentalID).
+		Scan(&status, &endsAt)
+	if err != nil {
+		return fmt.Errorf("repository.applyRenewal get rental: %w", err)
+	}
+	if status != string(models.RentalStatusActive) || months < 1 {
+		if err := insertPaymentRefundRequest(ctx, tx, paymentID, refundReasonRentalEnded); err != nil {
+			return fmt.Errorf("repository.applyRenewal refund request: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		return ErrPaidButStorageTaken
+	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE rentals
+		SET ends_at = $2, total_paid = total_paid + $3, months = months + $4, price_per_month = $5
+		WHERE id = $1`, rentalID, endsAt.UTC().AddDate(0, months, 0), amount, months, amount/int64(months)); err != nil {
+		return fmt.Errorf("repository.applyRenewal extend: %w", err)
+	}
+	return tx.Commit()
+}
 
 // PreparePayment creates a pending payment for the caller's own locked rental.
 // The amount is always price_per_month × months from the DB, never from the client.
@@ -75,7 +155,7 @@ func (r *Repo) PreparePayment(ctx context.Context, rentalID, userID string, wind
 	return p, nil
 }
 
-// ActivatePaidRental marks a payment successful and turns its booking into an
+// ActivatePaidRental marks a payment successful. A booking payment turns its hold into an
 // active rental: period starts now, ends after `months`, total_paid = amount,
 // storage becomes occupied. Idempotent — repeated webhooks change nothing.
 // A payment that arrives after the booking expired still activates it as long
@@ -87,11 +167,12 @@ func (r *Repo) ActivatePaidRental(ctx context.Context, paymentID string) error {
 	}
 	defer tx.Rollback()
 
-	var rentalID, payStatus string
+	var rentalID, payStatus, kind string
 	var amount int64
+	var payMonths int
 	err = tx.QueryRowContext(ctx, `
-		SELECT rental_id, status, amount FROM payments WHERE id = $1 FOR UPDATE`,
-		paymentID).Scan(&rentalID, &payStatus, &amount)
+		SELECT rental_id, status, amount, kind, months FROM payments WHERE id = $1 FOR UPDATE`,
+		paymentID).Scan(&rentalID, &payStatus, &amount, &kind, &payMonths)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound
 	}
@@ -103,6 +184,9 @@ func (r *Repo) ActivatePaidRental(ctx context.Context, paymentID string) error {
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE payments SET status = 'success' WHERE id = $1`, paymentID); err != nil {
 		return fmt.Errorf("repository.ActivatePaidRental mark payment: %w", err)
+	}
+	if kind == PaymentKindRenewal {
+		return applyRenewal(ctx, tx, paymentID, rentalID, payMonths, amount)
 	}
 
 	var storageID, rentalStatus string
@@ -131,7 +215,7 @@ func (r *Repo) ActivatePaidRental(ctx context.Context, paymentID string) error {
 		return fmt.Errorf("repository.ActivatePaidRental check storage: %w", err)
 	}
 	if taken || rentalStatus == string(models.RentalStatusCancelled) {
-		if err := insertPaymentRefundRequest(ctx, tx, paymentID); err != nil {
+		if err := insertPaymentRefundRequest(ctx, tx, paymentID, refundReasonBookingLost); err != nil {
 			return fmt.Errorf("repository.ActivatePaidRental refund request: %w", err)
 		}
 		if err := tx.Commit(); err != nil {
@@ -216,4 +300,25 @@ func (r *Repo) ListPaymentResponsesByUser(ctx context.Context, userID string) ([
 		list = append(list, p)
 	}
 	return list, rows.Err()
+}
+
+// LockMinutes returns how long a booking is held in this ЖК before payment.
+func (r *Repo) LockMinutes(ctx context.Context, jkID string) (int, error) {
+	var n int
+	err := r.db.QueryRowContext(ctx, `SELECT lock_minutes FROM jks WHERE id = $1`, jkID).Scan(&n)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, ErrNotFound
+	}
+	return n, err
+}
+
+func (r *Repo) SetLockMinutes(ctx context.Context, jkID string, minutes int) error {
+	res, err := r.db.ExecContext(ctx, `UPDATE jks SET lock_minutes = $2 WHERE id = $1`, jkID, minutes)
+	if err != nil {
+		return fmt.Errorf("repository.SetLockMinutes: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }

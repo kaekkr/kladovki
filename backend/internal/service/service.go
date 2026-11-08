@@ -14,6 +14,7 @@ var (
 	ErrInvalid            = errors.New("invalid")
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrLocked             = errors.New("storage locked or occupied")
+	ErrTransferPending    = errors.New("storage transfer pending")
 )
 
 type Service struct {

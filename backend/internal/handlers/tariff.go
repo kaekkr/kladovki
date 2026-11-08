@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/kaekkr/kladovki/internal/middleware"
+	"github.com/kaekkr/kladovki/internal/models"
 	"github.com/kaekkr/kladovki/internal/service"
 )
 
@@ -79,4 +80,42 @@ func (h *Handler) SetTariff(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "tariff updated", "amount": req.Amount, "recalc_requests": affected})
+}
+
+func (h *Handler) GetRentalSettings(c *gin.Context) {
+	jkID := c.Param("id")
+	if !middleware.SameJK(c, jkID) {
+		middleware.Forbidden(c)
+		return
+	}
+	settings, err := h.svc.GetRentalSettings(c.Request.Context(), jkID)
+	if err != nil {
+		log.Printf("GetRentalSettings: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось загрузить настройки аренды"})
+		return
+	}
+	c.JSON(http.StatusOK, settings)
+}
+
+func (h *Handler) SetRentalSettings(c *gin.Context) {
+	jkID := c.Param("id")
+	if !middleware.SameJK(c, jkID) {
+		middleware.Forbidden(c)
+		return
+	}
+	var req models.RentalSettings
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Некорректные данные"})
+		return
+	}
+	if err := h.svc.SetRentalSettings(c.Request.Context(), jkID, req); err != nil {
+		if errors.Is(err, service.ErrInvalid) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Время брони: от 1 до 60 минут"})
+			return
+		}
+		log.Printf("SetRentalSettings: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось сохранить настройки аренды"})
+		return
+	}
+	c.JSON(http.StatusOK, req)
 }

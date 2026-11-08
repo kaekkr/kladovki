@@ -21,6 +21,7 @@ const (
 	KindTariffRecalc    = "tariff_recalc"
 	KindRequestNew      = "request_new"
 	KindRequestResolved = "request_resolved"
+	KindRefundPending   = "refund_pending"
 )
 
 // Paid channels (SMS, WhatsApp) are used only for messages that matter.
@@ -249,8 +250,14 @@ func (s *Service) notifyRefundNeeded(ctx context.Context, paymentID string) {
 	}
 	s.notifyJKAdmins(ctx, r.JKID, KindRequestNew, notify.Message{
 		Title: "Нужен возврат оплаты",
-		Body:  fmt.Sprintf("Оплата за кладовку №%s поступила после окончания брони, кладовка уже занята. Верните деньги арендатору.", r.StorageNumber),
+		Body:  fmt.Sprintf("Оплата за кладовку №%s поступила, но применить её нельзя (бронь истекла и кладовка занята, или аренда уже завершена). Верните деньги жителю.", r.StorageNumber),
 		Link:  "/admin/requests",
+	}, "refund:"+paymentID)
+	s.Notify(ctx, r.UserID, KindRefundPending, notify.Message{
+		Title: "Оплата будет возвращена",
+		Body: fmt.Sprintf("Ваша оплата за кладовку №%s поступила слишком поздно: бронь уже истекла и кладовку занял другой житель, "+
+			"или аренда была завершена. Деньги не потеряны — ОСИ получил заявку на возврат и вернёт их вам.", r.StorageNumber),
+		Link: "/app/rentals/" + r.RentalID,
 	}, "refund:"+paymentID)
 }
 
