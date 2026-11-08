@@ -6,3 +6,7 @@ dist/
 tmp/
 .env
 android/
+
+# Database dumps contain personal data
+*.dump
+*.sql.gz

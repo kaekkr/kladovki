@@ -5,11 +5,16 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/kaekkr/kladovki/internal/middleware"
 	"github.com/kaekkr/kladovki/internal/service"
 )
 
 func (h *Handler) GetJKByID(c *gin.Context) {
 	id := c.Param("id")
+	if !middleware.SameJK(c, id) {
+		middleware.Forbidden(c)
+		return
+	}
 
 	jk, err := h.svc.GetJKByID(c.Request.Context(), id)
 	if err != nil {

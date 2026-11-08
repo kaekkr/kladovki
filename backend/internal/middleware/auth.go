@@ -141,3 +141,28 @@ func JKID(c *gin.Context) string {
 	s, _ := v.(string)
 	return s
 }
+
+// RequireAdmin must run after Require(); it rejects non-admin users with 403.
+func RequireAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if Role(c) != "admin" {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Доступ только для администратора ОСИ"})
+			return
+		}
+		c.Next()
+	}
+}
+
+// IsAdmin reports whether the authenticated user is an OSI admin.
+func IsAdmin(c *gin.Context) bool { return Role(c) == "admin" }
+
+// SameJK reports whether jkID is the authenticated user's own JK.
+func SameJK(c *gin.Context, jkID string) bool {
+	own := JKID(c)
+	return own != "" && own == jkID
+}
+
+// Forbidden writes a 403 and aborts.
+func Forbidden(c *gin.Context) {
+	c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Нет доступа к данным другого ЖК"})
+}

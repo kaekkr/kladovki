@@ -34,6 +34,12 @@ func (s *Service) CreateStorage(ctx context.Context, in CreateStorageInput) (*mo
 		return nil, ErrInvalid
 	}
 
+	if taken, err := s.repo.StorageNumberTaken(ctx, jkID, number, ""); err != nil {
+		return nil, fmt.Errorf("service.CreateStorage check number: %w", err)
+	} else if taken {
+		return nil, ErrAlreadyExists
+	}
+
 	storage := &models.Storage{
 		JKID:     jkID,
 		Number:   number,
@@ -96,6 +102,20 @@ func (s *Service) UpdateStorage(ctx context.Context, in UpdateStorageInput) (*mo
 		return nil, err
 	}
 
+	if taken, err := s.repo.StorageNumberTaken(ctx, existing.JKID, number, existing.ID); err != nil {
+		return nil, fmt.Errorf("service.UpdateStorage check number: %w", err)
+	} else if taken {
+		return nil, ErrAlreadyExists
+	}
+
+	// Agreement 4.2: while occupied or being booked, parameters are frozen
+	// until the rental ends.
+	if existing.Status != models.StatusFree &&
+		(number != existing.Number || in.Area != existing.Area ||
+			in.Floor != existing.Floor || in.Entrance != existing.Entrance) {
+		return nil, ErrLocked
+	}
+
 	// 2. Prepare storage model with updated values
 	storage := &models.Storage{
 		ID:        existing.ID,
@@ -106,6 +126,9 @@ func (s *Service) UpdateStorage(ctx context.Context, in UpdateStorageInput) (*mo
 		Entrance:  in.Entrance,
 		Status:    in.Status,
 		CreatedAt: existing.CreatedAt,
+
+		TransferToIIN: existing.TransferToIIN,
+		TransferUntil: existing.TransferUntil,
 	}
 
 	if storage.Status == "" {

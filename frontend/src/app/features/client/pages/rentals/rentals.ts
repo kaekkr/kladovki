@@ -85,10 +85,8 @@ export class ClientRentals {
     this.loading.set(true);
     this.error.set(false);
 
-    this.rentalService.listByJK(jkId).subscribe({
-      next: (allRentals) => {
-        const myRentals = allRentals.filter((rental) => rental.user_id === userId);
-
+    this.rentalService.listMine().subscribe({
+      next: (myRentals) => {
         this.rentals.set(myRentals);
         this.loading.set(false);
       },

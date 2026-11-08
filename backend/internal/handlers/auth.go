@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"time"
 
@@ -79,7 +80,12 @@ func (h *Handler) Login(c *gin.Context) {
 		Password: req.Password,
 	})
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Неверный логин или пароль"})
+		if errors.Is(err, service.ErrInvalidCredentials) || errors.Is(err, service.ErrInvalid) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Неверный логин или пароль"})
+			return
+		}
+		log.Printf("Login: %v", err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Сервер временно недоступен. Попробуйте позже."})
 		return
 	}
 

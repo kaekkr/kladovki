@@ -11,7 +11,7 @@ import (
 	"github.com/kaekkr/kladovki/internal/models"
 )
 
-const storageColumns = `id, jk_id, number, area, floor, entrance, status, created_at, transfer_to_iin, transfer_until`
+const storageColumns = `id, jk_id, number, area, floor, entrance, status, created_at, COALESCE(transfer_to_iin, ''), transfer_until`
 
 func (r *Repo) CreateStorage(ctx context.Context, s *models.Storage) error {
 	if s.ID == "" {
@@ -96,7 +96,7 @@ func (r *Repo) GetAvailableStoragesByJK(ctx context.Context, jkID string) ([]*mo
 				ELSE s.status 
 			END AS status, 
 			s.created_at,
-			s.transfer_to_iin,
+			COALESCE(s.transfer_to_iin, ''),
 			s.transfer_until
 		FROM storages s
 		LEFT JOIN rentals r ON s.id = r.storage_id AND r.status = 'locked' AND r.ends_at > NOW()
@@ -260,4 +260,16 @@ func (r *Repo) scanStorage(s rowScanner) (*models.Storage, error) {
 	}
 
 	return &st, nil
+}
+
+// StorageNumberTaken reports whether another storage in the JK already uses
+// this number (case/space-insensitive). excludeID skips the storage being edited.
+func (r *Repo) StorageNumberTaken(ctx context.Context, jkID, number, excludeID string) (bool, error) {
+	var taken bool
+	err := r.db.QueryRowContext(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM storages
+			WHERE jk_id = $1 AND lower(trim(number)) = lower(trim($2)) AND id <> $3
+		)`, jkID, number, excludeID).Scan(&taken)
+	return taken, err
 }

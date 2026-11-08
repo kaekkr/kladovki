@@ -17,6 +17,10 @@ export class PaymentService {
     return this.http.get<Payment[]>(`${this.baseUrl}/payments/jk/${jkId}`);
   }
 
+  listMine() {
+    return this.http.get<Payment[]>(`${this.baseUrl}/payments/my`);
+  }
+
   getById(id: string) {
     return this.http.get<Payment>(`${this.baseUrl}/payments/${id}`);
   }

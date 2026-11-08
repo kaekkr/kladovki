@@ -6,15 +6,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kaekkr/kladovki/internal/middleware"
+	"github.com/kaekkr/kladovki/internal/models"
 	"github.com/kaekkr/kladovki/internal/repository"
 	"github.com/kaekkr/kladovki/internal/service"
 )
 
 func (h *Handler) ListActiveRentalsByJK(c *gin.Context) {
 	jkID := c.Param("jk_id")
-
-	if jkID == "" {
-		jkID = middleware.JKID(c)
+	if !middleware.SameJK(c, jkID) {
+		middleware.Forbidden(c)
+		return
 	}
 
 	rentals, err := h.svc.ListActiveRentalsByJK(c.Request.Context(), jkID)
@@ -53,14 +54,39 @@ func (h *Handler) GetRentalByID(c *gin.Context) {
 		return
 	}
 
+	if !canSeeRental(c, rental.UserID, rental.JKID) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Аренда не найдена"})
+		return
+	}
+
 	c.JSON(http.StatusOK, rental)
+}
+
+// canSeeRental: the tenant themself, or an admin of the rental's JK.
+func canSeeRental(c *gin.Context, ownerID, jkID string) bool {
+	if middleware.UserID(c) == ownerID {
+		return true
+	}
+	return middleware.IsAdmin(c) && middleware.SameJK(c, jkID)
+}
+
+func (h *Handler) ListMyRentals(c *gin.Context) {
+	rentals, err := h.svc.ListRentalsByUser(c.Request.Context(), middleware.UserID(c))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось получить список аренд"})
+		return
+	}
+	if rentals == nil {
+		rentals = []*models.Rental{}
+	}
+	c.JSON(http.StatusOK, rentals)
 }
 
 func (h *Handler) ListRentalsByJK(c *gin.Context) {
 	jkID := c.Param("jk_id")
-
-	if jkID == "" {
-		jkID = middleware.JKID(c)
+	if !middleware.SameJK(c, jkID) {
+		middleware.Forbidden(c)
+		return
 	}
 
 	rentals, err := h.svc.ListRentalsByJK(c.Request.Context(), jkID)
@@ -106,6 +132,11 @@ func (h *Handler) GetActiveRentalByStorage(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Не удалось получить аренду",
 		})
+		return
+	}
+
+	if !middleware.SameJK(c, rental.JKID) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Активная аренда не найдена"})
 		return
 	}
 
@@ -219,6 +250,9 @@ func (h *Handler) LockStorage(c *gin.Context) {
 	// UserID should come from authenticated middleware,
 	// not from the client request.
 	input.UserID = middleware.UserID(c)
+	if _, ok := h.storageInMyJK(c, input.StorageID); !ok {
+		return
+	}
 
 	rental, err := h.svc.LockStorage(
 		c.Request.Context(),

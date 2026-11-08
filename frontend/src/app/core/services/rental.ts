@@ -49,11 +49,12 @@ export class RentalService {
     );
   }
 
-  createPayment(data: {
-    rental_id: string;
-    amount: number;
-    phone: string;
-  }): Observable<{ payment_url: string }> {
-    return this.http.post<{ payment_url: string }>(`${this.baseUrl}/payments`, data);
+  listMine() {
+    return this.http.get<Rental[]>(`${this.baseUrl}/rentals/my`);
+  }
+
+  /** Amount is calculated on the server from the rental; phone defaults to the user's phone. */
+  createPayment(data: { rental_id: string; phone?: string }): Observable<{ amount: number }> {
+    return this.http.post<{ amount: number }>(`${this.baseUrl}/payments`, data);
   }
 }
