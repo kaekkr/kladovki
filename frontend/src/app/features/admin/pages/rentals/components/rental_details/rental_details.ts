@@ -1,11 +1,12 @@
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { Rental } from '../../../../../../core/models/rental';
 
 @Component({
   selector: 'app-admin-rental-details',
   standalone: true,
-  imports: [DatePipe],
+  imports: [DatePipe, FormsModule],
   templateUrl: './rental_details.html',
 })
 export class AdminRentalDetails {
@@ -14,7 +15,15 @@ export class AdminRentalDetails {
   closed = output<void>();
   cancelled = output<Rental>();
   forceReleased = output<Rental>();
-  overdueReleased = output<Rental>();
+  overdueReleased = output<{ rental: Rental; record: TerminationRecord }>();
+
+  // Termination record form (agreement п. 5.2, ОСИ regulation п. 4.2–4.4)
+  releaseFormOpen = signal(false);
+  reason = signal('');
+  note = signal('');
+  police = signal(false);
+  costs = signal(0);
+  formError = signal<string | null>(null);
 
   close(): void {
     this.closed.emit();
@@ -85,6 +94,25 @@ export class AdminRentalDetails {
   }
 
   releaseOverdue() {
-    this.overdueReleased.emit(this.rental());
+    if (!this.reason().trim()) {
+      this.formError.set('Укажите причину — арендатор увидит её');
+      return;
+    }
+    if (this.costs() < 0) {
+      this.formError.set('Расходы не могут быть отрицательными');
+      return;
+    }
+    this.formError.set(null);
+    this.overdueReleased.emit({
+      rental: this.rental(),
+      record: { reason: this.reason().trim(), note: this.note().trim(), police: this.police(), costs: Math.round(this.costs() || 0) },
+    });
   }
+}
+
+export interface TerminationRecord {
+  reason: string;
+  note: string;
+  police: boolean;
+  costs: number;
 }

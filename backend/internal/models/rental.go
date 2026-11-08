@@ -33,6 +33,21 @@ type Rental struct {
 
 	// RefundDue is set when the ОСИ cancels a paid rental: money owed for the unused period.
 	RefundDue int64 `json:"refund_due,omitempty"`
+
+	// Termination: record of a forced release for debt, if any.
+	Termination *Termination `json:"termination,omitempty"`
+}
+
+// Termination records how the ОСИ ended a rental for debt (agreement п. 5.2):
+// reason, opening/inventory note, whether police were present, and costs
+// (opening, transport, storage) charged to the debtor.
+type Termination struct {
+	Reason    string    `json:"reason"`
+	Note      string    `json:"note"`
+	Police    bool      `json:"police"`
+	Costs     int64     `json:"costs"`
+	CreatedBy string    `json:"-"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // RentalSettings are per-ЖК rental rules editable by the ОСИ.

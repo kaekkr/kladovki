@@ -4,7 +4,7 @@ import { AuthService } from '../../../../core/auth/auth.service';
 import { Rental, RentalStatus } from '../../../../core/models/rental';
 import { RentalService } from '../../../../core/services/rental';
 import { DatePipe } from '@angular/common';
-import { AdminRentalDetails } from './components/rental_details/rental_details';
+import { TerminationRecord, AdminRentalDetails } from './components/rental_details/rental_details';
 
 @Component({
   selector: 'app-admin-rentals',
@@ -130,12 +130,12 @@ export class AdminRentals {
     });
   }
 
-  releaseOverdueRental(rental: Rental) {
-    if (!confirm('Освободить кладовку? Аренда будет завершена.')) {
+  releaseOverdueRental({ rental, record }: { rental: Rental; record: TerminationRecord }) {
+    if (!confirm('Расторгнуть договор и освободить кладовку? Арендатор получит уведомление.')) {
       return;
     }
 
-    this.rentalService.releaseOverdue(rental.id).subscribe({
+    this.rentalService.releaseOverdue(rental.id, record).subscribe({
       next: (updated) => {
         this.rentals.update((items) =>
           items.map((item) => (item.id === updated.id ? updated : item)),

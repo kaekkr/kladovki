@@ -433,6 +433,25 @@
       </section>
     }
 
+    @if (rental()!.termination; as t) {
+      <section class="rounded-2xl border border-status-overdue/30 bg-status-overdue/5 px-4 py-4">
+        <p class="text-xs font-semibold text-status-overdue">Договор расторгнут ОСИ</p>
+        <p class="mt-1 text-[11px] text-brand-text">Причина: {{ t.reason }}</p>
+        @if (t.note) {
+          <p class="mt-1 whitespace-pre-line text-[11px] text-brand-muted">{{ t.note }}</p>
+        }
+        @if (t.police) {
+          <p class="mt-1 text-[11px] text-brand-muted">Вскрытие проводилось с участковым инспектором.</p>
+        }
+        @if (t.costs > 0) {
+          <p class="mt-1 text-[11px] text-brand-text">
+            Расходы на вскрытие и хранение: {{ formatMoney(t.costs) }} (по п. 5.2 соглашения — за счёт арендатора)
+          </p>
+        }
+        <p class="mt-2 text-[10px] text-brand-subtle">{{ formatDate(t.created_at) }} · Свяжитесь с ОСИ, чтобы забрать вещи.</p>
+      </section>
+    }
+
     @if (canRenew(rental()!)) {
       <section class="rounded-2xl border border-brand-line bg-brand-surface px-4 py-4">
         <p class="text-xs font-semibold text-brand-text">Оплатить продление</p>

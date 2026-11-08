@@ -42,11 +42,9 @@ export class RentalService {
     return this.http.patch<Rental>(`${this.baseUrl}/rentals/${id}/force-release`, {});
   }
 
-  releaseOverdue(id: string) {
-    return this.http.patch<Rental>(
-      `${this.baseUrl}/rentals/${id}/release-overdue`,
-      {},
-    );
+  /** ОСИ terminates an overdue rental for debt; the record is shown to the tenant. */
+  releaseOverdue(id: string, record: { reason: string; note: string; police: boolean; costs: number }) {
+    return this.http.patch<Rental>(`${this.baseUrl}/rentals/${id}/release-overdue`, record);
   }
 
   listMine() {

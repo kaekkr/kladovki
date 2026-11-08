@@ -240,4 +240,17 @@ var migrations = []string{
 		accepted_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 	)`,
 	`CREATE INDEX IF NOT EXISTS idx_acceptances_user ON agreement_acceptances(user_id, document, version)`,
+
+	// Record of a forced termination for debt (agreement п. 5.2, ОСИ regulation п. 4.2–4.4).
+	`CREATE TABLE IF NOT EXISTS terminations (
+		id         VARCHAR(36) PRIMARY KEY,
+		rental_id  VARCHAR(36) NOT NULL REFERENCES rentals(id) ON DELETE CASCADE,
+		reason     TEXT NOT NULL,
+		note       TEXT NOT NULL DEFAULT '',
+		police     BOOLEAN NOT NULL DEFAULT false,
+		costs      BIGINT NOT NULL DEFAULT 0,
+		created_by VARCHAR(36),
+		created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_terminations_rental ON terminations(rental_id)`,
 }
