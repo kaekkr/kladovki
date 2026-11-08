@@ -78,10 +78,7 @@ func (s *Service) LockStorage(
 		return nil, err
 	}
 
-	if st.TransferToIIN != "" {
-		if st.TransferUntil == nil || time.Now().After(*st.TransferUntil) {
-			return nil, ErrInvalid
-		}
+	if st.TransferToIIN != "" && st.TransferUntil != nil && time.Now().Before(*st.TransferUntil) {
 
 		user, err := s.repo.GetUserByID(ctx, userID)
 		if err != nil {
