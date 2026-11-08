@@ -23,6 +23,7 @@ import (
 	"github.com/kaekkr/kladovki/internal/config"
 	"github.com/kaekkr/kladovki/internal/database"
 	"github.com/kaekkr/kladovki/internal/middleware"
+	"github.com/kaekkr/kladovki/internal/notify"
 	"github.com/kaekkr/kladovki/internal/repository"
 	"github.com/kaekkr/kladovki/internal/service"
 )
@@ -50,12 +51,14 @@ func (f *fakeApiPay) last() map[string]any {
 }
 
 type testEnv struct {
-	t      *testing.T
-	db     *sql.DB
-	router *gin.Engine
-	tokens *service.TokenService
-	apipay *fakeApiPay
-	cfg    config.Config
+	t        *testing.T
+	db       *sql.DB
+	router   *gin.Engine
+	tokens   *service.TokenService
+	apipay   *fakeApiPay
+	cfg      config.Config
+	svc      *service.Service
+	telegram *fakeTelegram
 
 	jkA, jkB           string
 	adminA, adminB     string
@@ -103,12 +106,20 @@ func newTestEnv(t *testing.T) *testEnv {
 		ApiPayLive:          true,
 	}
 
+	tg := newFakeTelegram(t)
 	svc := service.New(repository.New(db))
+	svc.SetNotifier(notify.Config{
+		AppBaseURL:            "https://app.test",
+		TelegramToken:         "TG",
+		TelegramAPIBase:       tg.srv.URL,
+		TelegramBotUsername:   "kladovki_test_bot",
+		TelegramWebhookSecret: telegramSecret,
+	})
 	tokens := service.NewTokenService(cfg.JWTSecret, cfg.JWTAccessTTL)
 	r := gin.New()
 	New(svc, tokens, cfg, middleware.NewAuth(tokens, cfg)).Register(r)
 
-	env := &testEnv{t: t, db: db, router: r, tokens: tokens, apipay: fake, cfg: cfg}
+	env := &testEnv{t: t, db: db, router: r, tokens: tokens, apipay: fake, cfg: cfg, svc: svc, telegram: tg}
 	env.seed()
 	return env
 }
@@ -254,4 +265,40 @@ func (e *testEnv) paymentIDFor(rentalID string) string {
 		e.t.Fatalf("payment lookup: %v", err)
 	}
 	return id
+}
+
+const telegramSecret = "tg-secret"
+
+type tgMessage struct {
+	ChatID string
+	Text   string
+}
+
+type fakeTelegram struct {
+	srv  *httptest.Server
+	mu   sync.Mutex
+	sent []tgMessage
+}
+
+func newFakeTelegram(t *testing.T) *fakeTelegram {
+	f := &fakeTelegram{}
+	f.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			ChatID any    `json:"chat_id"`
+			Text   string `json:"text"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		f.mu.Lock()
+		f.sent = append(f.sent, tgMessage{ChatID: fmt.Sprint(body.ChatID), Text: body.Text})
+		f.mu.Unlock()
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	t.Cleanup(f.srv.Close)
+	return f
+}
+
+func (f *fakeTelegram) messages() []tgMessage {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]tgMessage(nil), f.sent...)
 }

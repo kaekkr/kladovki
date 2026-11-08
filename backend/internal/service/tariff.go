@@ -30,6 +30,8 @@ func (s *Service) SetTariff(ctx context.Context, in SetTariffInput) (int64, erro
 		return 0, ErrInvalid
 	}
 
+	oldTariff, _ := s.repo.GetTariff(ctx, jkID)
+
 	if err := s.repo.SetTariff(ctx, jkID, in.Amount); err != nil {
 		return 0, fmt.Errorf("service.SetTariff: %w", err)
 	}
@@ -38,6 +40,7 @@ func (s *Service) SetTariff(ctx context.Context, in SetTariffInput) (int64, erro
 	if err != nil {
 		return 0, fmt.Errorf("service.SetTariff recalc requests: %w", err)
 	}
+	s.notifyTariffChange(ctx, jkID, oldTariff, in.Amount)
 	return n, nil
 }
 

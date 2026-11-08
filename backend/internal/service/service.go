@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 
+	"github.com/kaekkr/kladovki/internal/notify"
 	"github.com/kaekkr/kladovki/internal/repository"
 )
 
@@ -16,7 +17,9 @@ var (
 )
 
 type Service struct {
-	repo *repository.Repo
+	repo      *repository.Repo
+	notifyCfg notify.Config
+	channels  map[string]notify.Channel
 }
 
 func New(repo *repository.Repo) *Service {

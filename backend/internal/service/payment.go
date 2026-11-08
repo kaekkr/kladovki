@@ -131,10 +131,14 @@ func (s *Service) HandlePaymentWebhook(ctx context.Context, paymentID, status st
 		if errors.Is(err, repository.ErrPaidButStorageTaken) {
 			// Money received but storage went to someone else — OSI must refund.
 			log.Printf("payment %s: paid but storage no longer available; refund required", paymentID)
+			s.notifyRefundNeeded(ctx, paymentID)
 			return nil
 		}
 		if errors.Is(err, repository.ErrNotFound) {
 			return ErrNotFound
+		}
+		if err == nil {
+			s.notifyPaymentSuccess(ctx, paymentID)
 		}
 		return err
 	case "cancelled", "expired", "error":

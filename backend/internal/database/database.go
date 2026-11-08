@@ -173,4 +173,39 @@ var migrations = []string{
 	)`,
 	`CREATE INDEX IF NOT EXISTS idx_requests_jk_status ON requests(jk_id, status)`,
 	`CREATE INDEX IF NOT EXISTS idx_requests_user ON requests(user_id)`,
+
+	// --- 2026-11: notifications (in-app + delivery queue for external channels) ---
+	`ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_chat_id VARCHAR(32)`,
+	`CREATE TABLE IF NOT EXISTS telegram_link_tokens (
+		token      VARCHAR(64) PRIMARY KEY,
+		user_id    VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`,
+	`CREATE TABLE IF NOT EXISTS notifications (
+		id         VARCHAR(36) PRIMARY KEY,
+		user_id    VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		kind       VARCHAR(32) NOT NULL,
+		title      TEXT NOT NULL,
+		body       TEXT NOT NULL,
+		link       TEXT NOT NULL DEFAULT '',
+		dedupe_key VARCHAR(200),
+		read_at    TIMESTAMPTZ,
+		created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_dedupe ON notifications(user_id, dedupe_key)
+		WHERE dedupe_key IS NOT NULL`,
+	`CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at DESC)`,
+	`CREATE TABLE IF NOT EXISTS notification_deliveries (
+		id              VARCHAR(36) PRIMARY KEY,
+		notification_id VARCHAR(36) NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
+		channel         VARCHAR(16) NOT NULL,
+		status          VARCHAR(16) NOT NULL DEFAULT 'pending',
+		attempts        INT NOT NULL DEFAULT 0,
+		last_error      TEXT NOT NULL DEFAULT '',
+		next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		sent_at         TIMESTAMPTZ,
+		created_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_deliveries_pending ON notification_deliveries(next_attempt_at)
+		WHERE status = 'pending'`,
 }
