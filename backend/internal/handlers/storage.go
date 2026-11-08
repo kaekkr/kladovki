@@ -153,6 +153,10 @@ func (h *Handler) DeleteStorage(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Кладовка не найдена"})
 			return
 		}
+		if errors.Is(err, service.ErrStorageInUse) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось удалить кладовку"})
 		return
 	}

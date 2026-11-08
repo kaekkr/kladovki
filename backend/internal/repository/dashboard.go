@@ -146,7 +146,8 @@ func (r *Repo) GetDashboardRevenue(
 ) ([]RevenuePointRow, error) {
 	query := fmt.Sprintf(`
 		SELECT
-			DATE_TRUNC('%s', t.at) AS period,
+			-- Kazakhstan days (UTC+5 since 2024); explicit offset, independent of tzdata
+			DATE_TRUNC('%s', (t.at AT TIME ZONE 'UTC') + interval '5 hours') AS period,
 			COALESCE(SUM(t.amount), 0) AS amount
 		FROM (
 			SELECT p.created_at AS at, p.amount

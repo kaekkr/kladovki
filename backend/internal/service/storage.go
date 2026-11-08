@@ -146,6 +146,11 @@ func (s *Service) DeleteStorage(ctx context.Context, id string) error {
 		return ErrInvalid
 	}
 
+	if used, err := s.repo.StorageHasRentals(ctx, id); err != nil {
+		return fmt.Errorf("service.DeleteStorage check rentals: %w", err)
+	} else if used {
+		return ErrStorageInUse
+	}
 	if err := s.repo.DeleteStorage(ctx, id); err != nil {
 		return fmt.Errorf("service.DeleteStorage: %w", err)
 	}

@@ -8,7 +8,8 @@ import (
 )
 
 var (
-	ErrNotFound           = errors.New("not found")
+	// Same value as the repository's, so handlers recognise "not found" from either layer.
+	ErrNotFound           = repository.ErrNotFound
 	ErrAlreadyExists      = errors.New("already exists")
 	ErrForbidden          = errors.New("forbidden")
 	ErrInvalid            = errors.New("invalid")
@@ -16,6 +17,7 @@ var (
 	ErrLocked             = errors.New("storage locked or occupied")
 	ErrTransferPending    = errors.New("storage transfer pending")
 	ErrPaymentPending     = errors.New("payment already pending")
+	ErrStorageInUse       = errors.New("Кладовку с историей аренд удалить нельзя — она нужна для отчётов и споров.")
 )
 
 type Service struct {
