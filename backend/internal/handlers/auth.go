@@ -68,13 +68,13 @@ func (h *Handler) RegisterResident(c *gin.Context) {
 	h.recordConsent(c, user.ID, legal.ResidentTerms, "registration", "")
 
 	// Сразу авторизуем пользователя (выпускаем токен и устанавливаем куку)
-	_, err = h.issueToken(c, user)
+	token, err := h.issueToken(c, user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось сгенерировать токен"})
 		return
 	}
 
-	c.JSON(http.StatusOK, userJSON(user))
+	c.JSON(http.StatusOK, sessionJSON(c, user, token))
 }
 
 func (h *Handler) Login(c *gin.Context) {
@@ -107,13 +107,13 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	// issueToken internally invokes h.setAuthCookie using h.cfg properties
-	_, err = h.issueToken(c, user)
+	token, err := h.issueToken(c, user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось сгенерировать токен"})
 		return
 	}
 
-	c.JSON(http.StatusOK, userJSON(user))
+	c.JSON(http.StatusOK, sessionJSON(c, user, token))
 }
 
 func (h *Handler) Me(c *gin.Context) {
@@ -250,4 +250,16 @@ func isVerificationError(err error) bool {
 		}
 	}
 	return false
+}
+
+// sessionJSON is the login/register response. The website relies on the
+// HttpOnly cookie; the mobile app (Capacitor, origin https://localhost) calls
+// the API cross-site where that cookie is never sent back, so when it asks via
+// "X-Kladovki-Client: native" it also gets the token to send as a Bearer header.
+func sessionJSON(c *gin.Context, user *models.User, token string) gin.H {
+	out := userJSON(user)
+	if c.GetHeader("X-Kladovki-Client") == "native" {
+		out["access_token"] = token
+	}
+	return out
 }

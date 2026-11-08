@@ -4,6 +4,8 @@ import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 
 import { AuthService } from '../auth/auth.service';
+import { attachesToken, tokenStore } from '../auth/token-session';
+import { environment } from '../../../environments/environment';
 
 /** Endpoints where 401 is an expected answer, not an expired session. */
 const AUTH_CALLS = ['/auth/login', '/auth/me', '/auth/register', '/auth/iin-status', '/auth/logout'];
@@ -17,7 +19,15 @@ export const credentialsInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const router = inject(Router);
 
-  return next(req.clone({ withCredentials: true })).pipe(
+  // Website: HttpOnly cookie. Mobile app: the cookie never comes back cross-site,
+  // so the stored token is sent instead (only to our API).
+  const token = tokenStore.get();
+  const authed =
+    token && attachesToken(req.url, environment.apiUrl)
+      ? req.clone({ withCredentials: true, setHeaders: { Authorization: `Bearer ${token}` } })
+      : req.clone({ withCredentials: true });
+
+  return next(authed).pipe(
     catchError((err: unknown) => {
       if (
         err instanceof HttpErrorResponse &&
@@ -26,6 +36,7 @@ export const credentialsInterceptor: HttpInterceptorFn = (req, next) => {
         auth.currentUser()
       ) {
         auth.currentUser.set(null);
+        tokenStore.clear();
         router.navigate(['/login'], { queryParams: { returnUrl: router.url } });
       }
       return throwError(() => err);
