@@ -37,11 +37,12 @@ const (
 // PrepareRenewalPayment creates a pending payment that, once paid, extends the
 // caller's active rental by `months` at `pricePerMonth` (the current tariff).
 func (r *Repo) PrepareRenewalPayment(ctx context.Context, rentalID, userID string, months int, pricePerMonth int64) (*models.Payment, error) {
-	var status, transferIIN string
+	var status, transferIIN, storageID string
+	var transferOpen bool
 	err := r.db.QueryRowContext(ctx, `
-		SELECT r.status, COALESCE(s.transfer_to_iin, '')
+		SELECT r.status, COALESCE(s.transfer_to_iin, ''), s.id, COALESCE(s.transfer_until > now(), false)
 		FROM rentals r JOIN storages s ON s.id = r.storage_id
-		WHERE r.id = $1 AND r.user_id = $2`, rentalID, userID).Scan(&status, &transferIIN)
+		WHERE r.id = $1 AND r.user_id = $2`, rentalID, userID).Scan(&status, &transferIIN, &storageID, &transferOpen)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -51,8 +52,13 @@ func (r *Repo) PrepareRenewalPayment(ctx context.Context, rentalID, userID strin
 	if status != string(models.RentalStatusActive) {
 		return nil, ErrLocked
 	}
-	if transferIIN != "" {
+	if transferIIN != "" && transferOpen {
 		return nil, ErrTransferPending
+	}
+	if transferIIN != "" { // the handover window passed — it no longer blocks the tenant
+		if _, err := r.db.ExecContext(ctx, `UPDATE storages SET transfer_to_iin = NULL, transfer_until = NULL WHERE id = $1`, storageID); err != nil {
+			return nil, fmt.Errorf("repository.PrepareRenewalPayment clear lapsed transfer: %w", err)
+		}
 	}
 
 	p := &models.Payment{

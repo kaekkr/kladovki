@@ -65,10 +65,15 @@ FOR UPDATE`,
 		return nil, fmt.Errorf("repository.LockStorage get storage: %w", err)
 	}
 
-	if transferToIIN.Valid && transferToIIN.String != "" {
-		if !transferUntil.Valid || !transferUntil.Time.After(now) {
-			return nil, ErrInvalid
+	// A handover whose window has passed no longer reserves the storage.
+	if transferToIIN.Valid && transferToIIN.String != "" && (!transferUntil.Valid || !transferUntil.Time.After(now)) {
+		if _, err := tx.ExecContext(ctx, `UPDATE storages SET transfer_to_iin = NULL, transfer_until = NULL WHERE id = $1`, storageID); err != nil {
+			return nil, fmt.Errorf("repository.LockStorage clear lapsed transfer: %w", err)
 		}
+		transferToIIN = sql.NullString{}
+	}
+
+	if transferToIIN.Valid && transferToIIN.String != "" {
 
 		var userIIN sql.NullString
 		err = tx.QueryRowContext(ctx, `
@@ -109,16 +114,9 @@ FOR UPDATE`,
 		if !takeoverAllowed || !transferUntil.Valid || !transferUntil.Time.After(now) {
 			return nil, ErrStorageAlreadyLocked
 		}
-		_, err = tx.ExecContext(ctx, `
-			UPDATE rentals
-			SET status = 'expired'
-			WHERE storage_id = $1
-			  AND status = 'active'
-			  AND ends_at <= $2
-		`, storageID, now)
-		if err != nil {
-			return nil, fmt.Errorf("repository.LockStorage expire transferred rental: %w", err)
-		}
+		// The previous tenant keeps the rental until the successor actually
+		// pays (ActivatePaidRental closes it then); an unpaid takeover must not
+		// leave the storage without a tenant.
 	}
 
 	// 2. Expire any stale locks on this storage and free it if needed.
@@ -368,9 +366,7 @@ func (r *Repo) ForceReleaseLocked(
 		return nil, fmt.Errorf("repository.ForceReleaseLocked update rental: %w", err)
 	}
 
-	_, err = tx.ExecContext(ctx, `
-		UPDATE storages SET status = 'free' WHERE id = $1
-	`, rt.StorageID)
+	_, err = tx.ExecContext(ctx, `UPDATE storages s SET `+settleStorageSet+` WHERE s.id = $1`, rt.StorageID)
 	if err != nil {
 		return nil, fmt.Errorf("repository.ForceReleaseLocked free storage: %w", err)
 	}
@@ -480,22 +476,13 @@ func (r *Repo) ExpireRentals(ctx context.Context) error {
 	// Paid active rentals are not expired automatically.
 	// Their storage remains occupied until a manager releases it.
 
-	// Free only stale temporary locks; never free occupied storage here.
-	_, err = tx.ExecContext(ctx, `
-                UPDATE storages s
-								SET status = 'free'
-								WHERE s.status = 'locked'
-  								AND NOT EXISTS (
-      								SELECT 1 FROM rentals r
-      								WHERE r.storage_id = s.id
-        								AND r.status = 'active'
-  								)
-  								AND NOT EXISTS (
-      								SELECT 1 FROM rentals r
-      								WHERE r.storage_id = s.id
-        								AND r.status = 'locked'
-        								AND r.ends_at > now()
-  								)        `)
+	// Settle storages whose booking lapsed: back to the current tenant
+	// (successor never paid) or free; never free a storage someone rents.
+	_, err = tx.ExecContext(ctx, `UPDATE storages s SET `+settleStorageSet+`
+		WHERE s.status = 'locked'
+		  AND NOT EXISTS (
+		      SELECT 1 FROM rentals r
+		      WHERE r.storage_id = s.id AND r.status = 'locked' AND r.ends_at > now())`)
 	if err != nil {
 		return fmt.Errorf("repository.ExpireRentals free stale locks: %w", err)
 	}
@@ -876,3 +863,19 @@ func scanRentalDetails(s rowScanner) (*models.Rental, error) {
 
 	return &rt, nil
 }
+
+// settleStorageSet recomputes a storage's status from its rentals (alias "s"):
+// occupied while someone rents it, locked during a live booking, else free.
+// A handover (transfer_to_iin) survives only while someone rents the storage
+// and its window is open.
+const settleStorageSet = `
+	status = CASE
+		WHEN EXISTS (SELECT 1 FROM rentals r WHERE r.storage_id = s.id AND r.status = 'active') THEN 'occupied'::storage_status
+		WHEN EXISTS (SELECT 1 FROM rentals r WHERE r.storage_id = s.id AND r.status = 'locked' AND r.ends_at > now()) THEN 'locked'::storage_status
+		ELSE 'free'::storage_status END,
+	transfer_to_iin = CASE
+		WHEN s.transfer_until > now() AND EXISTS (SELECT 1 FROM rentals r WHERE r.storage_id = s.id AND r.status = 'active')
+		THEN s.transfer_to_iin END,
+	transfer_until = CASE
+		WHEN s.transfer_until > now() AND EXISTS (SELECT 1 FROM rentals r WHERE r.storage_id = s.id AND r.status = 'active')
+		THEN s.transfer_until END`
