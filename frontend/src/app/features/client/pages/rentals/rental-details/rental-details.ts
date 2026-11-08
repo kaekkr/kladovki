@@ -1,4 +1,5 @@
 import { Component, computed, inject, OnDestroy, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { Rental, RentalStatus } from '../../../../../core/models/rental';
@@ -6,6 +7,8 @@ import { RentalService } from '../../../../../core/services/rental';
 import { StorageService } from '../../../../../core/services/storage';
 import { RequestService } from '../../../../../core/services/request';
 import { SettingsService } from '../../../../../core/services/settings';
+import { LegalService } from '../../../../../core/services/legal';
+import { ConsentCheckbox } from '../../../../../shared/components/consent-checkbox/consent-checkbox';
 import { TenantRequest } from '../../../../../core/models/request';
 import { requestStatusLabel, requestTitle } from '../../../../../core/utils/request-display';
 import {
@@ -21,7 +24,7 @@ import {
 @Component({
   selector: 'app-client-rental-details',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, ConsentCheckbox],
   templateUrl: './rental-details.html',
 })
 export class ClientRentalDetails implements OnDestroy {
@@ -30,6 +33,11 @@ export class ClientRentalDetails implements OnDestroy {
   private storageService = inject(StorageService);
   private requestService = inject(RequestService);
   private settingsService = inject(SettingsService);
+
+  // Ticking "I accept the agreement" next to the pay button is the rental contract.
+  private termsVersion = toSignal(inject(LegalService).version('resident_terms'), { initialValue: '' });
+  payConsent = signal(false);
+  renewConsent = signal(false);
 
   // Renewal (продление): pay for more months on an active rental.
   canRenew = canRenew;
@@ -169,7 +177,7 @@ export class ClientRentalDetails implements OnDestroy {
     this.paymentError.set(null);
 
     this.rentalService
-      .createPayment({ rental_id: currentRental.id })
+      .createPayment({ rental_id: currentRental.id, accepted_terms_version: this.termsVersion() })
       .subscribe({
         next: () => {
           // Счет успешно отправлен в Kaspi, запускаем опрос (поллинг) статуса
@@ -363,7 +371,7 @@ export class ClientRentalDetails implements OnDestroy {
     this.renewError.set(null);
     this.renewMessage.set(null);
 
-    this.rentalService.renew(rental.id, this.renewMonths()).subscribe({
+    this.rentalService.renew(rental.id, this.renewMonths(), this.termsVersion()).subscribe({
       next: () => this.pollRenewal(rental.id, previousEnd),
       error: (err) => {
         this.renewing.set(false);

@@ -30,7 +30,7 @@ func (e *testEnv) rentalState(id string) rentalState {
 // renew asks for an extension invoice and returns the payment id.
 func (e *testEnv) renew(userID, rentalID string, months int) (int, string, int64) {
 	e.t.Helper()
-	r := e.do(http.MethodPost, "/rentals/"+rentalID+"/renew", userID, map[string]any{"months": months, "phone": "+77001112233"})
+	r := e.do(http.MethodPost, "/rentals/"+rentalID+"/renew", userID, map[string]any{"months": months, "phone": "+77001112233", "accepted_terms_version": termsV})
 	var p struct {
 		ID     string `json:"id"`
 		Amount int64  `json:"amount"`

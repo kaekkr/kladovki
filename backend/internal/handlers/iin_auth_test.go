@@ -44,7 +44,7 @@ func TestIINStatusTellsFirstLoginApart(t *testing.T) {
 func TestFirstLoginRegistersIntoQRJK(t *testing.T) {
 	e := newTestEnv(t)
 	r := e.do(http.MethodPost, "/auth/register", "", map[string]any{
-		"iin": "010101500009", "full_name": "Асель", "phone": "+77019998877", "password": "secret1", "jk_id": e.jkB, "premises_number": "45",
+		"accepted_terms_version": termsV, "iin": "010101500009", "full_name": "Асель", "phone": "+77019998877", "password": "secret1", "jk_id": e.jkB, "premises_number": "45",
 	})
 	if r.Code != http.StatusOK {
 		t.Fatalf("register: %d %s", r.Code, r.Body)
@@ -61,7 +61,7 @@ func TestFirstLoginRegistersIntoQRJK(t *testing.T) {
 
 func TestRegisterWithoutQRUsesTheOnlyJK(t *testing.T) {
 	e := newTestEnv(t)
-	body := map[string]any{"iin": "010101500009", "full_name": "Асель", "phone": "+77019998877", "password": "secret1", "premises_number": "45"}
+	body := map[string]any{"accepted_terms_version": termsV, "iin": "010101500009", "full_name": "Асель", "phone": "+77019998877", "password": "secret1", "premises_number": "45"}
 
 	// Two JKs exist → must come through the OSI's QR link.
 	if r := e.do(http.MethodPost, "/auth/register", "", body); r.Code != http.StatusBadRequest {
@@ -84,7 +84,7 @@ func TestRegisterWithoutQRUsesTheOnlyJK(t *testing.T) {
 func TestRegisterValidation(t *testing.T) {
 	e := newTestEnv(t)
 	base := func() map[string]any {
-		return map[string]any{"iin": "010101500009", "full_name": "Асель", "phone": "+77019998877", "password": "secret1", "jk_id": e.jkA, "premises_number": "45"}
+		return map[string]any{"accepted_terms_version": termsV, "iin": "010101500009", "full_name": "Асель", "phone": "+77019998877", "password": "secret1", "jk_id": e.jkA, "premises_number": "45"}
 	}
 	cases := []struct {
 		name string

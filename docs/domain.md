@@ -24,6 +24,14 @@
 
 Users of one ЖК can never see or change anything in another ЖК. See [security.md](security.md).
 
+## User agreement (consent)
+
+- The product owner wrote two agreements in Russian and Kazakh: **«Пользовательское соглашение и правила аренды кладовых»** for residents, and **«Регламент использования сервиса для ОСИ»**. They live in `backend/internal/legal/texts/`, can be read at `/terms/resident_terms` and `/terms/osi_rules`, and are linked from the profile and from Настройки.
+- **Residents** tick «Я принимаю…» at **registration** and at **every payment and renewal**. Per the product owner, that tick at payment *is* the rental contract. The checkbox opens the full text with a Русский / Қазақша switch.
+- **ОСИ** see a full-screen prompt in the admin panel until they accept the current version of the regulation.
+- Each acceptance is stored in `agreement_acceptances` with user, document, version, context (`registration`/`payment`/`renewal`/`prompt`), rental, IP, browser and time, as evidence.
+- **Changing a text:** edit the file and bump its version in `legal.go`. Residents accept the new version at their next payment; ОСИ are prompted again.
+
 ## Who may rent
 
 Per the user agreement (п. 2.1), only **owners of a flat or commercial premises** in the ЖК may rent. This covers individuals and companies; one owner may rent several rooms. Flat tenants and outsiders may not.

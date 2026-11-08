@@ -24,6 +24,7 @@ func (e *testEnv) register(body map[string]any) string {
 	base := map[string]any{
 		"iin": "010101500009", "full_name": "Асель", "phone": "+77019998877",
 		"password": "secret1", "jk_id": e.jkA, "premises_number": "45",
+		"accepted_terms_version": termsV,
 	}
 	for k, v := range body {
 		base[k] = v

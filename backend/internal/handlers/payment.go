@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/kaekkr/kladovki/internal/legal"
 	"github.com/kaekkr/kladovki/internal/middleware"
 	"github.com/kaekkr/kladovki/internal/models"
 	"github.com/kaekkr/kladovki/internal/service"
@@ -49,12 +50,17 @@ func (h *Handler) ListMyPayments(c *gin.Context) {
 type CreatePaymentRequest struct {
 	RentalID string `json:"rental_id" binding:"required"`
 	Phone    string `json:"phone"`
+	// The resident ticks "I accept the agreement" next to the pay button (the contract).
+	AcceptedTermsVersion string `json:"accepted_terms_version"`
 }
 
 func (h *Handler) CreatePayment(c *gin.Context) {
 	var req CreatePaymentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Не указана аренда"})
+		return
+	}
+	if termsRequired(c, req.AcceptedTermsVersion) {
 		return
 	}
 	userID := middleware.UserID(c)
@@ -69,6 +75,7 @@ func (h *Handler) CreatePayment(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Не удалось подтвердить тестовую оплату"})
 			return
 		}
+		h.recordConsent(c, userID, legal.ResidentTerms, "payment", req.RentalID)
 		c.JSON(http.StatusOK, gin.H{"message": "Тестовая оплата успешна", "rental": rental})
 		return
 	}
@@ -93,6 +100,7 @@ func (h *Handler) CreatePayment(c *gin.Context) {
 		return
 	}
 
+	h.recordConsent(c, userID, legal.ResidentTerms, "payment", req.RentalID)
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Счёт отправлен в Kaspi",
 		"amount":  payment.Amount,
@@ -171,8 +179,9 @@ func (h *Handler) webhookSignatureOK(body []byte, header string) bool {
 }
 
 type renewRentalRequest struct {
-	Months int    `json:"months"`
-	Phone  string `json:"phone"`
+	Months               int    `json:"months"`
+	Phone                string `json:"phone"`
+	AcceptedTermsVersion string `json:"accepted_terms_version"`
 }
 
 // RenewRental sends a Kaspi invoice that extends the caller's active rental
@@ -181,6 +190,9 @@ func (h *Handler) RenewRental(c *gin.Context) {
 	var req renewRentalRequest
 	if err := c.ShouldBindJSON(&req); err != nil || req.Months < 1 || req.Months > service.MaxRentalMonths {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Укажите срок продления"})
+		return
+	}
+	if termsRequired(c, req.AcceptedTermsVersion) {
 		return
 	}
 	in := service.RenewRentalInput{
@@ -219,5 +231,6 @@ func (h *Handler) RenewRental(c *gin.Context) {
 		}
 		return
 	}
+	h.recordConsent(c, in.UserID, legal.ResidentTerms, "renewal", in.RentalID)
 	c.JSON(http.StatusCreated, payment)
 }

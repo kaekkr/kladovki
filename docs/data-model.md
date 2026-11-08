@@ -21,6 +21,7 @@ IDs are UUID strings (`VARCHAR(36)`). Money is `BIGINT` whole tenge. Times are `
 | `notifications` | In-app inbox | `user_id`, `kind`, `title`, `body`, `link`, `dedupe_key` (unique per user), `read_at` |
 | `notification_deliveries` | Outbox: one row per notification × channel | `channel`, `status` (`pending`/`sent`/`failed`/`skipped`), `attempts`, `next_attempt_at`, `last_error`, `sent_at` |
 | `telegram_link_tokens` | One-time tokens for linking a Telegram chat (1 day) | `token`, `user_id` |
+| `agreement_acceptances` | Proof of consent to the user agreements | `user_id`, `document` (`resident_terms`/`osi_rules`), `version`, `context` (`registration`/`payment`/`renewal`/`prompt`), `rental_id`, `ip`, `user_agent`, `accepted_at` |
 | `leads` | Contact form on the landing page | `full_name`, `phone`, `email` |
 
 ## Enums & statuses

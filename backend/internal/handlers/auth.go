@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/kaekkr/kladovki/internal/legal"
 	"github.com/kaekkr/kladovki/internal/middleware"
 	"github.com/kaekkr/kladovki/internal/models"
 	"github.com/kaekkr/kladovki/internal/service"
@@ -26,12 +27,17 @@ type registerRequest struct {
 	JKID     *string `json:"jk_id"`
 	IIN      string  `json:"iin" binding:"required"`
 	models.Verification
+	// AcceptedTermsVersion: the resident agreement version shown on the form.
+	AcceptedTermsVersion string `json:"accepted_terms_version"`
 }
 
 func (h *Handler) RegisterResident(c *gin.Context) {
 	var req registerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Заполните обязательные поля для регистрации"})
+		return
+	}
+	if termsRequired(c, req.AcceptedTermsVersion) {
 		return
 	}
 
@@ -58,6 +64,8 @@ func (h *Handler) RegisterResident(c *gin.Context) {
 		}
 		return
 	}
+
+	h.recordConsent(c, user.ID, legal.ResidentTerms, "registration", "")
 
 	// Сразу авторизуем пользователя (выпускаем токен и устанавливаем куку)
 	_, err = h.issueToken(c, user)

@@ -15,6 +15,18 @@ Base path: **`/api/v1`** (configurable with `API_PREFIX`). All bodies are JSON. 
 
 Source of truth: [`backend/internal/handlers/router.go`](../backend/internal/handlers/router.go).
 
+## User agreements
+
+The texts live in `backend/internal/legal/texts/` (Russian + Kazakh). Each document has a version (`legal.go`).
+
+| Method | Path | Who | Body / notes |
+|---|---|---|---|
+| GET | `/legal/:doc?lang=ru\|kk` | — | `{doc, version, lang, title, text}`; `doc` = `resident_terms` or `osi_rules` |
+| GET | `/legal/status` | 🔑 | `{resident_terms: {version, accepted}, osi_rules: {…}}` for the caller |
+| POST | `/legal/accept` | 🔑 | `{doc, version}`. Residents may accept only `resident_terms`, ОСИ only `osi_rules` (403 otherwise); 400 if the version is old |
+
+`/auth/register`, `/payments` and `/rentals/:id/renew` require **`accepted_terms_version`** equal to the current `resident_terms` version, otherwise **400**. Every acceptance is stored in `agreement_acceptances`.
+
 ## Auth
 
 | Method | Path | Who | Body / notes |

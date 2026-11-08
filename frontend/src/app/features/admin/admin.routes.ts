@@ -48,10 +48,6 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./pages/debts/debts').then((m) => m.AdminDebts),
       },
       {
-        path: 'documents',
-        loadComponent: () => import('./pages/documents/documents').then((m) => m.AdminDocuments),
-      },
-      {
         path: 'settings',
         loadComponent: () => import('./pages/settings/settings').then((m) => m.AdminSettingsPage),
       },

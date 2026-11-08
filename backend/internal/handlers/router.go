@@ -20,6 +20,11 @@ func (h *Handler) Register(r *gin.Engine) {
 	api := r.Group(h.cfg.APIPrefix)
 	{
 		api.POST("/lead", h.CreateLead)
+
+		// User agreements (texts are public; consent is recorded per user).
+		api.GET("/legal/status", auth, h.AgreementStatus)
+		api.POST("/legal/accept", auth, h.AcceptAgreement)
+		api.GET("/legal/:doc", h.GetAgreement)
 		api.GET("/jks/:id", auth, h.GetJKByID)
 		api.GET("/jks/:id/tariff", auth, h.GetTariff)
 		api.PUT("/jks/:id/tariff", auth, admin, h.SetTariff)
