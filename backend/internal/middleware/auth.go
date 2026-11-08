@@ -115,7 +115,7 @@ func setClaims(c *gin.Context, claims *service.Claims) {
 
 func abortAuth(c *gin.Context) {
 	if c.GetHeader("HX-Request") == "true" || strings.Contains(c.GetHeader("Accept"), "text/html") {
-		c.Redirect(http.StatusFound, "/client/login")
+		c.Redirect(http.StatusFound, "/login")
 		c.Abort()
 		return
 	}

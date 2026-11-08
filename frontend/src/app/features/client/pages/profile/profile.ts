@@ -78,7 +78,7 @@ export class ClientProfile {
   });
 
   logout(): void {
-    this.auth.logout();
-    this.router.navigate(['/login']);
+    // HttpClient calls are lazy — without subscribe() the session was never closed.
+    this.auth.logout().subscribe(() => this.router.navigate(['/login']));
   }
 }
