@@ -1,4 +1,5 @@
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { storageStatusLabel } from '../../../../../core/utils/storage-status';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
@@ -110,18 +111,7 @@ export class ClientStorageDetails {
     return `${floor} этаж`;
   }
 
-  statusLabel(status: Storage['status']): string {
-    switch (status) {
-      case 'free':
-        return 'Свободна';
-      case 'locked':
-        return 'Забронирована';
-      case 'occupied':
-        return 'Занята';
-      default:
-        return status;
-    }
-  }
+  statusLabel = storageStatusLabel;
 
   private load(): void {
     const storageId = this.route.snapshot.paramMap.get('id');

@@ -11,8 +11,9 @@ const (
 )
 
 type DashboardStats struct {
-	Received       int64   `json:"received"`
+	Received       int64   `json:"received"` // net of refunds paid out in the period
 	ReceivedChange float64 `json:"received_change"`
+	Refunded       int64   `json:"refunded"`
 
 	Debt           int64 `json:"debt"`
 	DebtApartments int   `json:"debt_apartments"`

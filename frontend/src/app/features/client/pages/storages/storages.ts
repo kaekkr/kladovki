@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { storageStatusLabel } from '../../../../core/utils/storage-status';
 import { RouterLink } from '@angular/router';
 import { Storage } from '../../../../core/models/storage';
 import { StorageService } from '../../../../core/services/storage';
@@ -91,18 +92,7 @@ export class ClientStorages {
     );
   }
 
-  statusLabel(status: Storage['status']): string {
-    switch (status) {
-      case 'free':
-        return 'Свободна';
-      case 'locked':
-        return 'Забронирована';
-      case 'occupied':
-        return 'Занята';
-      default:
-        return status;
-    }
-  }
+  statusLabel = storageStatusLabel;
 
   floorLabel(floor: number): string {
     if (floor === -1) {

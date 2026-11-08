@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kaekkr/kladovki/internal/models"
+	"github.com/kaekkr/kladovki/internal/notify"
 )
 
 type CreateStorageInput struct {
@@ -191,6 +192,13 @@ func (s *Service) SetStorageTransfer(
 	if err := s.repo.SetStorageTransfer(ctx, storageID, iin); err != nil {
 		return fmt.Errorf("service.SetStorageTransfer: %w", err)
 	}
+	// Agreement п. 6.2: passing a storage to someone else must not happen behind the ОСИ.
+	s.notifyJKAdmins(ctx, storage.JKID, KindTransferNew, notify.Message{
+		Title: fmt.Sprintf("Передача кладовки №%s", storage.Number),
+		Body: fmt.Sprintf("%s указал(а) нового владельца кладовки №%s (ИИН %s). Новый владелец сможет оформить аренду до %s.",
+			rental.UserName, storage.Number, iin, kzDate(rental.EndsAt.AddDate(0, 0, 14))),
+		Link: "/admin/storages",
+	}, fmt.Sprintf("transfer:%s:%s", storageID, iin))
 
 	return nil
 }

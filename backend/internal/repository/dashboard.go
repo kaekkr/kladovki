@@ -9,8 +9,9 @@ import (
 )
 
 type DashboardStatsRow struct {
-	Received         int64
+	Received         int64 // net of refunds paid out in the period
 	PreviousReceived int64
+	Refunded         int64
 
 	Debt           int64
 	DebtApartments int
@@ -44,6 +45,22 @@ func (r *Repo) GetDashboardStats(
 		  AND p.status = 'success'
 		  AND p.created_at >= $2
 		  AND p.created_at < $3
+	),
+
+	current_refunds AS (
+		SELECT COALESCE(SUM(rq.amount), 0) AS amount
+		FROM requests rq
+		WHERE rq.jk_id = $1 AND ` + refundsDoneSQL + `
+		  AND rq.resolved_at >= $2
+		  -- current period runs up to now; no upper bound (DB and app clocks differ by ms)
+	),
+
+	previous_refunds AS (
+		SELECT COALESCE(SUM(rq.amount), 0) AS amount
+		FROM requests rq
+		WHERE rq.jk_id = $1 AND ` + refundsDoneSQL + `
+		  AND rq.resolved_at >= $4
+		  AND rq.resolved_at < $5
 	),
 
 	previous_payments AS (
@@ -82,8 +99,9 @@ func (r *Repo) GetDashboardStats(
 	)
 
 	SELECT
-		(SELECT amount FROM current_payments),
-		(SELECT amount FROM previous_payments),
+		(SELECT amount FROM current_payments) - (SELECT amount FROM current_refunds),
+		(SELECT amount FROM previous_payments) - (SELECT amount FROM previous_refunds),
+		(SELECT amount FROM current_refunds),
 
 		(SELECT occupied FROM storage_stats),
 		(SELECT total FROM storage_stats),
@@ -104,6 +122,7 @@ func (r *Repo) GetDashboardStats(
 	).Scan(
 		&stats.Received,
 		&stats.PreviousReceived,
+		&stats.Refunded,
 
 		&stats.OccupiedStorages,
 		&stats.TotalStorages,
@@ -127,14 +146,26 @@ func (r *Repo) GetDashboardRevenue(
 ) ([]RevenuePointRow, error) {
 	query := fmt.Sprintf(`
 		SELECT
-			DATE_TRUNC('%s', p.created_at) AS period,
-			COALESCE(SUM(p.amount), 0) AS amount
-		FROM payments p
-		INNER JOIN rentals r ON r.id = p.rental_id
-		WHERE r.jk_id = $1
-		  AND p.status = 'success'
-		  AND p.created_at >= $2
-		  AND p.created_at < $3
+			DATE_TRUNC('%s', t.at) AS period,
+			COALESCE(SUM(t.amount), 0) AS amount
+		FROM (
+			SELECT p.created_at AS at, p.amount
+			FROM payments p
+			INNER JOIN rentals r ON r.id = p.rental_id
+			WHERE r.jk_id = $1
+			  AND p.status = 'success'
+			  AND p.created_at >= $2
+			  AND p.created_at < $3
+
+			UNION ALL
+
+			-- refunds paid out by the ОСИ reduce income on the day they were made
+			SELECT rq.resolved_at, -rq.amount
+			FROM requests rq
+			WHERE rq.jk_id = $1 AND `+refundsDoneSQL+`
+			  AND rq.resolved_at >= $2
+			  AND rq.resolved_at < $3 + interval '1 minute'
+		) t
 		GROUP BY period
 		ORDER BY period ASC
 	`, groupBy)
@@ -399,3 +430,7 @@ func (r *Repo) GetDashboardOccupancy(
 
 	return &occupancy, nil
 }
+
+// refundsDoneSQL: requests whose money the ОСИ has returned (alias "rq").
+const refundsDoneSQL = `rq.status = 'done' AND (rq.type IN ('payment_refund', 'early_termination')
+	OR (rq.type = 'tariff_recalc' AND rq.choice = 'refund'))`

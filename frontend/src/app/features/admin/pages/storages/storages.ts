@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { storageStatusLabel } from '../../../../core/utils/storage-status';
 
 import { AuthService } from '../../../../core/auth/auth.service';
 import { Storage, StorageStatus } from '../../../../core/models/storage';
@@ -84,21 +85,7 @@ export class AdminStorages {
     this.statusFilter.set(status);
   }
 
-  statusLabel(status: StorageStatus): string {
-    switch (status) {
-      case 'free':
-        return 'Свободна';
-
-      case 'occupied':
-        return 'Занята';
-
-      case 'locked':
-        return 'Заблокирована';
-
-      default:
-        return status;
-    }
-  }
+  statusLabel = storageStatusLabel;
 
   openStorage(storage: Storage) {
     this.selectedStorage.set(storage);

@@ -224,7 +224,17 @@ func (s *Service) ReleaseOverdueRental(
 		return nil, ErrInvalid
 	}
 
-	return s.repo.ReleaseOverdueRental(ctx, rentalID, jkID)
+	rt, err := s.repo.ReleaseOverdueRental(ctx, rentalID, jkID)
+	if err != nil {
+		return nil, err
+	}
+	s.Notify(ctx, rt.UserID, KindRentalCancelled, notify.Message{
+		Title: "Договор аренды расторгнут",
+		Body: fmt.Sprintf("ОСИ расторг договор аренды кладовки №%s из-за задолженности (п. 5.2 соглашения). "+
+			"Свяжитесь с ОСИ, чтобы забрать вещи.", rt.StorageNumber),
+		Link: "/app/rentals/" + rt.ID,
+	}, "released:"+rt.ID)
+	return rt, nil
 }
 
 func (s *Service) ExpireRentals(ctx context.Context) error {

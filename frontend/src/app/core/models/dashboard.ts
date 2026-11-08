@@ -1,8 +1,10 @@
 export type DashboardPeriod = '7d' | '30d' | 'quarter';
 
 export interface DashboardStats {
+  /** Net of refunds the ОСИ paid out in the period. */
   received: number;
   received_change: number;
+  refunded?: number;
 
   debt: number;
   debt_apartments: number;
