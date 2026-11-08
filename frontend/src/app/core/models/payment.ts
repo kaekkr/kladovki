@@ -8,6 +8,7 @@ export interface Payment {
   // From DTO Join
   user_name: string;
   storage_number: string;
+  company_name?: string;
 
   amount: number;
   provider: string; // 'kaspi', 'card', etc.

@@ -43,6 +43,14 @@ func (h *Handler) Register(r *gin.Engine) {
 
 		api.GET("/charges/jk/:jk_id", auth, admin, h.ListCharges)
 
+		// Excel-friendly CSV reports for the ОСИ (regulation п. 5.1).
+		reports := api.Group("/reports/jk/:jk_id", auth, admin)
+		{
+			reports.GET("/payments.csv", h.PaymentsReport)
+			reports.GET("/storages.csv", h.StoragesReport)
+			reports.GET("/charges.csv", h.ChargesReport)
+		}
+
 		dashboard := api.Group("/dashboard", auth, admin)
 		{
 			dashboard.GET("/stats", h.GetDashboardStats)

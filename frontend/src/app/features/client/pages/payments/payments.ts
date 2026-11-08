@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { Payment, PaymentStatus } from '../../../../core/models/payment';
 import { PaymentService } from '../../../../core/services/payment';
+import { downloadFile, inPeriod, toCsv } from '../../../../core/utils/csv';
 
 @Component({
   selector: 'app-client-payments',
@@ -18,7 +19,22 @@ export class ClientPayments {
   loading = signal(true);
   error = signal(false);
 
-  payments = signal<Payment[]>([]);
+  private all = signal<Payment[]>([]);
+  /** Report period (agreement п. 7.1); empty = all time. */
+  from = signal('');
+  to = signal('');
+  payments = computed(() => this.all().filter((p) => inPeriod(p.created_at, this.from(), this.to())));
+
+  /** Own payments for the selected period as an Excel file. */
+  downloadReport(): void {
+    const rows = this.payments().map((p) => [
+      new Date(p.created_at).toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' }),
+      '№' + p.storage_number,
+      this.statusLabel(p.status),
+      p.amount,
+    ]);
+    downloadFile(toCsv(['Дата', 'Кладовка', 'Статус', 'Сумма, ₸'], rows), 'Мои платежи.csv');
+  }
 
   totalPaid = computed(() =>
     this.payments()
@@ -145,12 +161,12 @@ export class ClientPayments {
         const myPayments = allPayments
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-        this.payments.set(myPayments);
+        this.all.set(myPayments);
         this.loading.set(false);
       },
 
       error: () => {
-        this.payments.set([]);
+        this.all.set([]);
         this.loading.set(false);
         this.error.set(true);
       },

@@ -26,7 +26,7 @@ func (s *Service) ListPaymentsByJK(ctx context.Context, jkID string) ([]*models.
 	if jkID == "" {
 		return nil, ErrInvalid
 	}
-	return s.repo.ListPaymentsByJK(ctx, jkID)
+	return s.repo.ListPaymentsByJK(ctx, jkID, nil, nil)
 }
 
 func (s *Service) ListPaymentsByUser(ctx context.Context, userID string) ([]*models.PaymentResponse, error) {
