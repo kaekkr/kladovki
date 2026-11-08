@@ -4,6 +4,11 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { Rental, RentalStatus } from '../../../../core/models/rental';
 import { RentalService } from '../../../../core/services/rental';
+import {
+  rentalDisplayEndsAt,
+  rentalStatusLabel,
+  rentalTotalCost,
+} from '../../../../core/utils/rental-display';
 
 @Component({
   selector: 'app-client-rentals',
@@ -29,20 +34,9 @@ export class ClientRentals {
     this.load();
   }
 
-  statusLabel(status: RentalStatus): string {
-    switch (status) {
-      case 'locked':
-        return 'Оформляется';
-      case 'active':
-        return 'Активна';
-      case 'expired':
-        return 'Завершена';
-      case 'cancelled':
-        return 'Отменена';
-      default:
-        return status;
-    }
-  }
+  statusLabel = rentalStatusLabel;
+  displayEndsAt = rentalDisplayEndsAt;
+  totalCost = rentalTotalCost;
 
   statusClass(status: RentalStatus): string {
     switch (status) {

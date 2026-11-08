@@ -124,6 +124,10 @@
               <p class="mt-1 text-[10px] leading-4 text-brand-muted">
                 Оформите аренду до {{ storage()!.transfer_until | date: 'dd.MM.yyyy, HH:mm' }}.
               </p>
+            } @else if (storage()!.status === 'locked') {
+              <p class="mt-1 text-[10px] leading-4 text-brand-muted">
+                Кладовка забронирована — ожидается подтверждение оплаты.
+              </p>
             } @else {
               <p class="mt-1 text-[10px] leading-4 text-brand-muted">
                 Текущий оплаченный период ещё не закончился. Аренда станет доступна после его
@@ -273,10 +277,6 @@
           {{ rentalError() }}
         </p>
       }
-
-      <p class="px-2 text-center text-[10px] leading-4 text-brand-subtle">
-        Оформление аренды будет доступно после подключения оплаты.
-      </p>
     }
     <!-- Locked -->
     @else if (storage()!.status === 'locked') {
@@ -289,10 +289,11 @@
           </div>
 
           <div>
-            <p class="text-xs font-semibold text-status-locked">Кладовка временно забронирована</p>
+            <p class="text-xs font-semibold text-status-locked">Кладовка забронирована</p>
 
             <p class="mt-1 text-[10px] leading-4 text-status-locked/70">
-              Сейчас её оформляет другой пользователь.
+              Ожидается подтверждение оплаты. Если оплата не поступит, бронь будет снята
+              автоматически.
             </p>
           </div>
         </div>

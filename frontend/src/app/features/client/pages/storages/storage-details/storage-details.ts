@@ -44,6 +44,9 @@ export class ClientStorageDetails {
   canRent = computed(() => {
     const storage = this.storage();
     if (!storage) return false;
+    // A pending booking (awaiting payment) blocks renting for everyone,
+    // including the user a storage is being transferred to.
+    if (storage.status === 'locked') return false;
     if (!storage.transfer_to_iin) return storage.status === 'free';
     if (!this.transferInvitation() || !storage.transfer_until) return false;
     const transferStartsAt = new Date(storage.transfer_until).getTime() - 14 * 86400000;
@@ -172,7 +175,9 @@ export class ClientStorageDetails {
         this.renting.set(false);
 
         if (error.status === 409) {
-          this.rentalError.set('Кладовка уже занята или забронирована.');
+          this.rentalError.set(
+            'Кладовка уже забронирована — ожидается подтверждение оплаты.',
+          );
 
           this.load();
           return;
