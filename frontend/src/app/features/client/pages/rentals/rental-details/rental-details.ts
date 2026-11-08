@@ -4,6 +4,12 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Rental, RentalStatus } from '../../../../../core/models/rental';
 import { RentalService } from '../../../../../core/services/rental';
 import { StorageService } from '../../../../../core/services/storage';
+import {
+  isUnpaidExpired,
+  rentalDisplayEndsAt,
+  rentalStatusLabel,
+  rentalTotalCost,
+} from '../../../../../core/utils/rental-display';
 
 @Component({
   selector: 'app-client-rental-details',
@@ -36,20 +42,10 @@ export class ClientRentalDetails implements OnDestroy {
     this.load();
   }
 
-  statusLabel(status: RentalStatus): string {
-    switch (status) {
-      case 'locked':
-        return 'Оформляется';
-      case 'active':
-        return 'Активна';
-      case 'expired':
-        return 'Завершена';
-      case 'cancelled':
-        return 'Отменена';
-      default:
-        return status;
-    }
-  }
+  isUnpaidExpired = isUnpaidExpired;
+  totalCost = rentalTotalCost;
+  displayEndsAt = rentalDisplayEndsAt;
+  displayStatusLabel = rentalStatusLabel;
 
   statusClass(status: RentalStatus): string {
     switch (status) {

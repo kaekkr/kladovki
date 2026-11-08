@@ -101,16 +101,18 @@
             {{
               rental()!.status === 'active' && isOverdue(rental()!.ends_at)
                 ? 'Срок истёк'
-                : statusLabel(rental()!.status)
+                : displayStatusLabel(rental()!)
             }}
           </span>
         </div>
 
         <div class="mt-8">
-          <p class="text-[10px] text-brand-subtle">Общая стоимость</p>
+          <p class="text-[10px] text-brand-subtle">
+            {{ rental()!.status === 'locked' ? 'К оплате' : 'Общая стоимость' }}
+          </p>
 
           <p class="mt-1 text-2xl font-semibold tracking-[-0.03em] text-brand-text">
-            {{ formatMoney(rental()!.total_paid) }}
+            {{ formatMoney(totalCost(rental()!)) }}
           </p>
         </div>
       </div>
@@ -133,7 +135,7 @@
           <span class="text-xs text-brand-muted"> Окончание </span>
 
           <span class="text-xs font-medium text-brand-text">
-            {{ formatDate(rental()!.ends_at) }}
+            {{ formatDate(displayEndsAt(rental()!)) }}
           </span>
         </div>
 
@@ -286,6 +288,32 @@
             {{ paymentError() }}
           </p>
         }
+      </section>
+    } @else if (isUnpaidExpired(rental()!)) {
+      <section class="rounded-2xl border border-brand-line bg-brand-surface px-4 py-4">
+        <div class="flex items-start gap-3">
+          <div
+            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-elevated text-brand-muted"
+          >
+            <i class="fas fa-hourglass-end text-xs"></i>
+          </div>
+
+          <div>
+            <p class="text-xs font-semibold text-brand-text">Бронь истекла</p>
+
+            <p class="mt-1 text-[10px] leading-4 text-brand-muted">
+              Оплата не поступила вовремя, поэтому аренда не была оформлена. Вы можете
+              забронировать кладовку заново.
+            </p>
+          </div>
+        </div>
+
+        <a
+          [routerLink]="['/app/storages', rental()!.storage_id]"
+          class="mt-4 flex h-11 w-full items-center justify-center rounded-xl bg-brand-accent text-xs font-semibold text-brand-bg"
+        >
+          Перейти к кладовке
+        </a>
       </section>
     } @else if (rental()!.status === 'expired') {
       <section class="rounded-2xl border border-brand-line bg-brand-surface px-4 py-4">

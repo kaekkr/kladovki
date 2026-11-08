@@ -69,7 +69,7 @@
                   class="rounded-full px-2.5 py-1 text-[10px] font-medium"
                   [class]="statusClass(rental.status)"
                 >
-                  {{ statusLabel(rental.status) }}
+                  {{ statusLabel(rental) }}
                 </span>
               </div>
 
@@ -78,7 +78,7 @@
                   <p class="text-[10px] text-brand-subtle">До</p>
 
                   <p class="mt-1 text-xs font-medium text-brand-text">
-                    {{ formatDate(rental.ends_at) }}
+                    {{ formatDate(displayEndsAt(rental)) }}
                   </p>
                 </div>
 
@@ -128,7 +128,7 @@
                   class="rounded-full px-2.5 py-1 text-[10px] font-medium"
                   [class]="statusClass(rental.status)"
                 >
-                  {{ statusLabel(rental.status) }}
+                  {{ statusLabel(rental) }}
                 </span>
               </div>
 
@@ -136,11 +136,11 @@
                 <span class="text-[10px] text-brand-muted">
                   {{ formatDate(rental.starts_at) }}
                   —
-                  {{ formatDate(rental.ends_at) }}
+                  {{ formatDate(displayEndsAt(rental)) }}
                 </span>
 
                 <span class="text-[10px] text-brand-muted">
-                  {{ formatMoney(rental.total_paid) }}
+                  {{ formatMoney(totalCost(rental)) }}
                 </span>
               </div>
             </a>
