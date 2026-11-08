@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { tap, catchError, of } from 'rxjs';
+import { tap, catchError, of, finalize } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { LoginPayload, RegisterPayload, User } from './auth.models';
 
@@ -27,10 +27,12 @@ export class AuthService {
       .pipe(tap((user) => this.currentUser.set(user)));
   }
 
+  /** Clears the session cookie on the server; the local user is cleared even if the call fails. */
   logout() {
-    return this.http
-      .post(`${this.baseUrl}/auth/logout`, {})
-      .pipe(tap(() => this.currentUser.set(null)));
+    return this.http.post(`${this.baseUrl}/auth/logout`, {}).pipe(
+      catchError(() => of(null)),
+      finalize(() => this.currentUser.set(null)),
+    );
   }
 
   /** Whether an IIN already has an account (one password field) or needs first-login setup. */

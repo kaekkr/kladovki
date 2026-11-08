@@ -1,5 +1,30 @@
-<div class="p-3 border-t border-brand-line">
+<div class="relative p-3 border-t border-brand-line">
+  @if (menuOpen()) {
+    <div class="fixed inset-0 z-40" (click)="menuOpen.set(false)"></div>
+    <div
+      class="absolute bottom-full left-3 right-3 z-50 mb-1 overflow-hidden rounded-md border border-brand-line bg-brand-surface shadow-lg"
+    >
+      <a
+        routerLink="/admin/settings"
+        (click)="menuOpen.set(false)"
+        class="flex items-center gap-2 px-3 py-2 text-[13px] text-brand-muted hover:bg-brand-elevated hover:text-brand-text"
+      >
+        <i class="fas fa-gear w-4 text-center text-[11px]"></i> Настройки
+      </a>
+      <button
+        type="button"
+        (click)="logout()"
+        class="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-status-overdue hover:bg-brand-elevated"
+      >
+        <i class="fas fa-right-from-bracket w-4 text-center text-[11px]"></i> Выйти
+      </button>
+    </div>
+  }
+
   <button
+    type="button"
+    (click)="menuOpen.set(!menuOpen())"
+    aria-label="Меню профиля"
     class="w-full flex items-center gap-3 p-2 rounded-md hover:bg-brand-elevated transition-colors text-left"
   >
     <div
@@ -13,9 +38,7 @@
         {{ currentUser()?.full_name ?? 'Загрузка...' }}
       </p>
 
-      <p class="text-[11px] text-brand-subtle truncate">
-        {{ currentUser()?.role ?? 'Manager' }}
-      </p>
+      <p class="text-[11px] text-brand-subtle truncate">{{ roleLabel }}</p>
     </div>
 
     <i class="fas fa-ellipsis text-brand-subtle text-[11px]"></i>

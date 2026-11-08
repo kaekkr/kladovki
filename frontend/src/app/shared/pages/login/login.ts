@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { homeFor, safeReturnUrl } from '../../../core/auth/return-url';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { classifyLogin } from '../../../core/utils/login-input';
@@ -97,7 +98,9 @@ export class Login {
     this.auth.login({ login: login.trim(), password }).subscribe({
       next: (user) => {
         this.isLoading.set(false);
-        this.router.navigate([user.role === 'admin' ? '/admin/dashboard' : '/app']);
+        // Back to the page that asked for login (e.g. a link from a notification).
+        const back = safeReturnUrl(this.route.snapshot.queryParamMap.get('returnUrl'), user.role);
+        this.router.navigateByUrl(back ?? homeFor(user.role));
       },
       error: (err) => {
         this.isLoading.set(false);
