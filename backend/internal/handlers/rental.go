@@ -59,6 +59,11 @@ func (h *Handler) GetRentalByID(c *gin.Context) {
 		return
 	}
 
+	if rental.Status == models.RentalStatusExpired || rental.Status == models.RentalStatusCancelled {
+		if t, err := h.svc.GetTermination(c.Request.Context(), rental.ID); err == nil {
+			rental.Termination = t
+		}
+	}
 	c.JSON(http.StatusOK, rental)
 }
 
@@ -176,37 +181,35 @@ func (h *Handler) CancelRental(c *gin.Context) {
 	c.JSON(http.StatusOK, rental)
 }
 
+type releaseOverdueRequest struct {
+	Reason string `json:"reason"`
+	Note   string `json:"note"`
+	Police bool   `json:"police"`
+	Costs  int64  `json:"costs"`
+}
+
+// ReleaseOverdueRental: ОСИ ends an overdue rental for debt, with a termination record.
 func (h *Handler) ReleaseOverdueRental(c *gin.Context) {
-	id := c.Param("id")
-	jkID := middleware.JKID(c)
-
-	rental, err := h.svc.ReleaseOverdueRental(
-		c.Request.Context(),
-		id,
-		jkID,
-	)
-	if err != nil {
-		if errors.Is(err, service.ErrInvalid) {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "Некорректный ID аренды",
-			})
-			return
-		}
-
-		if errors.Is(err, service.ErrNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Аренда не найдена",
-			})
-			return
-		}
-
-		c.JSON(http.StatusConflict, gin.H{
-			"error": err.Error(),
-		})
+	var req releaseOverdueRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Укажите причину расторжения"})
 		return
 	}
-
-	c.JSON(http.StatusOK, rental)
+	rental, err := h.svc.ReleaseOverdueRental(c.Request.Context(), c.Param("id"), middleware.JKID(c), middleware.UserID(c),
+		service.TerminationInput{Reason: req.Reason, Note: req.Note, Police: req.Police, Costs: req.Costs})
+	switch {
+	case err == nil:
+		c.JSON(http.StatusOK, rental)
+	case errors.Is(err, service.ErrReasonRequiredTermination):
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	case errors.Is(err, service.ErrInvalid):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Некорректные данные"})
+	case errors.Is(err, service.ErrNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": "Аренда не найдена"})
+	default:
+		// Not overdue long enough / not active — never expose internal error text.
+		c.JSON(http.StatusConflict, gin.H{"error": "Освободить можно только аренду с длительной просрочкой"})
+	}
 }
 
 func (h *Handler) ForceReleaseLocked(c *gin.Context) {

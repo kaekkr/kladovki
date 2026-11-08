@@ -21,4 +21,15 @@ export interface Rental {
 
   status: RentalStatus;
   created_at: string;
+
+  /** Record of a forced termination for debt (agreement п. 5.2), if any. */
+  termination?: Termination;
+}
+
+export interface Termination {
+  reason: string;
+  note: string;
+  police: boolean;
+  costs: number;
+  created_at: string;
 }

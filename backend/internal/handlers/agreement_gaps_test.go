@@ -27,7 +27,7 @@ func TestReleaseOverdueTellsTenant(t *testing.T) {
 	e := newTestEnv(t)
 	id := e.activeRental(e.resident, e.storageA)
 	e.exec(`UPDATE rentals SET ends_at = now() - interval '20 days' WHERE id=$1`, id)
-	if r := e.do(http.MethodPatch, "/rentals/"+id+"/release-overdue", e.adminA, nil); r.Code != http.StatusOK {
+	if r := e.do(http.MethodPatch, "/rentals/"+id+"/release-overdue", e.adminA, map[string]any{"reason": "задолженность"}); r.Code != http.StatusOK {
 		t.Fatalf("release: %d %s", r.Code, r.Body)
 	}
 	found := false

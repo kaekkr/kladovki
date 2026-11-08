@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -212,29 +213,56 @@ func (s *Service) CancelRental(
 	return rt, nil
 }
 
-func (s *Service) ReleaseOverdueRental(
-	ctx context.Context,
-	rentalID string,
-	jkID string,
-) (*models.Rental, error) {
+// TerminationInput is what the ОСИ records when freeing a storage for debt.
+type TerminationInput struct {
+	Reason string
+	Note   string
+	Police bool
+	Costs  int64
+}
+
+var ErrReasonRequiredTermination = errors.New("Укажите причину расторжения.")
+
+// ReleaseOverdueRental: the ОСИ terminates an overdue rental for debt
+// (agreement п. 5.2) and records how it was done; the tenant is notified.
+func (s *Service) ReleaseOverdueRental(ctx context.Context, rentalID, jkID, adminID string, in TerminationInput) (*models.Rental, error) {
 	rentalID = strings.TrimSpace(rentalID)
 	jkID = strings.TrimSpace(jkID)
-
+	in.Reason = strings.TrimSpace(in.Reason)
+	in.Note = strings.TrimSpace(in.Note)
 	if rentalID == "" || jkID == "" {
 		return nil, ErrInvalid
 	}
-
-	rt, err := s.repo.ReleaseOverdueRental(ctx, rentalID, jkID)
-	if err != nil {
-		return nil, err
+	if in.Reason == "" || len([]rune(in.Reason)) > 500 {
+		return nil, ErrReasonRequiredTermination
 	}
+	if in.Costs < 0 || len([]rune(in.Note)) > 4000 {
+		return nil, ErrInvalid
+	}
+
+	rt, err := s.repo.ReleaseOverdueRental(ctx, rentalID, jkID, models.Termination{
+		Reason: in.Reason, Note: in.Note, Police: in.Police, Costs: in.Costs, CreatedBy: adminID,
+	})
+	if err != nil {
+		return nil, mapRepoErr(err)
+	}
+	body := fmt.Sprintf("ОСИ расторг договор аренды кладовки №%s из-за задолженности (п. 5.2 соглашения). Причина: %s.",
+		rt.StorageNumber, in.Reason)
+	if in.Costs > 0 {
+		body += fmt.Sprintf(" Расходы на вскрытие и хранение: %s — по соглашению они возлагаются на арендатора.", money(in.Costs))
+	}
+	body += " Свяжитесь с ОСИ, чтобы забрать вещи."
 	s.Notify(ctx, rt.UserID, KindRentalCancelled, notify.Message{
 		Title: "Договор аренды расторгнут",
-		Body: fmt.Sprintf("ОСИ расторг договор аренды кладовки №%s из-за задолженности (п. 5.2 соглашения). "+
-			"Свяжитесь с ОСИ, чтобы забрать вещи.", rt.StorageNumber),
-		Link: "/app/rentals/" + rt.ID,
+		Body:  body,
+		Link:  "/app/rentals/" + rt.ID,
 	}, "released:"+rt.ID)
 	return rt, nil
+}
+
+// GetTermination returns the record of a forced termination, if the rental has one.
+func (s *Service) GetTermination(ctx context.Context, rentalID string) (*models.Termination, error) {
+	return s.repo.GetTermination(ctx, rentalID)
 }
 
 func (s *Service) ExpireRentals(ctx context.Context) error {

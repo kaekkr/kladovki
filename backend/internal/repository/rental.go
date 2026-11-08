@@ -379,10 +379,13 @@ func (r *Repo) ForceReleaseLocked(
 	return &rt, nil
 }
 
+// ReleaseOverdueRental ends an overdue rental for debt, frees the storage and
+// stores the termination record — all in one transaction.
 func (r *Repo) ReleaseOverdueRental(
 	ctx context.Context,
 	rentalID string,
 	jkID string,
+	t models.Termination,
 ) (*models.Rental, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -444,11 +447,19 @@ func (r *Repo) ReleaseOverdueRental(
 		return nil, fmt.Errorf("repository.ReleaseOverdueRental free storage: %w", err)
 	}
 
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO terminations (id, rental_id, reason, note, police, costs, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, ''))`,
+		uuid.NewString(), rt.ID, t.Reason, t.Note, t.Police, t.Costs, t.CreatedBy); err != nil {
+		return nil, fmt.Errorf("repository.ReleaseOverdueRental termination record: %w", err)
+	}
+
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("repository.ReleaseOverdueRental commit: %w", err)
 	}
 
 	rt.Status = models.RentalStatusExpired
+	rt.Termination = &t
 	return &rt, nil
 }
 
@@ -879,3 +890,18 @@ const settleStorageSet = `
 	transfer_until = CASE
 		WHEN s.transfer_until > now() AND EXISTS (SELECT 1 FROM rentals r WHERE r.storage_id = s.id AND r.status = 'active')
 		THEN s.transfer_until END`
+
+// GetTermination returns the termination record of a rental, or nil.
+func (r *Repo) GetTermination(ctx context.Context, rentalID string) (*models.Termination, error) {
+	var t models.Termination
+	err := r.db.QueryRowContext(ctx, `
+		SELECT reason, note, police, costs, created_at FROM terminations WHERE rental_id = $1`, rentalID).
+		Scan(&t.Reason, &t.Note, &t.Police, &t.Costs, &t.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("repository.GetTermination: %w", err)
+	}
+	return &t, nil
+}
