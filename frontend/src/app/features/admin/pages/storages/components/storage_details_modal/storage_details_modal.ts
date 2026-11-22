@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 import { Storage } from '../../../../../../core/models/storage';
+import { storageFormError } from '../../../../../../core/utils/storage-form';
 
 @Component({
   selector: 'app-admin-storage-details-modal',
@@ -25,6 +26,7 @@ export class AdminStorageDetailsModal {
   editEntrance = 0;
 
   saving = signal(false);
+  validationError = signal<string | null>(null);
 
   startEdit(): void {
     if (!this.storage) {
@@ -40,11 +42,22 @@ export class AdminStorageDetailsModal {
   }
 
   cancelEdit(): void {
+    this.validationError.set(null);
     this.editing.set(false);
   }
 
   save(): void {
     if (!this.storage) {
+      return;
+    }
+    const error = storageFormError({
+      number: this.editNumber,
+      area: this.editArea,
+      floor: this.editFloor,
+      entrance: this.editEntrance,
+    });
+    this.validationError.set(error);
+    if (error) {
       return;
     }
 

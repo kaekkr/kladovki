@@ -109,6 +109,9 @@ func (s *Service) LockStorage(
 	pricePerMonth := int64(
 		math.Round(st.Area * float64(tariffAmount)),
 	)
+	if _, err := rentalTotal(pricePerMonth, months); err != nil {
+		return nil, err
+	}
 
 	return s.repo.LockStorage(
 		ctx,

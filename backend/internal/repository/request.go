@@ -56,7 +56,14 @@ func (r *Repo) CreateTariffRecalcRequests(ctx context.Context, jkID string, newT
 		return 0, err
 	}
 	defer tx.Rollback()
+	n, err := createTariffRecalcRequestsTx(ctx, tx, jkID, newTariff)
+	if err != nil {
+		return 0, err
+	}
+	return n, tx.Commit()
+}
 
+func createTariffRecalcRequestsTx(ctx context.Context, tx *sql.Tx, jkID string, newTariff int64) (int64, error) {
 	if _, err := tx.ExecContext(ctx, `
 		UPDATE requests SET status = 'superseded', resolved_at = now()
 		WHERE jk_id = $1 AND type = 'tariff_recalc' AND status = 'awaiting_choice'`, jkID); err != nil {
@@ -94,7 +101,7 @@ func (r *Repo) CreateTariffRecalcRequests(ctx context.Context, jkID string, newT
 			return 0, fmt.Errorf("insert request: %w", err)
 		}
 	}
-	return int64(len(affected)), tx.Commit()
+	return int64(len(affected)), nil
 }
 
 // ApplyTariffChoice records the tenant's answer to a tariff_recalc request.

@@ -28,9 +28,8 @@ type UpdateStorageInput struct {
 
 func (s *Service) CreateStorage(ctx context.Context, in CreateStorageInput) (*models.Storage, error) {
 	jkID := strings.TrimSpace(in.JKID)
-	number := strings.TrimSpace(in.Number)
-
-	if jkID == "" || number == "" || in.Area <= 0 {
+	number, area, err := normalizeStorage(in.Number, in.Area, in.Floor, in.Entrance)
+	if jkID == "" || err != nil {
 		return nil, ErrInvalid
 	}
 
@@ -43,7 +42,7 @@ func (s *Service) CreateStorage(ctx context.Context, in CreateStorageInput) (*mo
 	storage := &models.Storage{
 		JKID:     jkID,
 		Number:   number,
-		Area:     in.Area,
+		Area:     area,
 		Floor:    in.Floor,
 		Entrance: in.Entrance,
 		Status:   models.StatusFree,
@@ -90,9 +89,8 @@ func (s *Service) GetAvailableStoragesByJK(ctx context.Context, jkID string) ([]
 
 func (s *Service) UpdateStorage(ctx context.Context, in UpdateStorageInput) (*models.Storage, error) {
 	id := strings.TrimSpace(in.ID)
-	number := strings.TrimSpace(in.Number)
-
-	if id == "" || number == "" || in.Area <= 0 {
+	number, area, err := normalizeStorage(in.Number, in.Area, in.Floor, in.Entrance)
+	if id == "" || err != nil {
 		return nil, ErrInvalid
 	}
 
@@ -111,7 +109,7 @@ func (s *Service) UpdateStorage(ctx context.Context, in UpdateStorageInput) (*mo
 	// Agreement 4.2: while occupied or being booked, parameters are frozen
 	// until the rental ends.
 	if existing.Status != models.StatusFree &&
-		(number != existing.Number || in.Area != existing.Area ||
+		(number != existing.Number || area != existing.Area ||
 			in.Floor != existing.Floor || in.Entrance != existing.Entrance) {
 		return nil, ErrLocked
 	}
@@ -121,7 +119,7 @@ func (s *Service) UpdateStorage(ctx context.Context, in UpdateStorageInput) (*mo
 		ID:       existing.ID,
 		JKID:     existing.JKID,
 		Number:   number,
-		Area:     in.Area,
+		Area:     area,
 		Floor:    in.Floor,
 		Entrance: in.Entrance,
 		// Status is derived from rentals (free/locked/occupied), never set by hand.

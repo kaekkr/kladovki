@@ -11,7 +11,7 @@
 | **Житель** | Resident, the **resident** role. Rents storage rooms in their own ЖК |
 | **Кладовка** (`storages`) | A storage room: number, area (м²), floor, entrance |
 | **Аренда** (`rentals`) | A rental of one storage room by one resident for N months at a fixed monthly price |
-| **Тариф** (`tariffs`) | Monthly price in ₸ **per m²** in this ЖК. A room's monthly price = `round(area × tariff)`, fixed into the rental when it is booked or renewed |
+| **Тариф** (`tariffs`) | Monthly price in ₸ **per m²** in this ЖК, a whole number from 1 to 1 000 000 (400 otherwise, also for the preview). Saving it and creating the recalc requests is one transaction. A room's monthly price = `round(area × tariff)`, fixed into the rental when it is booked or renewed |
 | **Заявка** (`requests`) | Something the ОСИ must act on, or a resident must answer (refund, early termination, tariff choice) |
 | **Долг** | Money owed for an overdue rental: every started day after `ends_at` costs `price_per_month / 30`. For a rental released for debt: frozen at the release + termination costs |
 | **ИИН** | 12-digit Kazakh personal ID number, used as the resident's login |
@@ -146,6 +146,7 @@ Worked examples (QA, 2026-11-22):
 
 ## Storage editing rules
 
+- Bounds (400 otherwise; same in the admin form, `frontend/src/app/core/utils/storage-form.ts` ↔ `backend/internal/service/limits.go`): number 1–50 characters; area 0.01–10 000 м², checked **after** rounding to 2 decimals (0.0001 → 0.00 is refused, so a room can't cost 0 ₸); floor −10…200; entrance 0…100.
 - Room numbers are unique per ЖК (case- and space-insensitive) → 409.
 - Number, area, floor and entrance of a room that is not `free` cannot be changed → 409.
 - Creating a storage room always uses the admin's own ЖК, whatever the body says.

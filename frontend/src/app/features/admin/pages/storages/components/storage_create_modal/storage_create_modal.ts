@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Output, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Storage } from '../../../../../../core/models/storage';
+import { storageFormError } from '../../../../../../core/utils/storage-form';
 
 @Component({
   selector: 'app-admin-storage-create-modal',
@@ -25,23 +26,14 @@ export class AdminStorageCreateModal {
   submit(): void {
     this.validationError.set(null);
 
-    if (!this.number.trim()) {
-      this.validationError.set('Введите номер кладовой.');
-      return;
-    }
-
-    if (this.area === null || this.area <= 0) {
-      this.validationError.set('Площадь должна быть больше 0.');
-      return;
-    }
-
-    if (this.floor === null) {
-      this.validationError.set('Введите этаж.');
-      return;
-    }
-
-    if (this.entrance === null) {
-      this.validationError.set('Введите подъезд.');
+    const error = storageFormError({
+      number: this.number,
+      area: this.area,
+      floor: this.floor,
+      entrance: this.entrance,
+    });
+    if (error || this.area === null || this.floor === null || this.entrance === null) {
+      this.validationError.set(error);
       return;
     }
 

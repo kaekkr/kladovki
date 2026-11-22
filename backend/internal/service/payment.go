@@ -165,6 +165,9 @@ func (s *Service) PrepareRenewal(ctx context.Context, in RenewRentalInput) (*mod
 		return nil, fmt.Errorf("service.PrepareRenewal tariff not set for jk %s: %v", st.JKID, err)
 	}
 	price := int64(math.Round(st.Area * float64(tariff)))
+	if _, err := rentalTotal(price, in.Months); err != nil {
+		return nil, err
+	}
 
 	payment, err := s.repo.PrepareRenewalPayment(ctx, in.RentalID, in.UserID, in.Months, price)
 	switch {
