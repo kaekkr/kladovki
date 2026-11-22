@@ -384,11 +384,12 @@ func TestSuperadminCannotUseOSIRoutes(t *testing.T) {
 	}
 }
 
-func TestEnsureSuperadminBootstrap(t *testing.T) {
+// The superadmin is created with `go run ./cmd/superadmin` (no env vars).
+func TestSetSuperadmin(t *testing.T) {
 	e := newTestEnv(t)
 	ctx := context.Background()
 
-	res, err := e.svc.EnsureSuperadmin(ctx, " Owner@Example.kz ", "bootstrap-pass")
+	res, err := e.svc.SetSuperadmin(ctx, " Owner@Example.kz ", "bootstrap-pass")
 	if err != nil || res != service.SuperadminCreated {
 		t.Fatalf("first run: %v %v", res, err)
 	}
@@ -396,9 +397,9 @@ func TestEnsureSuperadminBootstrap(t *testing.T) {
 		t.Fatal("bootstrapped superadmin must log in")
 	}
 
-	// Second start: nothing changes, even if the env password changed.
-	res, err = e.svc.EnsureSuperadmin(ctx, "owner@example.kz", "another-pass")
-	if err != nil || res != service.SuperadminExists {
+	// Running the command again for the same email sets a new password.
+	res, err = e.svc.SetSuperadmin(ctx, "owner@example.kz", "another-pass")
+	if err != nil || res != service.SuperadminPasswordReset {
 		t.Fatalf("second run: %v %v", res, err)
 	}
 	var n int
@@ -406,12 +407,15 @@ func TestEnsureSuperadminBootstrap(t *testing.T) {
 	if n != 1 {
 		t.Fatalf("want 1 superadmin, got %d", n)
 	}
-	if e.loginCode("owner@example.kz", "bootstrap-pass") != http.StatusOK {
-		t.Fatal("existing password must be kept")
+	if e.loginCode("owner@example.kz", "another-pass") != http.StatusOK {
+		t.Fatal("new password must work")
+	}
+	if e.loginCode("owner@example.kz", "bootstrap-pass") == http.StatusOK {
+		t.Fatal("old password must stop working")
 	}
 
 	// An email that belongs to an ОСИ is never promoted.
-	res, err = e.svc.EnsureSuperadmin(ctx, e.adminA+"@x.kz", "whatever-pass")
+	res, err = e.svc.SetSuperadmin(ctx, e.adminA+"@x.kz", "whatever-pass")
 	if err != nil || res != service.SuperadminConflict {
 		t.Fatalf("other role: %v %v", res, err)
 	}
@@ -422,10 +426,10 @@ func TestEnsureSuperadminBootstrap(t *testing.T) {
 	}
 
 	// Invalid input is refused.
-	if _, err := e.svc.EnsureSuperadmin(ctx, "not-an-email", "bootstrap-pass"); err == nil {
+	if _, err := e.svc.SetSuperadmin(ctx, "not-an-email", "bootstrap-pass"); err == nil {
 		t.Fatal("bad email must fail")
 	}
-	if _, err := e.svc.EnsureSuperadmin(ctx, "x@example.kz", "123"); err == nil {
+	if _, err := e.svc.SetSuperadmin(ctx, "x@example.kz", "123"); err == nil {
 		t.Fatal("short password must fail")
 	}
 }

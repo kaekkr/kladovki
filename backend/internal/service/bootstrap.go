@@ -12,42 +12,49 @@ import (
 	"github.com/kaekkr/kladovki/internal/models"
 )
 
-// SuperadminResult says what EnsureSuperadmin did.
+// SuperadminResult says what SetSuperadmin did.
 type SuperadminResult string
 
 const (
-	SuperadminCreated SuperadminResult = "created"
-	SuperadminExists  SuperadminResult = "exists"
+	SuperadminCreated       SuperadminResult = "created"
+	SuperadminPasswordReset SuperadminResult = "password_reset"
 	// SuperadminConflict: the email belongs to a user with another role; nothing was changed.
 	SuperadminConflict SuperadminResult = "conflict"
 )
 
-// EnsureSuperadmin makes sure a platform operator with this email exists
-// (startup bootstrap from SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD). An existing
-// superadmin keeps their current password; a user with another role is never
-// promoted. The password is never logged.
-func (s *Service) EnsureSuperadmin(ctx context.Context, email, password string) (SuperadminResult, error) {
+// SetSuperadmin creates a platform operator with this email, or sets a new
+// password for an existing one (other sessions end). Used by the one-off
+// command `go run ./cmd/superadmin`, so no password lives in env vars.
+// A user with another role is never promoted. The password is never logged.
+func (s *Service) SetSuperadmin(ctx context.Context, email, password string) (SuperadminResult, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	if !validEmail(email) {
-		return "", errors.New("SUPERADMIN_EMAIL is not a valid email")
+		return "", errors.New("email is not valid")
 	}
 	if utf8.RuneCountInString(password) < minSuperadminPasswordLen {
-		return "", fmt.Errorf("SUPERADMIN_PASSWORD must be at least %d characters", minSuperadminPasswordLen)
+		return "", fmt.Errorf("password must be at least %d characters", minSuperadminPasswordLen)
+	}
+	if len(password) > maxPasswordBytes {
+		return "", fmt.Errorf("password must be at most %d bytes", maxPasswordBytes)
 	}
 
 	existing, err := s.repo.GetUserByEmail(ctx, email)
-	switch {
-	case err == nil && existing.Role == models.RoleSuperadmin:
-		return SuperadminExists, nil
-	case err == nil:
-		return SuperadminConflict, nil
-	case !errors.Is(err, ErrNotFound):
+	if err != nil && !errors.Is(err, ErrNotFound) {
 		return "", fmt.Errorf("look up superadmin: %w", err)
+	}
+	if err == nil && existing.Role != models.RoleSuperadmin {
+		return SuperadminConflict, nil
 	}
 
 	hash, err := HashPassword(password)
 	if err != nil {
 		return "", fmt.Errorf("hash password: %w", err)
+	}
+	if existing != nil {
+		if err := s.repo.SetPassword(ctx, existing.ID, hash, false); err != nil {
+			return "", fmt.Errorf("set superadmin password: %w", err)
+		}
+		return SuperadminPasswordReset, nil
 	}
 	u := &models.User{
 		FullName:     "Оператор платформы",

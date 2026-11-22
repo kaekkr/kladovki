@@ -26,10 +26,6 @@ type Config struct {
 	ApiPayWebhookSecret string
 	// ApiPayLive: real money mode — sandbox webhook events are then ignored.
 	ApiPayLive bool
-	// SuperadminEmail/SuperadminPassword bootstrap the first platform operator
-	// at startup (both must be set). The password is never logged.
-	SuperadminEmail    string
-	SuperadminPassword string
 	// RateLimits: the zero value disables every limit (tests rely on that);
 	// Load() fills in DefaultRateLimits().
 	RateLimits RateLimits
@@ -242,9 +238,6 @@ func Load() Config {
 
 		ApiPayWebhookSecret: apiPayWebhookSecret,
 		ApiPayLive:          os.Getenv("APIPAY_LIVE") == "true",
-
-		SuperadminEmail:    os.Getenv("SUPERADMIN_EMAIL"),
-		SuperadminPassword: os.Getenv("SUPERADMIN_PASSWORD"),
 
 		RateLimits: DefaultRateLimits(),
 

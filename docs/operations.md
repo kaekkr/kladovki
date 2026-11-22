@@ -45,7 +45,6 @@ Env files are loaded in this order: `.env.local` → `/etc/secrets/.env.local` �
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | optional | port `587` | Email channel |
 | `MOBIZON_API_KEY` (`MOBIZON_API_BASE`) | optional | | SMS channel |
 | `GREENAPI_INSTANCE_ID`, `GREENAPI_TOKEN` (`GREENAPI_BASE`) | optional | | WhatsApp channel |
-| `SUPERADMIN_EMAIL`, `SUPERADMIN_PASSWORD` | optional | | Bootstrap the first platform operator at startup (see below). Password ≥ 10 characters |
 | `TRUST_RENDER_PROXY` | **prod on Render**: `true` | empty | Trust `X-Forwarded-For` from private-network peers (10/8, 172.16/12, 192.168/16, loopback, fc00::/7). See «Trusted proxies» |
 | `TRUSTED_PROXIES` | optional | empty | Extra proxy CIDRs/IPs whose `X-Forwarded-For` is trusted, comma-separated. An invalid entry stops the server |
 | `TEST_DATABASE_URL` | tests only | | Postgres used by integration tests. **The tests wipe it** |
@@ -63,12 +62,18 @@ Rate limits have no env vars; the defaults live in `config.DefaultRateLimits()` 
 
 ## First superadmin (platform operator)
 
-The super-admin panel (`/platform`) creates ЖК and their ОСИ accounts. Its first account is created from env at startup:
+The super-admin panel (`/platform`) creates ЖК and their ОСИ accounts. Operators are created **directly in the database** with a one-off command run from your own machine. No password is stored in env vars, in Render or in the repo:
 
-1. Set `SUPERADMIN_EMAIL` and `SUPERADMIN_PASSWORD` (≥ 10 characters) on Render (Environment or the `.env.local` Secret File) and redeploy.
-2. On boot the server makes sure a user with that email exists with role `superadmin` (no ЖК; the phone is a placeholder `superadmin:<email>`). The log says `superadmin bootstrap: created …` or `… already exists`. The password is never logged.
-3. Log in at `/login` with that email and password; you land on `/platform`.
-4. Optionally remove `SUPERADMIN_PASSWORD` afterwards. Later boots never change an existing account's password, and an email that belongs to an ОСИ or resident is **never** promoted (a warning is logged instead).
+```bash
+cd backend
+DB_PATH='postgres://…'  go run ./cmd/superadmin --email you@example.com
+```
+
+- It asks for the password twice without echo (≥ 10 characters), hashes it with bcrypt and creates the user with role `superadmin` (no ЖК; the phone is a placeholder `superadmin:<email>`).
+- Running it again for the same email **sets a new password** and signs that operator out everywhere. Use it if you forget the password.
+- An email that belongs to an ОСИ or resident is **never** promoted; the command exits with an error.
+- It applies the schema migrations first (the `superadmin` role must exist), like the server does at startup.
+- Then log in at `/login` with that email; you land on `/platform`.
 
 Creating a ЖК or an ОСИ account (or resetting an ОСИ password) shows a temporary password **once**. Hand it over in person; the ОСИ must choose a new password at first login. A new ЖК has no tariff: the ОСИ sets it in Настройки before residents can book.
 
