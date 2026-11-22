@@ -58,8 +58,8 @@ func (s *Service) ChooseTariffOption(ctx context.Context, requestID, userID, cho
 
 func (s *Service) RequestEarlyTermination(ctx context.Context, rentalID, userID, comment string) (*models.Request, error) {
 	comment = strings.TrimSpace(comment)
-	if len(comment) > 1000 {
-		comment = comment[:1000]
+	if r := []rune(comment); len(r) > 1000 { // by characters: bytes would split a letter
+		comment = string(r[:1000])
 	}
 	q, err := s.repo.CreateEarlyTermination(ctx, rentalID, userID, comment)
 	if err != nil {
