@@ -29,10 +29,14 @@ const remainingValueRoundedSQL = `ROUND(` + remainingValueSQL + `)::bigint`
 const newPriceSQL = `ROUND(s.area * $2)::bigint`
 
 // affectedByDecreaseSQL selects active rentals of JK $1 that get cheaper at tariff $2.
+// A rental with an open early termination is left out: its whole remaining
+// value is already claimed by the termination, a tariff refund would pay twice.
 const affectedByDecreaseSQL = `
 	FROM rentals r JOIN storages s ON s.id = r.storage_id
 	WHERE r.jk_id = $1 AND r.status = 'active' AND r.ends_at > now()
-	  AND ` + newPriceSQL + ` < r.price_per_month`
+	  AND ` + newPriceSQL + ` < r.price_per_month
+	  AND NOT EXISTS (SELECT 1 FROM requests t
+	      WHERE t.rental_id = r.id AND t.type = 'early_termination' AND t.status = 'open')`
 
 // TariffDecreasePreview: how many rentals are affected and how much money
 // is owed back in total if the tariff drops to newTariff.
@@ -143,6 +147,14 @@ func (r *Repo) ApplyTariffChoice(ctx context.Context, requestID, userID, choice 
 		_ = tx.Commit()
 		return ErrConflict
 	}
+	// An open early termination already claims the whole remaining value.
+	var terminating bool
+	if err := tx.QueryRowContext(ctx, openTerminationSQL, rentalID).Scan(&terminating); err != nil {
+		return err
+	}
+	if terminating {
+		return ErrTerminationPending
+	}
 
 	switch choice {
 	case "extend":
@@ -208,6 +220,19 @@ func (r *Repo) CreateEarlyTermination(ctx context.Context, rentalID, userID, com
 	}
 	if pending {
 		return nil, ErrConflict
+	}
+	// An unanswered tariff choice could still turn into a refund of part of
+	// the same money: the tenant answers it first (refund lowers value_left,
+	// so termination + refund never exceed the unused value).
+	var choosing bool
+	if err := tx.QueryRowContext(ctx, `
+		SELECT EXISTS (SELECT 1 FROM requests
+			WHERE rental_id = $1 AND type = 'tariff_recalc' AND status = 'awaiting_choice')`,
+		rentalID).Scan(&choosing); err != nil {
+		return nil, err
+	}
+	if choosing {
+		return nil, ErrTariffChoicePending
 	}
 	// A renewal invoice just sent may still be paid: its money would change
 	// the amount. The tenant waits for it (or for it to go stale).

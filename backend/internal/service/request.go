@@ -25,6 +25,8 @@ func mapRepoErr(err error) error {
 		return ErrRenewalPending
 	case errors.Is(err, repository.ErrTerminationPending):
 		return ErrTerminationPending
+	case errors.Is(err, repository.ErrTariffChoicePending):
+		return ErrTariffChoicePending
 	}
 	return err
 }
@@ -46,6 +48,9 @@ func (s *Service) ChooseTariffOption(ctx context.Context, requestID, userID, cho
 		return ErrInvalid
 	}
 	if err := s.repo.ApplyTariffChoice(ctx, requestID, userID, choice); err != nil {
+		if errors.Is(err, repository.ErrTerminationPending) {
+			return ErrTariffChoiceTerminating
+		}
 		return mapRepoErr(err)
 	}
 	if choice == "refund" {

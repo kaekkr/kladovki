@@ -26,4 +26,7 @@ var (
 
 	// ErrRefundNotRejectable: a tariff refund the tenant chose can only be confirmed as paid.
 	ErrRefundNotRejectable = errors.New("tariff refund cannot be rejected")
+
+	// ErrTariffChoicePending: the tenant must answer a tariff_recalc request first.
+	ErrTariffChoicePending = errors.New("tariff choice pending")
 )

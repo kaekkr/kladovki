@@ -27,7 +27,11 @@ var (
 	ErrTerminationPending = errors.New("Подана заявка на досрочное расторжение — продление недоступно, пока ОСИ её не рассмотрит.")
 	// ErrRenewalPending: early termination refused while a renewal invoice may still be paid.
 	ErrRenewalPending = errors.New("Счёт на продление ещё ожидает оплаты в Kaspi. Дождитесь результата оплаты и подайте заявку снова.")
-	ErrStorageInUse   = errors.New("Кладовку с историей аренд удалить нельзя — она нужна для отчётов и споров.")
+	// ErrTariffChoiceTerminating: a tariff choice refused while an early termination is open.
+	ErrTariffChoiceTerminating = errors.New("Подана заявка на досрочное расторжение — перерасчёт по тарифу недоступен, пока ОСИ её не рассмотрит.")
+	// ErrTariffChoicePending: early termination refused until the tenant answers the tariff decrease.
+	ErrTariffChoicePending = errors.New("Сначала выберите вариант перерасчёта по новому тарифу (продлить срок или вернуть разницу), затем подайте заявку на досрочное расторжение.")
+	ErrStorageInUse        = errors.New("Кладовку с историей аренд удалить нельзя — она нужна для отчётов и споров.")
 )
 
 type Service struct {
