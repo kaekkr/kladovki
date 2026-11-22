@@ -36,6 +36,13 @@
   } @else if (error()) {
     <div class="rounded-lg border border-brand-line bg-brand-surface p-5 text-sm text-status-overdue">
       Не удалось загрузить заявки.
+      <button
+        type="button"
+        (click)="load()"
+        class="ml-2 rounded-md border border-brand-line px-3 py-1 text-xs font-medium text-brand-text hover:border-brand-accent"
+      >
+        Повторить
+      </button>
     </div>
   } @else if (visible().length === 0) {
     <div class="rounded-lg border border-brand-line bg-brand-surface p-8 text-center text-sm text-brand-muted">

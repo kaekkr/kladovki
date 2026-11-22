@@ -1,9 +1,12 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/auth/auth.guard';
+import { nativeStartGuard } from './core/auth/native-start.guard';
 
 export const routes: Routes = [
   {
     path: '',
+    pathMatch: 'full',
+    canActivate: [nativeStartGuard],
     loadChildren: () => import('./features/landing/landing.routes').then((m) => m.LANDING_ROUTES),
   },
   {

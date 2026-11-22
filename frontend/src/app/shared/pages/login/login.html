@@ -38,7 +38,7 @@
         <!-- email / phone input -->
         <div class="space-y-2">
           <label for="login" class="text-sm font-medium text-gray-400 ml-1"
-            >ИИН (для жителей) или email</label
+            >ИИН или email</label
           >
           <div class="relative">
             <span class="absolute left-5 top-1/2 -translate-y-1/2 text-gray-500">
@@ -50,16 +50,12 @@
               formControlName="login"
               inputmode="text"
               autocomplete="username"
-              [readOnly]="step() === 'password'"
+              (input)="onLoginEdited()"
               placeholder="ИИН — 12 цифр"
               class="w-full bg-[#0b1120]/70 border border-[#374151]/60 rounded-2xl pl-12 pr-6 py-4 outline-none focus:border-[#22d3ee] transition-colors text-white placeholder-gray-500"
             />
           </div>
-          @if (step() === 'password') {
-            <button type="button" (click)="changeLogin()" class="ml-1 text-xs text-[#22d3ee] hover:underline">
-              изменить
-            </button>
-          }
+          <p class="ml-1 text-xs text-gray-500">Жители входят по ИИН, сотрудники ОСИ — по email</p>
         </div>
 
         @if (step() === 'password') {
@@ -107,6 +103,7 @@
         </div>
       </form>
 
+      @if (!native) {
       <!-- application request footer -->
       <div class="mt-8 pt-8 border-t border-[#374151]/60 text-center">
         <p class="text-sm text-gray-400">вашего жк еще нет в системе?</p>
@@ -118,8 +115,10 @@
           отправить заявку на подключение
         </a>
       </div>
+      }
     </div>
 
+    @if (!native) {
     <!-- return link -->
     <div class="mt-8 text-center">
       <a
@@ -129,5 +128,6 @@
         <i class="fa-solid fa-arrow-left"></i> вернуться на главную
       </a>
     </div>
+    }
   </div>
 </div>

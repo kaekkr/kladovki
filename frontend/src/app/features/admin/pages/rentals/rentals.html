@@ -58,6 +58,13 @@
       class="p-5 bg-brand-surface border border-brand-line rounded-lg text-sm text-status-overdue"
     >
       Не удалось загрузить список аренд.
+      <button
+        type="button"
+        (click)="loadRentals()"
+        class="ml-2 rounded-md border border-brand-line px-3 py-1 text-xs font-medium text-brand-text hover:border-brand-accent"
+      >
+        Повторить
+      </button>
     </div>
   }
 

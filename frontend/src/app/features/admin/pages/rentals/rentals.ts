@@ -49,7 +49,7 @@ export class AdminRentals {
     this.loadRentals();
   }
 
-  private loadRentals(): void {
+  loadRentals(): void {
     const jkId = this.authService.currentUser()?.jk_id;
 
     if (!jkId) {
