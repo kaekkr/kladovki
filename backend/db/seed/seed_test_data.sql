@@ -22,7 +22,8 @@
 --   Сауле  — rejected by ОСИ .............. ИИН 990101400099
 --   Нурлан — blocked by ОСИ ............... ИИН 990101300100
 --
--- QR / registration link for this ЖК: <app>/login?jk=seed-jk
+-- New residents: log in with any unused ИИН and enter a premises cadastral number
+-- under the test ЖК, e.g. 99:999:999:999:1:25 (ЖК 99:999:999:999:1).
 -- Note: the ИИН values are test numbers in an unused range (no real checksum).
 -- =============================================================================
 
@@ -40,6 +41,10 @@ VALUES ('seed-jk', 'ЖК Тестовый (seed)', 'Астана, ул. Тест
 ON CONFLICT DO NOTHING;
 
 UPDATE users SET jk_id = 'seed-jk' WHERE id = 'seed-osi';
+
+-- Cadastral number of the test ЖК (fake range). A new resident registers with
+-- a premises number under it, e.g. 99:999:999:999:1:25 (flat 25) or 99:999:999:999:1:ВП-2.
+UPDATE jks SET cadastral_number = '99:999:999:999:1' WHERE id = 'seed-jk' AND cadastral_number = '';
 
 -- Tariff: 1 500 ₸ per m² per month (a 5 m² room costs 7 500 ₸/month).
 INSERT INTO tariffs (id, jk_id, amount) VALUES ('seed-tariff', 'seed-jk', 1500) ON CONFLICT DO NOTHING;
