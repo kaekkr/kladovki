@@ -180,8 +180,9 @@ func (r *Repo) ApplyTariffChoice(ctx context.Context, requestID, userID, choice 
 				WHERE r.id = $1 AND r.status = 'active'`, rentalID, newPrice, amount)
 		}
 		if err == nil {
-			_, err = tx.ExecContext(ctx, `UPDATE requests SET status = 'open', choice = 'refund', amount = $2 WHERE id = $1`,
-				requestID, amount)
+			_, err = tx.ExecContext(ctx, `
+				UPDATE requests SET status = 'open', choice = 'refund', amount = $2, refund_deducted = false
+				WHERE id = $1`, requestID, amount)
 		}
 	default:
 		return ErrInvalid
@@ -274,9 +275,10 @@ func (r *Repo) ResolveRequest(ctx context.Context, requestID, jkID, adminID, act
 
 	var typ, status, rentalID string
 	var amount int64
+	var deducted bool
 	err = tx.QueryRowContext(ctx, `
-		SELECT type, status, COALESCE(rental_id, ''), amount FROM requests
-		WHERE id = $1 AND jk_id = $2 FOR UPDATE`, requestID, jkID).Scan(&typ, &status, &rentalID, &amount)
+		SELECT type, status, COALESCE(rental_id, ''), amount, refund_deducted FROM requests
+		WHERE id = $1 AND jk_id = $2 FOR UPDATE`, requestID, jkID).Scan(&typ, &status, &rentalID, &amount, &deducted)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound
 	}
@@ -295,7 +297,8 @@ func (r *Repo) ResolveRequest(ctx context.Context, requestID, jkID, adminID, act
 	newStatus := models.RequestRejected
 	if action == "approve" {
 		newStatus = models.RequestDone
-		if typ == string(models.RequestTariffRecalc) && rentalID != "" {
+		// A legacy refund (refund_deducted) was taken off total_paid at choice time.
+		if typ == string(models.RequestTariffRecalc) && rentalID != "" && !deducted {
 			// The money is back with the tenant: «Оплачено» drops by it now.
 			if _, err := tx.ExecContext(ctx, `
 				UPDATE rentals SET total_paid = GREATEST(0, total_paid - $2) WHERE id = $1`, rentalID, amount); err != nil {

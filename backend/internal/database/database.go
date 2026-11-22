@@ -282,4 +282,12 @@ var migrations = []string{
 	// Booking hold: 2 minutes was tight for older residents (QA 2026-11-22).
 	// New ЖК start at 5; existing ЖК keep what their ОСИ set.
 	`ALTER TABLE jks ALTER COLUMN lock_minutes SET DEFAULT 5`,
+
+	// Tariff refunds: before 2026-11-22 choosing «refund» lowered total_paid at
+	// once; now approval lowers it. refund_deducted marks requests whose money
+	// is already off total_paid, so approval doesn't deduct it again. Rows that
+	// exist when the column is added get true (legacy), later rows false; both
+	// statements are no-ops on re-run.
+	`ALTER TABLE requests ADD COLUMN IF NOT EXISTS refund_deducted BOOLEAN NOT NULL DEFAULT true`,
+	`ALTER TABLE requests ALTER COLUMN refund_deducted SET DEFAULT false`,
 }

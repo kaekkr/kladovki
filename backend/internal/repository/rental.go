@@ -21,7 +21,7 @@ const rentalDetailsColumns = `
 	r.jk_id,
 	r.months,
 	r.price_per_month,
-	r.total_paid,
+	r.total_paid + ` + legacyDeductedRefundSQL + `,
 	r.starts_at,
 	r.ends_at,
 	r.status,
@@ -30,6 +30,13 @@ const rentalDetailsColumns = `
 	          WHERE q.rental_id = r.id AND q.status = 'open'
 	            AND q.type IN ('payment_refund', 'tariff_recalc')), 0)::bigint
 `
+
+// legacyDeductedRefundSQL: open tariff refunds chosen before 2026-11-22 were
+// already taken off total_paid. They are added back for display, so «Оплачено»
+// and refund_pending read the same as for a new refund until it is returned.
+const legacyDeductedRefundSQL = `COALESCE((SELECT SUM(q.amount) FROM requests q
+	WHERE q.rental_id = r.id AND q.type = 'tariff_recalc' AND q.status = 'open'
+	  AND q.refund_deducted), 0)::bigint`
 
 // MaxUnpaidHoldsPerUser: live `locked` (unpaid) bookings one user may have at once.
 const MaxUnpaidHoldsPerUser = 1

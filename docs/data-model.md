@@ -17,7 +17,7 @@ IDs are UUID strings (`VARCHAR(36)`). Money is `BIGINT` whole tenge. Times are `
 | `tariff_history` | Every tariff change | `jk_id`, `amount`, `changed_at` |
 | `rentals` | One rental of one storage room | `storage_id`, `user_id`, `jk_id`, `months`, `price_per_month`, `total_paid`, `starts_at`, `ends_at`, `status` (`rental_status`) |
 | `payments` | Kaspi invoices | `rental_id`, `user_id`, `amount`, `provider` (`apipay`), `status` (`payment_status`), `kind` (`booking`/`renewal`), `months` (renewal length). `id` is sent to ApiPay as `external_order_id` |
-| `requests` | Заявки | `type`, `status`, `amount`, `choice`, `old_price`, `new_price`, `comment`, `resolution`, `resolved_at`, `resolved_by`, `rental_id`, `user_id`, `jk_id` |
+| `requests` | Заявки | `type`, `status`, `amount`, `choice`, `old_price`, `new_price`, `comment`, `resolution`, `resolved_at`, `resolved_by`, `rental_id`, `user_id`, `jk_id`, `refund_deducted` (tariff refund already taken off `total_paid`: legacy rows, see domain.md) |
 | `notifications` | In-app inbox | `user_id`, `kind`, `title`, `body`, `link`, `dedupe_key` (unique per user), `read_at` |
 | `notification_deliveries` | Outbox: one row per notification × channel | `channel`, `status` (`pending`/`sent`/`failed`/`skipped`), `attempts`, `next_attempt_at`, `last_error`, `sent_at` |
 | `telegram_link_tokens` | One-time tokens for linking a Telegram chat (1 day) | `token`, `user_id` |
