@@ -89,3 +89,31 @@ func TestResubmitWithCadastralOfAnotherJKIsRefused(t *testing.T) {
 		t.Fatalf("premises_number = %s, want 17", number)
 	}
 }
+
+func TestJKAndMeExposeCadastralNumbers(t *testing.T) {
+	e := newTestEnv(t)
+	e.exec(`UPDATE jks SET cadastral_number = $2, address = 'Астана, ул. 1' WHERE id = $1`, e.jkB, jkBCadastral)
+	if r := e.do(http.MethodPost, "/auth/register", "", e.cadastralBody(jkBCadastral+":5")); r.Code != http.StatusOK {
+		t.Fatalf("register: %d %s", r.Code, r.Body)
+	}
+	var userID string
+	_ = e.db.QueryRow(`SELECT id FROM users WHERE iin='010101500009'`).Scan(&userID)
+
+	var jk struct {
+		Address         string `json:"address"`
+		CadastralNumber string `json:"cadastral_number"`
+	}
+	r := e.do(http.MethodGet, "/jks/"+e.jkB, userID, nil)
+	r.json(t, &jk)
+	if jk.CadastralNumber != jkBCadastral || jk.Address != "Астана, ул. 1" {
+		t.Fatalf("GET /jks/:id = %+v", jk)
+	}
+
+	var me struct {
+		PremisesCadastral string `json:"premises_cadastral"`
+	}
+	e.do(http.MethodGet, "/auth/me", userID, nil).json(t, &me)
+	if me.PremisesCadastral != jkBCadastral+":5" {
+		t.Fatalf("/auth/me premises_cadastral = %q", me.PremisesCadastral)
+	}
+}

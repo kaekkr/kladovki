@@ -239,6 +239,7 @@ func userJSON(user *models.User) gin.H {
 		"company_bin":     user.CompanyBIN,
 		"company_name":    user.CompanyName,
 
+		"premises_cadastral":   user.PremisesCadastral,
 		"must_change_password": user.MustChangePassword,
 	}
 }
