@@ -11,7 +11,7 @@
       </div>
       <h2 class="text-sm font-semibold text-brand-text">Ожидаем оплату в Kaspi...</h2>
       <p class="mt-1.5 text-xs leading-relaxed text-brand-muted max-w-xs">
-        Мы отправили счёт на ваш номер телефона. Подтвердите оплату в приложении Kaspi.kz
+        Мы отправили счёт на номер {{ kaspiPhone() }}. Подтвердите оплату в приложении Kaspi.kz
       </p>
 
       <div class="mt-6 flex items-center gap-2 text-xs text-brand-accent font-medium">
@@ -45,6 +45,8 @@
       <div class="h-48 animate-pulse rounded-3xl bg-brand-surface"></div>
       <div class="h-48 animate-pulse rounded-2xl bg-brand-surface"></div>
     </div>
+  } @else if (error() && !notFound()) {
+    <app-load-error message="Не удалось загрузить аренду." (retry)="load()" />
   } @else if (error() || !rental()) {
     <section class="rounded-3xl border border-brand-line bg-brand-surface p-6 text-center">
       <div
@@ -107,13 +109,18 @@
         </div>
 
         <div class="mt-8">
-          <p class="text-[10px] text-brand-subtle">
-            {{ rental()!.status === 'locked' ? 'К оплате' : 'Общая стоимость' }}
+          <p class="text-xs text-brand-subtle">
+            {{ rental()!.status === 'locked' ? 'К оплате' : 'Оплачено' }}
           </p>
 
           <p class="mt-1 text-2xl font-semibold tracking-[-0.03em] text-brand-text">
-            {{ formatMoney(totalCost(rental()!)) }}
+            {{ formatMoney(rental()!.status === 'locked' ? totalCost(rental()!) : paidTotal()) }}
           </p>
+          @if (refundDue() > 0) {
+            <p class="mt-1 text-sm text-status-locked">
+              Оплачено {{ formatMoney(paidTotal()) }} · к возврату {{ formatMoney(refundDue()) }}
+            </p>
+          }
         </div>
       </div>
     </section>
@@ -142,7 +149,9 @@
         <div class="flex items-center justify-between px-4 py-3.5">
           <span class="text-xs text-brand-muted"> Срок </span>
 
-          <span class="text-xs font-medium text-brand-text"> {{ rental()!.months }} мес. </span>
+          <span class="text-xs font-medium text-brand-text">
+            {{ rental()!.status === 'locked' ? rental()!.months + ' мес.' : periodLabel() }}
+          </span>
         </div>
       </div>
     </section>
@@ -153,7 +162,7 @@
 
       <div class="overflow-hidden rounded-2xl border border-brand-line bg-brand-surface">
         <div class="flex items-center justify-between border-b border-brand-line px-4 py-3.5">
-          <span class="text-xs text-brand-muted"> В месяц </span>
+          <span class="text-xs text-brand-muted"> Цена в месяц (сейчас) </span>
 
           <span class="text-xs font-medium text-brand-text">
             {{ formatMoney(rental()!.price_per_month) }}
@@ -164,9 +173,15 @@
           <span class="text-xs text-brand-muted"> Оплачено </span>
 
           <span class="text-xs font-semibold text-brand-accent">
-            {{ formatMoney(rental()!.total_paid) }}
+            {{ formatMoney(paidTotal()) }}
           </span>
         </div>
+        @if (refundDue() > 0) {
+          <div class="flex items-center justify-between border-t border-brand-line px-4 py-3.5">
+            <span class="text-xs text-brand-muted"> К возврату (вернёт ОСИ) </span>
+            <span class="text-xs font-semibold text-status-locked">{{ formatMoney(refundDue()) }}</span>
+          </div>
+        }
       </div>
     </section>
 
@@ -181,7 +196,9 @@
           </div>
 
           <div>
-            <p class="text-xs font-semibold text-orange-500">Срок аренды истёк</p>
+            <p class="text-sm font-semibold text-orange-500">
+              Просрочено с {{ formatDate(rental()!.ends_at) }}, долг ≈ {{ formatMoney(debt()) }}
+            </p>
             <p class="mt-1 text-[10px] leading-4 text-brand-muted">
               Кладовка пока закреплена за вами, но ОСИ может её освободить. Оплатите продление
               ниже, чтобы закрыть задолженность.
@@ -209,35 +226,12 @@
       </section>
 
       @if (pendingChoice(); as req) {
-        <section class="rounded-2xl border border-status-locked/30 bg-status-locked/5 px-4 py-4">
-          <p class="text-xs font-semibold text-brand-text">Тариф снижен — выберите перерасчёт</p>
-          <p class="mt-1 text-[10px] leading-4 text-brand-muted">
-            Цена кладовки снизилась с {{ formatMoney(req.old_price) }} до
-            {{ formatMoney(req.new_price) }} в месяц. За неиспользованный период вам положено
-            {{ formatMoney(req.amount) }}.
-          </p>
-          <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <button
-              type="button"
-              [disabled]="choosing()"
-              (click)="choose('extend')"
-              class="h-11 rounded-xl bg-brand-accent text-xs font-semibold text-brand-bg disabled:opacity-40"
-            >
-              Продлить аренду
-            </button>
-            <button
-              type="button"
-              [disabled]="choosing()"
-              (click)="choose('refund')"
-              class="h-11 rounded-xl border border-brand-line text-xs font-semibold text-brand-text disabled:opacity-40"
-            >
-              Вернуть {{ formatMoney(req.amount) }}
-            </button>
-          </div>
-          <p class="mt-2 text-[10px] leading-4 text-brand-subtle">
-            Возврат делает ОСИ самостоятельно (на счёт, наличными и т.д.).
-          </p>
-        </section>
+        <app-tariff-choice
+          [request]="req"
+          [endsAt]="rental()!.ends_at"
+          [busy]="choosing()"
+          (choose)="choose($event)"
+        />
       }
 
       @if (canTerminate()) {
@@ -307,6 +301,10 @@
           <div class="shrink-0 text-lg font-semibold tabular-nums text-status-locked">
             {{ formatTime(remainingSeconds()) }}
           </div>
+        </div>
+
+        <div class="mt-4">
+          <app-kaspi-phone inputId="pay-kaspi-phone" [(phone)]="kaspiPhone" [error]="kaspiError()" />
         </div>
 
         <div class="mt-4">
@@ -399,29 +397,8 @@
 
 
     <!-- Передача кладовки новому владельцу (по ИИН), п. 6.2: ОСИ получает уведомление -->
-    @if (rental()!.status === 'active' && isOverdue(rental()!.ends_at)) {
-      <section class="rounded-2xl border border-brand-line bg-brand-surface px-4 py-4">
-        <p class="text-xs font-semibold text-brand-text">Передать кладовку новому владельцу</p>
-        <p class="mt-1 text-[10px] leading-4 text-brand-muted">
-          Например, при продаже квартиры. Укажите ИИН нового собственника — он сможет оформить аренду
-          в течение 14 дней. ОСИ получит уведомление.
-        </p>
-        <div class="mt-3 flex gap-2">
-          <input type="text" inputmode="numeric" maxlength="12" placeholder="ИИН — 12 цифр" aria-label="ИИН нового владельца"
-            [value]="transferIIN()" (input)="transferIIN.set($any($event.target).value)"
-            class="min-w-0 flex-1 rounded-xl border border-brand-line bg-brand-elevated/30 px-3 py-2 text-xs text-brand-text outline-none focus:border-brand-accent" />
-          <button type="button" (click)="setTransfer()" [disabled]="transferLoading()"
-            class="h-9 shrink-0 rounded-xl bg-brand-accent px-4 text-xs font-semibold text-brand-bg disabled:opacity-40">
-            {{ transferLoading() ? 'Сохранение…' : 'Указать' }}
-          </button>
-        </div>
-        @if (transferError()) {
-          <p class="mt-2 text-[11px] text-status-overdue">{{ transferError() }}</p>
-        }
-        @if (transferMessage()) {
-          <p class="mt-2 text-[11px] text-brand-accent">{{ transferMessage() }}</p>
-        }
-      </section>
+    @if (rental()!.status === 'active') {
+      <app-transfer-successor [storageId]="rental()!.storage_id" />
     }
 
     @if (rental()!.termination; as t) {
@@ -460,6 +437,7 @@
             <button
               type="button"
               (click)="renewMonths.set(m)"
+              [attr.aria-pressed]="renewMonths() === m"
               [class]="
                 'h-10 rounded-xl border text-xs font-semibold transition ' +
                 (renewMonths() === m
@@ -483,6 +461,10 @@
               <span class="font-semibold text-brand-text">{{ formatMoney(renewPriceValue()!) }}</span>
             </div>
           }
+        </div>
+
+        <div class="mt-3">
+          <app-kaspi-phone inputId="renew-kaspi-phone" [(phone)]="kaspiPhone" [error]="kaspiError()" />
         </div>
 
         <div class="mt-3">

@@ -72,21 +72,7 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-3 px-4 py-4">
-        <div
-          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-elevated text-brand-muted"
-        >
-          <i class="fas fa-phone text-xs"></i>
-        </div>
-
-        <div class="min-w-0">
-          <p class="text-[10px] text-brand-subtle">Телефон</p>
-
-          <p class="mt-0.5 truncate text-xs font-medium text-brand-text">
-            {{ user()?.phone || 'Не указан' }}
-          </p>
-        </div>
-      </div>
+      <app-phone-editor [phone]="user()?.phone ?? ''" />
     </div>
   </section>
 
@@ -165,7 +151,8 @@
 
       <button
         type="button"
-        (click)="passwordOpen.set(!passwordOpen())"
+        (click)="passwordOpen.set(!passwordOpen()); passwordSaved.set(false)"
+        [attr.aria-expanded]="passwordOpen()"
         class="flex w-full items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-brand-elevated"
       >
         <div
@@ -184,8 +171,13 @@
       </button>
       @if (passwordOpen()) {
         <div class="border-t border-brand-line px-4 py-4">
-          <app-change-password (done)="passwordOpen.set(false)" />
+          <app-change-password (done)="passwordOpen.set(false); passwordSaved.set(true)" />
         </div>
+      }
+      @if (passwordSaved()) {
+        <p role="status" class="border-t border-brand-line px-4 py-3 text-sm text-brand-accent">
+          <i class="fas fa-check mr-1" aria-hidden="true"></i> Пароль изменён
+        </p>
       }
     </div>
   </section>
