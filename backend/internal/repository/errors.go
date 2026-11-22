@@ -18,6 +18,9 @@ var (
 	// ErrInvalid is returned when the provided data or operation is invalid.
 	ErrInvalid = errors.New("invalid data or operation")
 
+	// ErrHoldLimit: the user already holds an unpaid booking.
+	ErrHoldLimit = errors.New("user already holds an unpaid booking")
+
 	// ErrPreviousTenantDebt: the handover is blocked until the current tenant pays the overdue time.
 	ErrPreviousTenantDebt = errors.New("previous tenant has unpaid debt")
 

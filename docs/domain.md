@@ -69,7 +69,7 @@ Password reset: the ОСИ sets a temporary password on «Жители», and th
 
 | Step | Rule |
 |---|---|
-| Lock | Only a `free` storage room can be locked. The hold lasts the ЖК's **lock duration**: set by the ОСИ in Настройки (1–60 min, default 2; `jks.lock_minutes`). A second resident gets 409 "ожидается подтверждение оплаты" |
+| Lock | Only a `free` storage room can be locked. The hold lasts the ЖК's **lock duration**: set by the ОСИ in Настройки (1–60 min, default 2; `jks.lock_minutes`). A second resident gets 409 "ожидается подтверждение оплаты". **One unpaid hold per resident**: a second live hold → 409 «У вас уже есть неоплаченная бронь…» (checked inside the lock transaction under a row lock on the user, so parallel taps can't get around it) |
 | Invoice | `POST /payments` with `rental_id` (+ optional Kaspi phone). The amount is `price_per_month × months`, **computed on the server**. The hold is extended to **10 minutes** (`service.PaymentWindow`) |
 | Paid | The webhook sets the rental to `active`, `starts_at = now`, `ends_at = now + months`, `total_paid = amount`, and the storage room to `occupied`. Repeated webhooks are no-ops |
 | Paid late | If the hold expired but the storage room is still free, the rental is activated anyway |

@@ -280,6 +280,10 @@ func (h *Handler) LockStorage(c *gin.Context) {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 			return
 		}
+		if errors.Is(err, repository.ErrHoldLimit) {
+			c.JSON(http.StatusConflict, gin.H{"error": "У вас уже есть неоплаченная бронь. Оплатите её или дождитесь окончания, чтобы забронировать другую кладовку."})
+			return
+		}
 		if errors.Is(err, repository.ErrPreviousTenantDebt) {
 			c.JSON(http.StatusConflict, gin.H{"error": service.ErrPreviousTenantDebt.Error()})
 			return

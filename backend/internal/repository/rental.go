@@ -31,6 +31,9 @@ const rentalDetailsColumns = `
 	            AND q.type IN ('payment_refund', 'tariff_recalc')), 0)::bigint
 `
 
+// MaxUnpaidHoldsPerUser: live `locked` (unpaid) bookings one user may have at once.
+const MaxUnpaidHoldsPerUser = 1
+
 func (r *Repo) LockStorage(
 	ctx context.Context,
 	storageID string,
@@ -48,6 +51,25 @@ func (r *Repo) LockStorage(
 
 	now := time.Now().UTC()
 	lockEndsAt := now.Add(lockDuration)
+
+	// 0. One live unpaid hold per user (QA: one resident could hold every free
+	// storage). The user row lock serialises concurrent bookings by one user.
+	var holds int
+	err = tx.QueryRowContext(ctx, `SELECT 1 FROM users WHERE id = $1 FOR UPDATE`, userID).Scan(new(int))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("repository.LockStorage lock user: %w", err)
+	}
+	if err := tx.QueryRowContext(ctx, `
+		SELECT count(*) FROM rentals WHERE user_id = $1 AND status = 'locked' AND ends_at > $2`,
+		userID, now).Scan(&holds); err != nil {
+		return nil, fmt.Errorf("repository.LockStorage count holds: %w", err)
+	}
+	if holds >= MaxUnpaidHoldsPerUser {
+		return nil, ErrHoldLimit
+	}
 
 	// 1. Lock the storage row.
 	var storageStatus string
