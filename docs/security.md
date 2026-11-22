@@ -28,6 +28,13 @@ In-memory, per process (`internal/ratelimit`, fixed window, expired keys swept o
 - When the user is not found, login still runs one bcrypt compare against a dummy hash, so response time doesn't reveal which ИИН are registered (`/auth/iin-status` tells that by design; it is rate-limited).
 - Trade-offs: counters reset on restart and are not shared between instances. The per-identifier limit lets someone who knows a victim's ИИН keep that account locked for 15 minutes at a time; the ОСИ password reset does not lift it (the counter is in memory). Per-IP limits only work when the client IP is real — see «Trusted proxies» in [operations.md](operations.md).
 
+## Input limits
+
+- Every request body is capped at **1 MB** (`middleware.BodyLimit`): 413 when `Content-Length` is larger, and parsing fails (400) when a chunked body goes past it.
+- `middleware.ParamGuard`: a path parameter with a NUL byte or invalid UTF-8 is **404**, and such a query value is **400**. Postgres would otherwise fail with 500.
+- Registration: `full_name` ≤ 255 characters, phone validated (see Authentication), password 6–72 bytes (bcrypt can't hash more), no NUL bytes in any text field (400). The same password rule applies to `PUT /me/password`, and the NUL rule to `PUT /me/verification`.
+- `POST /lead`: name ≤ 255, phone ≤ 50, email ≤ 255 characters, no NUL bytes (400).
+
 ## Authorization: two layers
 
 1. **Route level** (`router.go`): `Require()` means logged in. `RequireAdmin()` means role `admin`. `RequireSuperadmin()` means role `superadmin` (platform operator, `/platform/...`). A superadmin has no ЖК and does **not** pass `RequireAdmin`, so it can't read any ЖК's rentals, payments or residents.
@@ -79,3 +86,6 @@ New users are `pending` until the ОСИ confirms they own property in the ЖК.
 - [ ] Does the server compute money amounts, rather than taking them from the client?
 - [ ] Do error messages avoid leaking other users' data?
 - [ ] Is there an integration test for the "wrong user / other ЖК" case?
+- [ ] Are text fields length-checked against their columns, so bad input is a 400 and not a DB 500?
+- [ ] Is a public, write or expensive endpoint rate-limited (`internal/ratelimit`)?
+- [ ] Should the route stay reachable while `must_change_password` is set? (By default it is not.)

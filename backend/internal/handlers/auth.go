@@ -55,9 +55,7 @@ func (h *Handler) RegisterResident(c *gin.Context) {
 		switch {
 		case errors.Is(err, service.ErrIINTaken), errors.Is(err, service.ErrPhoneTaken):
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-		case errors.Is(err, service.ErrInvalidIIN), errors.Is(err, service.ErrWeakPassword), errors.Is(err, service.ErrInvalidPhone),
-			errors.Is(err, service.ErrJKRequired), errors.Is(err, service.ErrMissingFields),
-			isVerificationError(err):
+		case isRegistrationInputError(err), isVerificationError(err):
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		default:
 			log.Printf("RegisterResident: %v", err)
@@ -261,8 +259,18 @@ func userJSON(user *models.User) gin.H {
 	}
 }
 
+func isRegistrationInputError(err error) bool {
+	for _, e := range []error{service.ErrInvalidIIN, service.ErrWeakPassword, service.ErrPasswordTooLong, service.ErrInvalidPhone,
+		service.ErrJKRequired, service.ErrMissingFields, service.ErrInvalidText, service.ErrNameTooLong} {
+		if errors.Is(err, e) {
+			return true
+		}
+	}
+	return false
+}
+
 func isVerificationError(err error) bool {
-	for _, e := range []error{service.ErrPremisesRequired, service.ErrPremisesKind, service.ErrInvalidBIN, service.ErrCompanyName,
+	for _, e := range []error{service.ErrInvalidText, service.ErrPremisesRequired, service.ErrPremisesKind, service.ErrInvalidBIN, service.ErrCompanyName,
 		service.ErrCadastralInvalid, service.ErrCadastralUnknownJK, service.ErrCadastralOtherJK} {
 		if errors.Is(err, e) {
 			return true

@@ -27,7 +27,8 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	switch {
 	case err == nil:
 		h.freshSessionAfterPasswordChange(c)
-	case errors.Is(err, service.ErrWrongPassword), errors.Is(err, service.ErrWeakPassword):
+	case errors.Is(err, service.ErrWrongPassword), errors.Is(err, service.ErrWeakPassword),
+		errors.Is(err, service.ErrPasswordTooLong):
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	default:
 		log.Printf("ChangePassword: %v", err)

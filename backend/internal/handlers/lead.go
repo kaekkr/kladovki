@@ -35,6 +35,10 @@ func (h *Handler) CreateLead(c *gin.Context) {
 			})
 			return
 		}
+		if err == service.ErrInvalidText || service.IsValidationError(err) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Не удалось сохранить заявку",

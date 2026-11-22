@@ -16,6 +16,8 @@ import (
 func (h *Handler) Register(r *gin.Engine) {
 	// No global Optional(): it would cost a DB lookup on every static file,
 	// and no public route needs the user.
+	r.Use(middleware.BodyLimit(middleware.MaxBodyBytes), middleware.ParamGuard())
+
 	auth := h.mw.Require()
 	admin := middleware.RequireAdmin()
 
