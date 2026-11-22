@@ -19,6 +19,10 @@ func mapRepoErr(err error) error {
 		return ErrInvalid
 	case errors.Is(err, repository.ErrLocked):
 		return ErrLocked
+	case errors.Is(err, repository.ErrRenewalPending):
+		return ErrRenewalPending
+	case errors.Is(err, repository.ErrTerminationPending):
+		return ErrTerminationPending
 	}
 	return err
 }

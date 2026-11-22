@@ -188,13 +188,23 @@ func (r *Repo) CreateEarlyTermination(ctx context.Context, rentalID, userID, com
 	}
 
 	var pending bool
-	if err := tx.QueryRowContext(ctx, `
-		SELECT EXISTS (SELECT 1 FROM requests WHERE rental_id = $1 AND type = 'early_termination' AND status = 'open')`,
-		rentalID).Scan(&pending); err != nil {
+	if err := tx.QueryRowContext(ctx, openTerminationSQL, rentalID).Scan(&pending); err != nil {
 		return nil, err
 	}
 	if pending {
 		return nil, ErrConflict
+	}
+	// A renewal invoice just sent may still be paid: its money would change
+	// the amount. The tenant waits for it (or for it to go stale).
+	var renewing bool
+	if err := tx.QueryRowContext(ctx, `
+		SELECT EXISTS (SELECT 1 FROM payments
+			WHERE rental_id = $1 AND kind = 'renewal' AND status = 'pending' AND created_at > now() - $2::interval)`,
+		rentalID, fmt.Sprintf("%d seconds", int(RenewalPendingWindow.Seconds()))).Scan(&renewing); err != nil {
+		return nil, err
+	}
+	if renewing {
+		return nil, ErrRenewalPending
 	}
 
 	id := uuid.NewString()

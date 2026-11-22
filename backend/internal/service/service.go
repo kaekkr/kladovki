@@ -17,7 +17,11 @@ var (
 	ErrLocked             = errors.New("storage locked or occupied")
 	ErrTransferPending    = errors.New("storage transfer pending")
 	ErrPaymentPending     = errors.New("payment already pending")
-	ErrStorageInUse       = errors.New("Кладовку с историей аренд удалить нельзя — она нужна для отчётов и споров.")
+	// ErrTerminationPending: renewal refused while an early termination request is open.
+	ErrTerminationPending = errors.New("Подана заявка на досрочное расторжение — продление недоступно, пока ОСИ её не рассмотрит.")
+	// ErrRenewalPending: early termination refused while a renewal invoice may still be paid.
+	ErrRenewalPending = errors.New("Счёт на продление ещё ожидает оплаты в Kaspi. Дождитесь результата оплаты и подайте заявку снова.")
+	ErrStorageInUse   = errors.New("Кладовку с историей аренд удалить нельзя — она нужна для отчётов и споров.")
 )
 
 type Service struct {

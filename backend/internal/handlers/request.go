@@ -88,6 +88,10 @@ func (h *Handler) RequestEarlyTermination(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Активная аренда не найдена"})
 			return
 		}
+		if errors.Is(err, service.ErrRenewalPending) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 		requestError(c, err, "Заявка на досрочное завершение уже отправлена")
 		return
 	}

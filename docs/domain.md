@@ -93,6 +93,7 @@ Password reset: the ОСИ sets a temporary password on «Жители», and th
 - The price is the **current** tariff: `round(area × tariff) × months`. After payment the rental's `price_per_month` becomes that price.
 - When paid: `ends_at += months` **from the current end date**, not from today. An overdue tenant therefore pays for the overdue time first. `total_paid += amount`, `months += months`.
 - Not allowed while a transfer to a successor is pending (409).
+- Not allowed while the tenant's **early termination** request is open (409 «Подана заявка на досрочное расторжение…»).
 - If the rental was ended (cancelled or released) before the money arrived, it is not revived. A `payment_refund` request is opened instead.
 
 ## Remaining value
@@ -130,7 +131,9 @@ Worked examples (QA, 2026-11-22):
 
 ## Early termination
 
-- The resident clicks «Досрочное расторжение» (with an optional comment). This creates an **early_termination** request (`open`) with `amount` = remaining value. Only one open request per rental is allowed.
+- The resident clicks «Досрочное расторжение» (with an optional comment, up to 1000 characters). This creates an **early_termination** request (`open`) with `amount` = remaining value. Only one open request per rental is allowed.
+- Refused (409 «Счёт на продление ещё ожидает оплаты…») while a renewal invoice for the rental, sent less than **30 minutes** ago (`repository.RenewalPendingWindow`), is still pending.
+- **A renewal paid after the request was filed** (an older Kaspi invoice paid late) does not extend the rental: the money goes to a `payment_refund` request, as when the rental has ended. So the amount the ОСИ approves stays correct, and the renewal is returned whether the ОСИ approves or rejects. (Chosen over recomputing the amount at approval: one rule, no hidden change of an amount the tenant already saw.)
 - The ОСИ can **approve**: the rental becomes `cancelled`, `ends_at = now`, the storage room becomes `free`, and the ОСИ refunds the amount. Or **reject**, with a comment.
 
 ## Transfer to another resident (by ИИН)

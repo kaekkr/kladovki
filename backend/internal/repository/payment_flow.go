@@ -23,6 +23,21 @@ var ErrPaymentPending = errors.New("payment already pending")
 // ErrTransferPending: the storage is being handed over to another resident by IIN.
 var ErrTransferPending = errors.New("storage transfer pending")
 
+// ErrTerminationPending: an early termination request for the rental is open.
+var ErrTerminationPending = errors.New("early termination pending")
+
+// ErrRenewalPending: a renewal invoice for the rental is waiting to be paid.
+var ErrRenewalPending = errors.New("renewal payment pending")
+
+// RenewalPendingWindow: a renewal invoice younger than this blocks an early
+// termination request. Older unpaid invoices don't block (the Kaspi push was
+// ignored); if one is paid anyway, applyRenewal refunds it.
+const RenewalPendingWindow = 30 * time.Minute
+
+// openTerminationSQL: is an early termination of rental $1 waiting for the ОСИ?
+const openTerminationSQL = `SELECT EXISTS (SELECT 1 FROM requests
+	WHERE rental_id = $1 AND type = 'early_termination' AND status = 'open')`
+
 const (
 	PaymentKindBooking = "booking"
 	PaymentKindRenewal = "renewal"
@@ -32,6 +47,7 @@ const (
 	refundReasonBookingLost = "Оплата поступила после окончания брони, кладовка уже занята"
 	refundReasonRentalEnded = "Оплата продления поступила, когда аренда уже была завершена"
 	refundReasonDuplicate   = "Повторная оплата уже оплаченной брони"
+	refundReasonTerminating = "Оплата продления поступила, когда была подана заявка на досрочное расторжение"
 )
 
 // PrepareRenewalPayment creates a pending payment that, once paid, extends the
@@ -54,6 +70,13 @@ func (r *Repo) PrepareRenewalPayment(ctx context.Context, rentalID, userID strin
 	}
 	if transferIIN != "" && transferOpen {
 		return nil, ErrTransferPending
+	}
+	var terminating bool
+	if err := r.db.QueryRowContext(ctx, openTerminationSQL, rentalID).Scan(&terminating); err != nil {
+		return nil, fmt.Errorf("repository.PrepareRenewalPayment check termination: %w", err)
+	}
+	if terminating {
+		return nil, ErrTerminationPending
 	}
 	if transferIIN != "" { // the handover window passed — it no longer blocks the tenant
 		if _, err := r.db.ExecContext(ctx, `UPDATE storages SET transfer_to_iin = NULL, transfer_until = NULL WHERE id = $1`, storageID); err != nil {
@@ -89,8 +112,18 @@ func applyRenewal(ctx context.Context, tx *sql.Tx, paymentID, rentalID string, m
 	if err != nil {
 		return fmt.Errorf("repository.applyRenewal get rental: %w", err)
 	}
-	if status != string(models.RentalStatusActive) || months < 1 {
-		if err := insertPaymentRefundRequest(ctx, tx, paymentID, refundReasonRentalEnded); err != nil {
+	// The tenant asked to end the rental early: extending it now would change
+	// the amount the ОСИ is about to approve. The money goes back instead.
+	var terminating bool
+	if err := tx.QueryRowContext(ctx, openTerminationSQL, rentalID).Scan(&terminating); err != nil {
+		return fmt.Errorf("repository.applyRenewal check termination: %w", err)
+	}
+	if status != string(models.RentalStatusActive) || months < 1 || terminating {
+		reason := refundReasonRentalEnded
+		if terminating && status == string(models.RentalStatusActive) {
+			reason = refundReasonTerminating
+		}
+		if err := insertPaymentRefundRequest(ctx, tx, paymentID, reason); err != nil {
 			return fmt.Errorf("repository.applyRenewal refund request: %w", err)
 		}
 		if err := tx.Commit(); err != nil {
