@@ -94,6 +94,7 @@ Password reset: the ОСИ sets a temporary password on «Жители», and th
 - When paid: `ends_at += months` **from the current end date**, not from today. An overdue tenant therefore pays for the overdue time first. `total_paid += amount`, `months += months`.
 - Not allowed while a transfer to a successor is pending (409).
 - Not allowed while the tenant's **early termination** request is open (409 «Подана заявка на досрочное расторжение…»).
+- **One invoice at a time**: while a renewal invoice sent less than 30 minutes ago is still pending, another one is refused (409 «Счёт на продление уже отправлен в Kaspi…»), so a double tap can't produce two invoices that both extend the rental. A failed or older invoice doesn't block. Checked under a row lock on the rental.
 - If the rental was ended (cancelled or released) before the money arrived, it is not revived. A `payment_refund` request is opened instead.
 
 ## Remaining value

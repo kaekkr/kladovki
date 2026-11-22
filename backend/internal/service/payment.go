@@ -179,6 +179,8 @@ func (s *Service) PrepareRenewal(ctx context.Context, in RenewRentalInput) (*mod
 		return nil, ErrTransferPending
 	case errors.Is(err, repository.ErrTerminationPending):
 		return nil, ErrTerminationPending
+	case errors.Is(err, repository.ErrRenewalInvoicePending):
+		return nil, ErrRenewalInvoicePending
 	}
 	return payment, err
 }

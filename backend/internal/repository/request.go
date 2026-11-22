@@ -245,10 +245,7 @@ func (r *Repo) CreateEarlyTermination(ctx context.Context, rentalID, userID, com
 	// A renewal invoice just sent may still be paid: its money would change
 	// the amount. The tenant waits for it (or for it to go stale).
 	var renewing bool
-	if err := tx.QueryRowContext(ctx, `
-		SELECT EXISTS (SELECT 1 FROM payments
-			WHERE rental_id = $1 AND kind = 'renewal' AND status = 'pending' AND created_at > now() - $2::interval)`,
-		rentalID, fmt.Sprintf("%d seconds", int(RenewalPendingWindow.Seconds()))).Scan(&renewing); err != nil {
+	if err := tx.QueryRowContext(ctx, renewalPendingSQL, rentalID, renewalWindowArg()).Scan(&renewing); err != nil {
 		return nil, err
 	}
 	if renewing {
