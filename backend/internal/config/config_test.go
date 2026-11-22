@@ -69,6 +69,20 @@ func TestResolveJWTSecret_FallbackOnlyInDevelopment(t *testing.T) {
 	}
 }
 
+func TestResolveTrustedProxies(t *testing.T) {
+	if got := resolveTrustedProxies("", false); len(got) != 0 {
+		t.Fatalf("nothing set must trust nobody: %v", got)
+	}
+	got := resolveTrustedProxies(" 10.0.0.0/8 , ,192.0.2.1", false)
+	if len(got) != 2 || got[0] != "10.0.0.0/8" || got[1] != "192.0.2.1" {
+		t.Fatalf("list: %v", got)
+	}
+	withRender := resolveTrustedProxies("", true)
+	if len(withRender) != len(privateNetworks) || withRender[0] != "10.0.0.0/8" {
+		t.Fatalf("render: %v", withRender)
+	}
+}
+
 func TestLoad_UnsetEnvMeansProductionWithSecureCookie(t *testing.T) {
 	t.Chdir(t.TempDir()) // no .env files here
 	t.Setenv("APP_ENV", "")

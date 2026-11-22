@@ -55,6 +55,13 @@ func main() {
 
 	// 3. Router & Handlers
 	r := gin.Default()
+	// Who may set X-Forwarded-For (TRUSTED_PROXIES / TRUST_RENDER_PROXY); default nobody.
+	if err := middleware.ConfigureClientIP(r, cfg); err != nil {
+		log.Fatalf("CRITICAL: %v", err)
+	}
+	if len(cfg.TrustedProxies) == 0 && cfg.Env == "production" {
+		log.Println("WARNING: no trusted proxies: behind Render every client shares the proxy IP for rate limits; set TRUST_RENDER_PROXY=true")
+	}
 
 	// Exact allow-list: APP_BASE_URL, Capacitor app, CORS_ORIGINS (+ ng serve in development).
 	r.Use(middleware.CORS(cfg))
