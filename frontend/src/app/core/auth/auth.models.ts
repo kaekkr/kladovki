@@ -14,7 +14,8 @@ export interface Verification {
 export interface User {
   id: string;
   email: string;
-  role: 'admin' | 'resident';
+  /** superadmin = platform operator (no ЖК), works in /platform. */
+  role: 'admin' | 'resident' | 'superadmin';
   full_name?: string;
   phone?: string;
   jk_id?: string;
