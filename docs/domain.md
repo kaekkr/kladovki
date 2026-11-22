@@ -13,7 +13,7 @@
 | **Аренда** (`rentals`) | A rental of one storage room by one resident for N months at a fixed monthly price |
 | **Тариф** (`tariffs`) | Monthly price in ₸ **per m²** in this ЖК. A room's monthly price = `round(area × tariff)`, fixed into the rental when it is booked or renewed |
 | **Заявка** (`requests`) | Something the ОСИ must act on, or a resident must answer (refund, early termination, tariff choice) |
-| **Долг** | Money owed for an overdue rental (time used after `ends_at` × tariff) |
+| **Долг** | Money owed for an overdue rental: every started day after `ends_at` costs `price_per_month / 30`. For a rental released for debt: frozen at the release + termination costs |
 | **ИИН** | 12-digit Kazakh personal ID number, used as the resident's login |
 
 ## Roles
@@ -83,7 +83,7 @@ Password reset: the ОСИ sets a temporary password on «Жители», and th
 - **Overdue** is not a separate status. It is an `active` rental whose `ends_at` has passed. The storage room stays `occupied` (the resident's things are inside). Reminders and debt warnings go out, and the ОСИ decides what to do.
 - ОСИ actions:
   - **cancel** (any active rental);
-  - **release-overdue** (rental → `expired`, room → `free`);
+  - **release-overdue** (rental → `expired`, room → `free`, with a termination record). The debt does **not** disappear: it is frozen at the release moment (`price_per_month / 30` × started days from `ends_at` to the release) plus the recorded `costs`, and keeps showing in «Начисления», «Задолженности» and the dashboard total. There is no «settled» mark yet: the ОСИ collects it outside the app;
   - **force-release** (clear a stuck hold).
 - The UI shows an unpaid expired hold as "Бронь истекла". The cost of a hold is shown as `price × months`; once paid, it's `total_paid`.
 
