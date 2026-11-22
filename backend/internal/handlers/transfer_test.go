@@ -21,11 +21,11 @@ func (e *testEnv) runExpiryWorker() {
 	}
 }
 
-// setUpHandover: the resident's paid period ended yesterday; they named `other` as successor.
+// setUpHandover: the resident (half-way through a paid rental, 5000 ₸ unused)
+// named `other` as successor.
 func (e *testEnv) setUpHandover() (oldRental string) {
 	e.t.Helper()
 	oldRental = e.activeRental(e.resident, e.storageA)
-	e.exec(`UPDATE rentals SET ends_at = now() - interval '1 day' WHERE id=$1`, oldRental)
 	if r := e.do(http.MethodPatch, "/storages/"+e.storageA+"/transfer", e.resident, map[string]any{"iin": "900101300002"}); r.Code != http.StatusOK {
 		e.t.Fatalf("set transfer: %d %s", r.Code, r.Body)
 	}

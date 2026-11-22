@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/kaekkr/kladovki/internal/models"
 	"github.com/kaekkr/kladovki/internal/notify"
@@ -190,8 +189,14 @@ func (s *Service) SetStorageTransfer(
 		return err
 	}
 
-	if time.Now().Before(rental.EndsAt) {
-		return ErrInvalid
+	// The successor may be named any time during the rental (or after it ended,
+	// within the window). Naming the current tenant would only block renewal.
+	tenant, err := s.repo.GetUserByID(ctx, rental.UserID)
+	if err != nil {
+		return fmt.Errorf("service.SetStorageTransfer tenant: %w", err)
+	}
+	if tenant.IIN == iin {
+		return ErrSelfTransfer
 	}
 
 	if err := s.repo.SetStorageTransfer(ctx, storageID, iin); err != nil {

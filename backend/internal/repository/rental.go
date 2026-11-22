@@ -96,26 +96,22 @@ FOR UPDATE`,
 		}
 	}
 
-	// An invited tenant may take over an occupied storage only after the
-	// current paid rental ends and while the 14-day transfer window is open.
+	// The named successor may take over an occupied storage while the transfer
+	// window is open — but only while the current tenant owes nothing: an
+	// overdue rental (ends_at passed) must be paid first (owner, 2026-11-22).
 	if storageStatus == string(models.StatusOccupied) {
-		var takeoverAllowed bool
-		err = tx.QueryRowContext(ctx, `
-			SELECT EXISTS (
-				SELECT 1 FROM rentals r
-				JOIN users u ON u.id = $2
-				WHERE r.storage_id = $1
-				  AND r.status = 'active'
-				  AND r.ends_at <= $3
-				  AND r.ends_at + INTERVAL '14 days' > $3
-				  AND u.iin = $4
-			)
-		`, storageID, userID, now, transferToIIN.String).Scan(&takeoverAllowed)
-		if err != nil {
-			return nil, fmt.Errorf("repository.LockStorage check transfer eligibility: %w", err)
-		}
-		if !takeoverAllowed || !transferUntil.Valid || !transferUntil.Time.After(now) {
+		if !transferToIIN.Valid || transferToIIN.String == "" || !transferUntil.Valid || !transferUntil.Time.After(now) {
 			return nil, ErrStorageAlreadyLocked
+		}
+		var overdue bool
+		err = tx.QueryRowContext(ctx, `
+			SELECT EXISTS (SELECT 1 FROM rentals WHERE storage_id = $1 AND status = 'active' AND ends_at <= $2)`,
+			storageID, now).Scan(&overdue)
+		if err != nil {
+			return nil, fmt.Errorf("repository.LockStorage check previous tenant debt: %w", err)
+		}
+		if overdue {
+			return nil, ErrPreviousTenantDebt
 		}
 		// The previous tenant keeps the rental until the successor actually
 		// pays (ActivatePaidRental closes it then); an unpaid takeover must not
@@ -273,16 +269,8 @@ func (r *Repo) ConfirmRentalPayment(
 		return nil, fmt.Errorf("repository.ConfirmRentalPayment update rental: %w", err)
 	}
 
-	_, err = tx.ExecContext(ctx, `
-		UPDATE rentals
-		SET status = 'expired'
-		WHERE storage_id = $1
-		  AND id <> $2
-		  AND status = 'active'
-		  AND ends_at <= $3
-	`, rt.StorageID, rt.ID, now)
-	if err != nil {
-		return nil, fmt.Errorf("repository.ConfirmRentalPayment expire previous rental: %w", err)
+	if err := closePreviousTenant(ctx, tx, rt.StorageID, rt.ID); err != nil {
+		return nil, fmt.Errorf("repository.ConfirmRentalPayment: %w", err)
 	}
 
 	res, err := tx.ExecContext(ctx, `
@@ -884,6 +872,54 @@ func (r *Repo) GetTermination(ctx context.Context, rentalID string) (*models.Ter
 		return nil, fmt.Errorf("repository.GetTermination: %w", err)
 	}
 	return &t, nil
+}
+
+// closePreviousTenant ends the rental of the tenant who handed storageID over
+// to newRentalID's tenant (transfer by ИИН): it ends now, its unused part is
+// owed back through a payment_refund, and its pending requests are closed.
+func closePreviousTenant(ctx context.Context, tx *sql.Tx, storageID, newRentalID string) error {
+	rows, err := tx.QueryContext(ctx, `
+		SELECT r.id, r.jk_id, r.user_id, `+remainingValueRoundedSQL+`
+		FROM rentals r WHERE r.storage_id = $1 AND r.id <> $2 AND r.status = 'active'
+		FOR UPDATE`, storageID, newRentalID)
+	if err != nil {
+		return fmt.Errorf("closePreviousTenant select: %w", err)
+	}
+	type prev struct {
+		id, jkID, userID string
+		refund           int64
+	}
+	var list []prev
+	for rows.Next() {
+		var p prev
+		if err := rows.Scan(&p.id, &p.jkID, &p.userID, &p.refund); err != nil {
+			rows.Close()
+			return err
+		}
+		list = append(list, p)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, p := range list {
+		if _, err := tx.ExecContext(ctx, supersedeRentalRequestsSQL, p.id, ""); err != nil {
+			return fmt.Errorf("closePreviousTenant supersede: %w", err)
+		}
+		if p.refund > 0 {
+			if _, err := tx.ExecContext(ctx, `
+				INSERT INTO requests (id, jk_id, user_id, rental_id, type, status, amount, comment)
+				VALUES ($1, $2, $3, $4, 'payment_refund', 'open', $5, $6)`,
+				uuid.NewString(), p.jkID, p.userID, p.id, p.refund, refundReasonHandedOver); err != nil {
+				return fmt.Errorf("closePreviousTenant refund: %w", err)
+			}
+		}
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE rentals SET status = 'expired', ends_at = LEAST(ends_at, now()) WHERE id = $1`, p.id); err != nil {
+			return fmt.Errorf("closePreviousTenant expire: %w", err)
+		}
+	}
+	return nil
 }
 
 // supersedeRentalRequestsSQL closes choices and requests that no longer make

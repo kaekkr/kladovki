@@ -17,6 +17,10 @@ var (
 	ErrLocked             = errors.New("storage locked or occupied")
 	ErrTransferPending    = errors.New("storage transfer pending")
 	ErrPaymentPending     = errors.New("payment already pending")
+	// ErrSelfTransfer: the successor's ИИН is the current tenant's own.
+	ErrSelfTransfer = errors.New("Нельзя передать кладовку текущему арендатору — укажите ИИН другого жителя.")
+	// ErrPreviousTenantDebt: a handover booking while the current tenant is overdue.
+	ErrPreviousTenantDebt = errors.New("Предыдущий арендатор не оплатил задолженность за кладовку. Оформить аренду можно после того, как он её погасит.")
 	// ErrRefundNotRejectable: the ОСИ may only confirm a tariff refund, not reject it.
 	ErrRefundNotRejectable = errors.New("Возврат разницы по тарифу отклонить нельзя: арендатор уже отказался от продления срока. Верните деньги и отметьте «Деньги возвращены».")
 	// ErrTerminationPending: renewal refused while an early termination request is open.

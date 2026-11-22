@@ -47,6 +47,7 @@ const (
 	refundReasonBookingLost = "Оплата поступила после окончания брони, кладовка уже занята"
 	refundReasonRentalEnded = "Оплата продления поступила, когда аренда уже была завершена"
 	refundReasonDuplicate   = "Повторная оплата уже оплаченной брони"
+	refundReasonHandedOver  = "Кладовка передана новому арендатору — возврат за неиспользованный период"
 	refundReasonTerminating = "Оплата продления поступила, когда была подана заявка на досрочное расторжение"
 )
 
@@ -54,11 +55,11 @@ const (
 // caller's active rental by `months` at `pricePerMonth` (the current tariff).
 func (r *Repo) PrepareRenewalPayment(ctx context.Context, rentalID, userID string, months int, pricePerMonth int64) (*models.Payment, error) {
 	var status, transferIIN, storageID string
-	var transferOpen bool
+	var transferOpen, overdue bool
 	err := r.db.QueryRowContext(ctx, `
-		SELECT r.status, COALESCE(s.transfer_to_iin, ''), s.id, COALESCE(s.transfer_until > now(), false)
+		SELECT r.status, COALESCE(s.transfer_to_iin, ''), s.id, COALESCE(s.transfer_until > now(), false), r.ends_at <= now()
 		FROM rentals r JOIN storages s ON s.id = r.storage_id
-		WHERE r.id = $1 AND r.user_id = $2`, rentalID, userID).Scan(&status, &transferIIN, &storageID, &transferOpen)
+		WHERE r.id = $1 AND r.user_id = $2`, rentalID, userID).Scan(&status, &transferIIN, &storageID, &transferOpen, &overdue)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -68,7 +69,9 @@ func (r *Repo) PrepareRenewalPayment(ctx context.Context, rentalID, userID strin
 	if status != string(models.RentalStatusActive) {
 		return nil, ErrLocked
 	}
-	if transferIIN != "" && transferOpen {
+	// While a handover is pending the tenant can't extend past it — except to
+	// pay overdue time: the successor can't take over until that debt is paid.
+	if transferIIN != "" && transferOpen && !overdue {
 		return nil, ErrTransferPending
 	}
 	var terminating bool
@@ -78,7 +81,7 @@ func (r *Repo) PrepareRenewalPayment(ctx context.Context, rentalID, userID strin
 	if terminating {
 		return nil, ErrTerminationPending
 	}
-	if transferIIN != "" { // the handover window passed — it no longer blocks the tenant
+	if transferIIN != "" && !transferOpen { // the handover window passed — it no longer blocks the tenant
 		if _, err := r.db.ExecContext(ctx, `UPDATE storages SET transfer_to_iin = NULL, transfer_until = NULL WHERE id = $1`, storageID); err != nil {
 			return nil, fmt.Errorf("repository.PrepareRenewalPayment clear lapsed transfer: %w", err)
 		}
@@ -269,12 +272,21 @@ func (r *Repo) ActivatePaidRental(ctx context.Context, paymentID string) error {
 	}
 
 	now := time.Now().UTC()
+	// Taken: someone else rents the storage (overdue included — a very late
+	// webhook must not evict them) or holds a live booking. The only exception
+	// is a handover to this payer by ИИН while the current tenant's paid period
+	// is still running (an overdue tenant must pay the debt first).
 	var taken bool
 	err = tx.QueryRowContext(ctx, `
 		SELECT EXISTS (
-			SELECT 1 FROM rentals
-			WHERE storage_id = $1 AND id <> $2
-			  AND ((status = 'active' AND ends_at > $3) OR (status = 'locked' AND ends_at > $3))
+			SELECT 1 FROM rentals o
+			JOIN storages s ON s.id = o.storage_id
+			JOIN users payer ON payer.id = (SELECT user_id FROM rentals WHERE id = $2)
+			WHERE o.storage_id = $1 AND o.id <> $2
+			  AND ((o.status = 'locked' AND o.ends_at > $3)
+			       OR (o.status = 'active' AND NOT (
+			           o.ends_at > $3 AND s.transfer_until > $3
+			           AND s.transfer_to_iin IS NOT NULL AND s.transfer_to_iin = payer.iin)))
 		)`, storageID, rentalID, now).Scan(&taken)
 	if err != nil {
 		return fmt.Errorf("repository.ActivatePaidRental check storage: %w", err)
@@ -294,12 +306,9 @@ func (r *Repo) ActivatePaidRental(ctx context.Context, paymentID string) error {
 		WHERE id = $4`, now, now.AddDate(0, months, 0), amount, rentalID); err != nil {
 		return fmt.Errorf("repository.ActivatePaidRental activate: %w", err)
 	}
-	// Previous tenant whose period ended (e.g. a transfer by IIN) is closed.
-	if _, err := tx.ExecContext(ctx, `
-		UPDATE rentals SET status = 'expired'
-		WHERE storage_id = $1 AND id <> $2 AND status = 'active' AND ends_at <= $3`,
-		storageID, rentalID, now); err != nil {
-		return fmt.Errorf("repository.ActivatePaidRental expire previous: %w", err)
+	// The tenant who handed the storage over (transfer by ИИН) is closed now.
+	if err := closePreviousTenant(ctx, tx, storageID, rentalID); err != nil {
+		return fmt.Errorf("repository.ActivatePaidRental: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `
 		UPDATE storages SET status = 'occupied', transfer_to_iin = NULL, transfer_until = NULL

@@ -73,7 +73,7 @@ Password reset: the ОСИ sets a temporary password on «Жители», and th
 | Invoice | `POST /payments` with `rental_id` (+ optional Kaspi phone). The amount is `price_per_month × months`, **computed on the server**. The hold is extended to **10 minutes** (`service.PaymentWindow`) |
 | Paid | The webhook sets the rental to `active`, `starts_at = now`, `ends_at = now + months`, `total_paid = amount`, and the storage room to `occupied`. Repeated webhooks are no-ops |
 | Paid late | If the hold expired but the storage room is still free, the rental is activated anyway |
-| Paid, room taken | The rental is not activated. A **payment_refund** request is opened for the ОСИ |
+| Paid, room taken | Someone else rents the room (an **overdue** tenant included — a late webhook never evicts anyone) or holds a live booking. The rental is not activated. A **payment_refund** request is opened for the ОСИ. Exception: a handover to the payer by ИИН while the current paid period is still running |
 | Not paid | Invoice `cancelled` / `expired` / `error` → payment `failed`. The hold runs out → storage room `free` |
 
 ## Rental lifecycle
@@ -138,8 +138,11 @@ Worked examples (QA, 2026-11-22):
 
 ## Transfer to another resident (by ИИН)
 
-- The current tenant (or the ОСИ) sets `transfer_to_iin` on the storage room. `transfer_until` = rental `ends_at` + **14 days**.
-- Only the resident with that ИИН can book this storage room. They can do so once the current paid rental has ended and the 14-day window is still open. The old rental then becomes `expired`.
+- The current tenant (or the ОСИ) sets `transfer_to_iin` on an occupied storage room (`PATCH /storages/:id/transfer`), **at any time during the rental** (or after it ended). `transfer_until` = rental `ends_at` + **14 days**. The tenant's own ИИН → 400 «Нельзя передать кладовку текущему арендатору…».
+- Only the resident with that ИИН can book this storage room while the window is open.
+- **Debt first** (owner, 2026-11-22): while the current rental is overdue (`active` and `ends_at` passed, i.e. it has a debt), the successor's booking is refused: 409 «Предыдущий арендатор не оплатил задолженность…». The overdue tenant can still renew (pay the debt) despite the pending transfer; a tenant who is not overdue can't renew while the transfer is pending (409).
+- When the successor pays, the previous rental ends **now** (`expired`, `ends_at = now`); its unused part (remaining value) is owed back to the previous tenant as a `payment_refund` request («Кладовка передана новому арендатору…»), and its pending requests are closed.
+- If the successor's booking is paid after the previous rental became overdue (the 10-minute payment window crossed `ends_at`), the room counts as taken and the successor's money goes to a `payment_refund`.
 
 ## Storage editing rules
 
