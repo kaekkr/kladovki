@@ -11,10 +11,19 @@ import (
 	"github.com/kaekkr/kladovki/internal/models"
 )
 
-// remainingValueSQL: money for the not-yet-used part of a rental
-// = total_paid × (time left / whole paid period). Alias of rentals must be "r".
-const remainingValueSQL = `(r.total_paid * GREATEST(0, EXTRACT(EPOCH FROM (r.ends_at - now())))
-	/ NULLIF(EXTRACT(EPOCH FROM (r.ends_at - r.starts_at)), 0))`
+// remainingValueSQL: money for the not-yet-used part of a rental (alias "r").
+// The unused paid time was worth V = value_left at A = value_at and runs down
+// linearly to 0 at ends_at:  V × (ends_at − now) / (ends_at − A), clamped to [0, V].
+// A fresh rental is never re-anchored (V = total_paid, A = starts_at), so an
+// N-month rental at price P is worth exactly P×N at start and 0 at the end.
+// Renewal, extend and refund re-anchor at the moment they happen, so later
+// changes of ends_at / total_paid can't inflate it. See docs/domain.md.
+const remainingValueSQL = `COALESCE(COALESCE(r.value_left, r.total_paid) * LEAST(1, GREATEST(0,
+	EXTRACT(EPOCH FROM (r.ends_at - now()))
+	/ NULLIF(EXTRACT(EPOCH FROM (r.ends_at - COALESCE(r.value_at, r.starts_at))), 0))), 0)`
+
+// remainingValueRoundedSQL is remainingValueSQL in whole tenge.
+const remainingValueRoundedSQL = `ROUND(` + remainingValueSQL + `)::bigint`
 
 // newPriceSQL: monthly price of the storage at tariff $2 (alias "s").
 const newPriceSQL = `ROUND(s.area * $2)::bigint`
@@ -132,7 +141,8 @@ func (r *Repo) ApplyTariffChoice(ctx context.Context, requestID, userID, choice 
 		_, err = tx.ExecContext(ctx, `
 			UPDATE rentals r
 			SET ends_at = r.ends_at + GREATEST(interval '0', r.ends_at - now()) * ((r.price_per_month::numeric / $2) - 1),
-			    price_per_month = $2
+			    price_per_month = $2,
+			    value_left = `+remainingValueRoundedSQL+`, value_at = now()
 			WHERE r.id = $1 AND r.status = 'active'`, rentalID, newPrice)
 		if err == nil {
 			_, err = tx.ExecContext(ctx, `
@@ -140,8 +150,9 @@ func (r *Repo) ApplyTariffChoice(ctx context.Context, requestID, userID, choice 
 		}
 	case "refund":
 		_, err = tx.ExecContext(ctx, `
-			UPDATE rentals SET price_per_month = $2, total_paid = GREATEST(0, total_paid - $3)
-			WHERE id = $1 AND status = 'active'`, rentalID, newPrice, amount)
+			UPDATE rentals r SET price_per_month = $2, total_paid = GREATEST(0, r.total_paid - $3),
+			    value_left = GREATEST(0, `+remainingValueRoundedSQL+` - $3), value_at = now()
+			WHERE r.id = $1 AND r.status = 'active'`, rentalID, newPrice, amount)
 		if err == nil {
 			_, err = tx.ExecContext(ctx, `UPDATE requests SET status = 'open', choice = 'refund' WHERE id = $1`, requestID)
 		}
@@ -165,7 +176,7 @@ func (r *Repo) CreateEarlyTermination(ctx context.Context, rentalID, userID, com
 	var jkID string
 	var amount int64
 	err = tx.QueryRowContext(ctx, `
-		SELECT r.jk_id, ROUND(COALESCE(`+remainingValueSQL+`, 0))::bigint
+		SELECT r.jk_id, `+remainingValueRoundedSQL+`
 		FROM rentals r
 		WHERE r.id = $1 AND r.user_id = $2 AND r.status = 'active' AND r.ends_at > now()
 		FOR UPDATE`, rentalID, userID).Scan(&jkID, &amount)

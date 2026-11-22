@@ -740,7 +740,7 @@ func (r *Repo) CancelRental(
 	// The unused, already paid part is owed back to the tenant (agreement 4.2:
 	// refunds are handled by the ОСИ through a request).
 	var refund int64
-	if err := tx.QueryRowContext(ctx, `SELECT ROUND(COALESCE(`+remainingValueSQL+`, 0))::bigint FROM rentals r WHERE r.id = $1`,
+	if err := tx.QueryRowContext(ctx, `SELECT `+remainingValueRoundedSQL+` FROM rentals r WHERE r.id = $1`,
 		rentalID).Scan(&refund); err != nil {
 		return nil, fmt.Errorf("repository.CancelRental remaining value: %w", err)
 	}

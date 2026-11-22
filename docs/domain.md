@@ -97,11 +97,26 @@ Password reset: the ОСИ sets a temporary password on «Жители», and th
 
 ## Remaining value
 
-Several rules need "how much of what was paid is still unused":
+Several rules need "how much of what was paid is still unused" (early termination, ОСИ cancel, the refund option of a tariff decrease and its preview). Each rental keeps an **anchor**: the unused time was worth `V` ₸ at moment `A`, and the value runs down evenly to 0 at `ends_at`:
 
 ```
-remaining value = total_paid × (time left until ends_at / whole paid period)
+remaining value = V × (ends_at − now) / (ends_at − A)      clamped to [0, V]
 ```
+
+| Event | Anchor after it |
+|---|---|
+| Paid booking (fresh rental) | none stored: `V = total_paid`, `A = starts_at`. So an N-month rental at price P is worth exactly **P × N** at the start and **0** at the end |
+| Renewal paid | `V = remaining value now + renewal amount`, `A = now` (or the old `ends_at` if the rental was overdue: that overdue time is already used up) |
+| Tariff decrease, **extend** | `V = remaining value now` (unchanged money, spread over the longer period), `A = now` |
+| Tariff decrease, **refund** | `V = remaining value now − refund`, `A = now` |
+
+Stored in `rentals.value_left` / `rentals.value_at` (NULL = no anchor yet). Rentals extended or refunded before this rule (2026-11-22) keep their old anchor and may still be over-valued; the ОСИ checks such an amount before approving.
+
+Worked examples (QA, 2026-11-22):
+
+- 15 000 ₸ for 6 months, 3 months used, tariff halved, **extend**: remaining value was 7 500 ₸ at the choice, so the anchor is `V = 7 500`, `A = now`, `ends_at` = now + 6 months. Early termination right away returns **7 500 ₸** (the old formula returned 10 000).
+- 24 000 ₸ for 6 months, 5 months left (≈ 19 912 ₸), tariff halved, **refund** (≈ 9 956 ₸ owed): anchor `V ≈ 9 956`, `A = now`. A later early termination returns ≈ 9 956 ₸ × (time left / time left at the choice), not 11 652.
+- 10 000 ₸ for 2 months, half used (5 000 left), then a 1-month renewal at 6 000 ₸: remaining value right after it = **11 000 ₸**.
 
 ## Tariff change
 

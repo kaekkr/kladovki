@@ -269,4 +269,10 @@ var migrations = []string{
 
 	// Platform operator who creates ЖК and their ОСИ accounts (super-admin panel).
 	`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'superadmin'`,
+
+	// Remaining value anchor (docs/domain.md "Remaining value"): the unused paid
+	// time was worth value_left ₸ at value_at and runs down linearly to 0 at
+	// ends_at. NULL = never re-anchored: total_paid at starts_at.
+	`ALTER TABLE rentals ADD COLUMN IF NOT EXISTS value_left BIGINT`,
+	`ALTER TABLE rentals ADD COLUMN IF NOT EXISTS value_at TIMESTAMPTZ`,
 }

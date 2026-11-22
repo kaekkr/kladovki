@@ -98,10 +98,14 @@ func applyRenewal(ctx context.Context, tx *sql.Tx, paymentID, rentalID string, m
 		}
 		return ErrPaidButStorageTaken
 	}
+	// Re-anchor the remaining value: what was left unused plus the whole
+	// renewal, running down from now (or from the old end when overdue —
+	// that overdue time is used up already) to the new end.
 	if _, err := tx.ExecContext(ctx, `
-		UPDATE rentals
-		SET ends_at = $2, total_paid = total_paid + $3, months = months + $4, price_per_month = $5
-		WHERE id = $1`, rentalID, endsAt.UTC().AddDate(0, months, 0), amount, months, amount/int64(months)); err != nil {
+		UPDATE rentals r
+		SET ends_at = $2, total_paid = r.total_paid + $3, months = r.months + $4, price_per_month = $5,
+		    value_left = `+remainingValueRoundedSQL+` + $3, value_at = LEAST(now(), r.ends_at)
+		WHERE r.id = $1`, rentalID, endsAt.UTC().AddDate(0, months, 0), amount, months, amount/int64(months)); err != nil {
 		return fmt.Errorf("repository.applyRenewal extend: %w", err)
 	}
 	return tx.Commit()
