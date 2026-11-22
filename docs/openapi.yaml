@@ -1455,16 +1455,20 @@ paths:
       summary: Change my phone (Kaspi invoices go to it)
       description: |
         **Who:** any signed-in user. The phone is normalized to `+7XXXXXXXXXX` (Kazakhstan mobile);
-        `8 (701) 555-44-33` and `+7 701 555 44 33` are accepted.
+        `8 (701) 555-44-33` and `+7 701 555 44 33` are accepted. The current password is required
+        (400 when missing, 403 when wrong), so a stolen session can't redirect Kaspi invoices.
+        Shares the per-IP rate limit of `/auth/*` (429). 409 when another account has the same
+        number in any spelling.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [phone]
+              required: [phone, current_password]
               properties:
                 phone: {type: string, example: '+77015554433'}
+                current_password: {type: string, format: password}
       responses:
         '200':
           description: Saved
@@ -1477,7 +1481,17 @@ paths:
                   message: {type: string}
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
+        '403':
+          description: Wrong current password (`Текущий пароль указан неверно.`).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
         '409': {$ref: '#/components/responses/Conflict'}
+        '429':
+          description: "Too many requests from this IP (`code: rate_limited`, `Retry-After` header)."
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
   /me/password:
     put:
       tags: [me]

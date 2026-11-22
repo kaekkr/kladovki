@@ -38,6 +38,7 @@ The texts live in `backend/internal/legal/texts/` (Russian + Kazakh). Each docum
 | POST | `/auth/logout` | — | Clears the cookie; a valid token also revokes all sessions of that user |
 | GET | `/auth/me` | 🔑 | The current user, including `status` (`pending`/`active`/`rejected`/`blocked`), `review_comment`, and the property fields |
 | PUT | `/me/password` | 🔑 | `{current_password, new_password}`. Ends every session of the user and starts a new one for the caller: new cookie, plus `access_token` in the body when `X-Kladovki-Client: native` |
+| PUT | `/me/phone` | 🔑 | `{phone, current_password}`. The phone Kaspi invoices go to, stored as `+7XXXXXXXXXX`. 400 bad phone / no password, 403 wrong password, 409 number taken (any spelling), 429 per-IP limit |
 
 - `login` is looked up by type: 12 digits → ИИН, contains `@` → email, otherwise → phone. `phone` at registration must be a Kazakhstan number (`+7XXXXXXXXXX`, `8XXXXXXXXXX`, `7XXXXXXXXXX`); it is stored as `+7XXXXXXXXXX`; anything else is 400.
 - Rate limits answer **429** `{"error": "…", "code": "rate_limited"}` with `Retry-After` (see [security.md](security.md#rate-limits)).

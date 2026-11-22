@@ -125,7 +125,8 @@ func (h *Handler) Register(r *gin.Engine) {
 		{
 			me.PUT("/verification", h.ResubmitVerification)
 			me.PUT("/password", h.ChangePassword)
-			me.PUT("/phone", h.UpdatePhone)
+			// Checks the password: same per-IP budget as /auth.
+			me.PUT("/phone", ratelimit.PerIP(h.limits.auth), h.UpdatePhone)
 			me.GET("/channels", h.MyChannels)
 			me.POST("/telegram/link", h.TelegramLink)
 			me.DELETE("/telegram", h.TelegramUnlink)

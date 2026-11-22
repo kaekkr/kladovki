@@ -50,6 +50,16 @@ import { ProfilePhoneService } from './profile-phone.service';
           (ngModelChange)="draft.set($event)"
           class="w-full rounded-md border border-brand-line bg-brand-elevated/30 px-3 py-2 text-sm text-brand-text outline-none focus:border-brand-accent"
         />
+        <label for="profile-phone-password" class="block text-xs text-brand-muted">Текущий пароль</label>
+        <input
+          id="profile-phone-password"
+          name="current_password"
+          type="password"
+          autocomplete="current-password"
+          [ngModel]="password()"
+          (ngModelChange)="password.set($event)"
+          class="w-full rounded-md border border-brand-line bg-brand-elevated/30 px-3 py-2 text-sm text-brand-text outline-none focus:border-brand-accent"
+        />
         @if (error()) {
           <p role="alert" class="text-xs text-status-overdue">{{ error() }}</p>
         }
@@ -80,6 +90,7 @@ export class PhoneEditor {
 
   editing = signal(false);
   draft = signal('');
+  password = signal('');
   saving = signal(false);
   saved = signal(false);
   error = signal<string | null>(null);
@@ -87,6 +98,7 @@ export class PhoneEditor {
 
   open(): void {
     this.draft.set(this.phone() ? formatPhone(this.phone()) : '');
+    this.password.set('');
     this.error.set(null);
     this.saved.set(false);
     this.editing.set(true);
@@ -99,10 +111,15 @@ export class PhoneEditor {
       this.error.set(problem);
       return;
     }
+    if (!this.password()) {
+      this.error.set('Введите текущий пароль');
+      return;
+    }
     this.saving.set(true);
     this.error.set(null);
-    this.service.updatePhone(phone).subscribe({
+    this.service.updatePhone(phone, this.password()).subscribe({
       next: () => {
+        this.password.set('');
         this.saving.set(false);
         this.editing.set(false);
         this.saved.set(true);

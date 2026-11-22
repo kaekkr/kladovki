@@ -38,8 +38,16 @@ func NormalizePhone(raw string) (phone string, ok bool) {
 	return "", false
 }
 
-// UpdatePhone changes the user's own phone (Kaspi invoices go to it).
-func (s *Service) UpdatePhone(ctx context.Context, userID, raw string) (string, error) {
+// UpdatePhone changes the user's own phone (Kaspi invoices go to it). The
+// current password is checked first: ErrWrongPassword when it doesn't match.
+func (s *Service) UpdatePhone(ctx context.Context, userID, currentPassword, raw string) (string, error) {
+	u, err := s.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	if !CheckPassword(u.PasswordHash, currentPassword) {
+		return "", ErrWrongPassword
+	}
 	phone, ok := NormalizePhone(raw)
 	if !ok {
 		return "", ErrInvalidPhone

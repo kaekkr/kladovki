@@ -70,20 +70,28 @@ func (h *Handler) ResetResidentPassword(c *gin.Context) {
 }
 
 type updatePhoneRequest struct {
-	Phone string `json:"phone" binding:"required"`
+	Phone           string `json:"phone"`
+	CurrentPassword string `json:"current_password"`
 }
 
 // UpdatePhone: PUT /me/phone — the user's own phone, where Kaspi invoices go.
+// The current password is required, so a stolen session can't redirect invoices.
 func (h *Handler) UpdatePhone(c *gin.Context) {
 	var req updatePhoneRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil || req.Phone == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": service.ErrInvalidPhone.Error()})
 		return
 	}
-	phone, err := h.svc.UpdatePhone(c.Request.Context(), middleware.UserID(c), req.Phone)
+	if req.CurrentPassword == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Укажите текущий пароль"})
+		return
+	}
+	phone, err := h.svc.UpdatePhone(c.Request.Context(), middleware.UserID(c), req.CurrentPassword, req.Phone)
 	switch {
 	case err == nil:
 		c.JSON(http.StatusOK, gin.H{"phone": phone, "message": "Номер телефона сохранён"})
+	case errors.Is(err, service.ErrWrongPassword):
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 	case errors.Is(err, service.ErrInvalidPhone):
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	case errors.Is(err, service.ErrPhoneTaken):
