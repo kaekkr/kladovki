@@ -31,8 +31,6 @@ info:
 
     **Money** is integer tenge (₸). Timestamps are RFC 3339; report periods use
     Kazakhstan days (UTC+5).
-x-todo:
-  - Super-admin `/platform/...` routes (create ЖК and their ОСИ accounts) are being added on another branch and will be documented here once merged.
 servers:
   - url: https://kladovki.onrender.com/api/v1
     description: Production
@@ -42,6 +40,8 @@ security:
   - cookieAuth: []
   - bearerAuth: []
 tags:
+  - name: platform
+    description: Platform operator (role `superadmin`, no ЖК). Creates ЖК and their ОСИ accounts. This role gets 403 on every ОСИ route.
   - name: auth
     description: Registration, login, session.
   - name: legal
@@ -1534,6 +1534,139 @@ paths:
         '200': {description: Acknowledged (empty body).}
         '401': {description: Bad or missing secret token (empty body).}
 
+  /platform/jks:
+    get:
+      tags: [platform]
+      summary: List all ЖК with counts
+      description: Superadmin only. Newest first.
+      responses:
+        '200':
+          description: ЖК list
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/JKSummary'}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [platform]
+      summary: Create a ЖК together with its first ОСИ account
+      description: |
+        Superadmin only. One transaction: ОСИ user → ЖК (owner_id) → user.jk_id.
+        A temporary password (10 chars) is returned **once**; the ОСИ must change it at first login.
+        The new ЖК has no tariff until the ОСИ sets one.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/PlatformJKInput'
+                - type: object
+                  required: [admin]
+                  properties:
+                    admin: {$ref: '#/components/schemas/PlatformAccountInput'}
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jk: {$ref: '#/components/schemas/JKSummary'}
+                  admin: {$ref: '#/components/schemas/PlatformAdmin'}
+                  temporary_password: {type: string}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409':
+          description: Cadastral number, email or phone already used
+          content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+  /platform/jks/{id}:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string}}
+    get:
+      tags: [platform]
+      summary: One ЖК with counts
+      responses:
+        '200':
+          description: ЖК
+          content: {application/json: {schema: {$ref: '#/components/schemas/JKSummary'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    put:
+      tags: [platform]
+      summary: Edit name, address and cadastral number
+      description: An empty cadastral_number clears it (residents then cannot find the ЖК at registration).
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/PlatformJKInput'}}}
+      responses:
+        '200':
+          description: Updated ЖК
+          content: {application/json: {schema: {$ref: '#/components/schemas/JKSummary'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409':
+          description: Cadastral number used by another ЖК
+          content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+  /platform/jks/{id}/admins:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string}}
+    get:
+      tags: [platform]
+      summary: ОСИ admins of a ЖК
+      responses:
+        '200':
+          description: Admins
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/PlatformAdmin'}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    post:
+      tags: [platform]
+      summary: Add another ОСИ admin (temporary password)
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/PlatformAccountInput'}}}
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  admin: {$ref: '#/components/schemas/PlatformAdmin'}
+                  temporary_password: {type: string}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409':
+          description: Email or phone already used
+          content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+  /platform/admins/{id}/reset-password:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string}}
+    post:
+      tags: [platform]
+      summary: New temporary password for an ОСИ admin
+      description: Only users with role `admin`; anyone else → 404.
+      responses:
+        '200':
+          description: Temporary password (shown once)
+          content:
+            application/json:
+              schema: {type: object, properties: {temporary_password: {type: string}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
 components:
   securitySchemes:
     cookieAuth:
@@ -1689,6 +1822,42 @@ components:
           example: {error: Не удалось отправить счёт в Kaspi. Попробуйте ещё раз.}
 
   schemas:
+    JKSummary:
+      type: object
+      properties:
+        id: {type: string}
+        name: {type: string}
+        address: {type: string}
+        cadastral_number: {type: string, example: '21:319:021:848:8'}
+        owner_id: {type: string}
+        created_at: {type: string, format: date-time}
+        storages_count: {type: integer}
+        admins_count: {type: integer}
+        residents_count: {type: integer}
+    PlatformJKInput:
+      type: object
+      required: [name, address]
+      properties:
+        name: {type: string, maxLength: 255}
+        address: {type: string, maxLength: 500}
+        cadastral_number: {type: string, description: 'ЖК number, digits separated by ":" (≥4 facets); unique'}
+    PlatformAccountInput:
+      type: object
+      required: [full_name, email, phone]
+      properties:
+        full_name: {type: string, maxLength: 255}
+        email: {type: string, format: email, maxLength: 255}
+        phone: {type: string, maxLength: 50}
+    PlatformAdmin:
+      type: object
+      properties:
+        id: {type: string}
+        full_name: {type: string}
+        email: {type: string}
+        phone: {type: string}
+        jk_id: {type: string}
+        created_at: {type: string, format: date-time}
+        must_change_password: {type: boolean}
     Error:
       type: object
       required: [error]
