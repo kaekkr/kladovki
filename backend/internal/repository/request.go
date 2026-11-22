@@ -28,13 +28,14 @@ const remainingValueRoundedSQL = `ROUND(` + remainingValueSQL + `)::bigint`
 // newPriceSQL: monthly price of the storage at tariff $2 (alias "s").
 const newPriceSQL = `ROUND(s.area * $2)::bigint`
 
-// affectedByDecreaseSQL selects active rentals of JK $1 that get cheaper at tariff $2.
+// affectedByDecreaseSQL selects active rentals of JK $1 that get cheaper at tariff $2
+// (to at least 1 ₸/month: a price that rounds to 0 can't stretch the term).
 // A rental with an open early termination is left out: its whole remaining
 // value is already claimed by the termination, a tariff refund would pay twice.
 const affectedByDecreaseSQL = `
 	FROM rentals r JOIN storages s ON s.id = r.storage_id
 	WHERE r.jk_id = $1 AND r.status = 'active' AND r.ends_at > now()
-	  AND ` + newPriceSQL + ` < r.price_per_month
+	  AND ` + newPriceSQL + ` < r.price_per_month AND ` + newPriceSQL + ` >= 1
 	  AND NOT EXISTS (SELECT 1 FROM requests t
 	      WHERE t.rental_id = r.id AND t.type = 'early_termination' AND t.status = 'open')`
 
@@ -133,6 +134,12 @@ func (r *Repo) ApplyTariffChoice(ctx context.Context, requestID, userID, choice 
 	}
 	if status != string(models.RequestAwaitingChoice) {
 		return ErrConflict
+	}
+	// A new price below 1 ₸ (older requests) can't be applied: extend would divide by it.
+	if newPrice < 1 {
+		_, _ = tx.ExecContext(ctx, `UPDATE requests SET status = 'superseded', resolved_at = now() WHERE id = $1`, requestID)
+		_ = tx.Commit()
+		return ErrInvalid
 	}
 
 	// The rental may have ended since the request was created (early termination,
