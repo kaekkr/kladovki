@@ -5,7 +5,7 @@
       routerLink="/app/storages"
       class="inline-flex items-center gap-2 text-xs font-medium text-brand-muted transition-colors hover:text-brand-text"
     >
-      <i class="fas fa-arrow-left text-[10px]"></i>
+      <i class="fas fa-arrow-left text-xs"></i>
       Назад к кладовкам
     </a>
   </div>
@@ -20,6 +20,9 @@
   }
 
   <!-- Error -->
+  @else if (error() && !notFound()) {
+    <app-load-error message="Не удалось загрузить кладовку." (retry)="load()" />
+  }
   @else if (error() || !storage()) {
     <section class="rounded-3xl border border-brand-line bg-brand-surface p-6 text-center">
       <div
@@ -55,7 +58,7 @@
       <div class="relative p-5">
         <div class="flex items-start justify-between gap-4">
           <div>
-            <p class="text-[10px] font-medium uppercase tracking-[0.14em] text-brand-subtle">
+            <p class="text-xs font-medium uppercase tracking-[0.14em] text-brand-subtle">
               Кладовка
             </p>
 
@@ -71,7 +74,7 @@
           <!-- Status -->
           @if (canRent()) {
             <span
-              class="inline-flex items-center gap-1.5 rounded-full bg-brand-accent/10 px-2.5 py-1.5 text-[10px] font-medium text-brand-accent"
+              class="inline-flex items-center gap-1.5 rounded-full bg-brand-accent/10 px-2.5 py-1.5 text-xs font-medium text-brand-accent"
             >
               <span class="h-1.5 w-1.5 rounded-full bg-brand-accent"></span>
               @if (transferInvitation()) {
@@ -82,14 +85,14 @@
             </span>
           } @else if (storage()!.status === 'locked') {
             <span
-              class="inline-flex items-center gap-1.5 rounded-full bg-status-locked/10 px-2.5 py-1.5 text-[10px] font-medium text-status-locked"
+              class="inline-flex items-center gap-1.5 rounded-full bg-status-locked/10 px-2.5 py-1.5 text-xs font-medium text-status-locked"
             >
               <span class="h-1.5 w-1.5 rounded-full bg-status-locked"></span>
               Забронировано
             </span>
           } @else {
             <span
-              class="inline-flex items-center gap-1.5 rounded-full bg-brand-elevated px-2.5 py-1.5 text-[10px] font-medium text-brand-muted"
+              class="inline-flex items-center gap-1.5 rounded-full bg-brand-elevated px-2.5 py-1.5 text-xs font-medium text-brand-muted"
             >
               <span class="h-1.5 w-1.5 rounded-full bg-brand-muted/50"></span>
               Занято
@@ -100,14 +103,14 @@
         <!-- Area -->
         <div class="mt-8 flex items-end justify-between">
           <div>
-            <p class="text-[10px] text-brand-subtle">Площадь</p>
-            <p class="mt-1 text-xl font-semibold text-brand-text">{{ storage()!.area }} м²</p>
+            <p class="text-xs text-brand-subtle">Площадь</p>
+            <p class="mt-1 text-xl font-semibold text-brand-text">{{ area(storage()!.area) }}</p>
           </div>
 
           <div class="text-right">
-            <p class="text-[10px] text-brand-subtle">Этаж</p>
+            <p class="text-xs text-brand-subtle">Этаж</p>
             <p class="mt-1 text-sm font-medium text-brand-text">
-              {{ storage()!.floor }}
+              {{ floorLabel(storage()!.floor) }}
             </p>
           </div>
         </div>
@@ -121,15 +124,15 @@
           <div>
             <p class="text-xs font-semibold text-brand-text">Кладовка передана вам</p>
             @if (canRent()) {
-              <p class="mt-1 text-[10px] leading-4 text-brand-muted">
-                Оформите аренду до {{ storage()!.transfer_until | date: 'dd.MM.yyyy, HH:mm' }}.
+              <p class="mt-1 text-xs leading-4 text-brand-muted">
+                Оформите аренду до {{ storage()!.transfer_until | date: 'd MMMM y, HH:mm' }}.
               </p>
             } @else if (storage()!.status === 'locked') {
-              <p class="mt-1 text-[10px] leading-4 text-brand-muted">
+              <p class="mt-1 text-xs leading-4 text-brand-muted">
                 Кладовка забронирована — ожидается подтверждение оплаты.
               </p>
             } @else {
-              <p class="mt-1 text-[10px] leading-4 text-brand-muted">
+              <p class="mt-1 text-xs leading-4 text-brand-muted">
                 Текущий оплаченный период ещё не закончился. Аренда станет доступна после его
                 окончания.
               </p>
@@ -146,7 +149,7 @@
       <div class="overflow-hidden rounded-2xl border border-brand-line bg-brand-surface">
         <div class="flex items-center justify-between border-b border-brand-line px-4 py-3.5">
           <span class="text-xs text-brand-muted">Площадь</span>
-          <span class="text-xs font-medium text-brand-text"> {{ storage()!.area }} м² </span>
+          <span class="text-xs font-medium text-brand-text"> {{ area(storage()!.area) }} </span>
         </div>
 
         <div class="flex items-center justify-between border-b border-brand-line px-4 py-3.5">
@@ -173,13 +176,13 @@
         @if (pricePerMonth() > 0) {
           <div class="flex items-end justify-between gap-4">
             <div>
-              <p class="text-[10px] text-brand-muted">Аренда</p>
+              <p class="text-xs text-brand-muted">Аренда</p>
               <p class="mt-1 text-xl font-semibold text-brand-text">
                 {{ formatMoney(pricePerMonth()) }}
               </p>
             </div>
 
-            <p class="pb-0.5 text-[10px] text-brand-muted">в месяц</p>
+            <p class="pb-0.5 text-xs text-brand-muted">в месяц</p>
           </div>
         } @else {
           <p class="text-xs text-brand-muted">Стоимость аренды уточняется.</p>
@@ -197,10 +200,11 @@
           <button
             type="button"
             (click)="setRentalPeriod(selectedPeriod() - 1)"
+            aria-label="Уменьшить срок на 1 месяц"
             [disabled]="selectedPeriod() <= 1"
             class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-brand-line bg-brand-surface text-brand-muted transition-colors hover:bg-brand-elevated hover:text-brand-text disabled:cursor-not-allowed disabled:opacity-30"
           >
-            <i class="fas fa-minus text-xs"></i>
+            <i class="fas fa-minus text-xs" aria-hidden="true"></i>
           </button>
 
           <!-- Input -->
@@ -212,6 +216,7 @@
               step="1"
               [value]="selectedPeriod()"
               (input)="setRentalPeriod(+$any($event.target).value)"
+              aria-label="Срок аренды в месяцах"
               class="h-12 w-full rounded-xl border border-brand-accent bg-brand-accent/10 px-4 pr-20 text-center text-sm font-semibold text-brand-text outline-none transition focus:bg-brand-accent/15"
             />
 
@@ -226,14 +231,15 @@
           <button
             type="button"
             (click)="setRentalPeriod(selectedPeriod() + 1)"
+            aria-label="Увеличить срок на 1 месяц"
             [disabled]="selectedPeriod() >= 120"
             class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-brand-line bg-brand-surface text-brand-muted transition-colors hover:bg-brand-elevated hover:text-brand-text disabled:cursor-not-allowed disabled:opacity-30"
           >
-            <i class="fas fa-plus text-xs"></i>
+            <i class="fas fa-plus text-xs" aria-hidden="true"></i>
           </button>
         </div>
 
-        <p class="mt-2 px-1 text-[10px] text-brand-subtle">От 1 до 120 месяцев</p>
+        <p class="mt-2 px-1 text-xs text-brand-subtle">От 1 до 120 месяцев</p>
       </section>
 
       <!-- Summary -->
@@ -249,11 +255,11 @@
         </div>
 
         <div class="mt-3 flex items-center justify-between border-t border-brand-line pt-3">
-          <span class="text-[10px] text-brand-muted">
+          <span class="text-xs text-brand-muted">
             {{ formatMoney(pricePerMonth()) }} × {{ selectedPeriod() }}
           </span>
 
-          <span class="text-[10px] font-medium text-brand-accent"> Итого </span>
+          <span class="text-xs font-medium text-brand-accent"> Итого </span>
         </div>
       </section>
 
@@ -297,7 +303,7 @@
           <div>
             <p class="text-xs font-semibold text-status-locked">Кладовка забронирована</p>
 
-            <p class="mt-1 text-[10px] leading-4 text-status-locked/70">
+            <p class="mt-1 text-xs leading-4 text-status-locked/70">
               Ожидается подтверждение оплаты. Если оплата не поступит, бронь будет снята
               автоматически.
             </p>
@@ -310,7 +316,7 @@
     @else if (transferInvitation()) {
       <section class="rounded-2xl border border-brand-accent/25 bg-brand-accent/5 px-4 py-4">
         <p class="text-xs font-semibold text-brand-text">Ожидается окончание текущей аренды</p>
-        <p class="mt-1 text-[10px] leading-4 text-brand-muted">
+        <p class="mt-1 text-xs leading-4 text-brand-muted">
           Кладовка закреплена за вами. Вы сможете оформить её после окончания оплаченного периода.
         </p>
       </section>
@@ -326,7 +332,7 @@
           <div>
             <p class="text-xs font-semibold text-brand-text">Кладовка уже занята</p>
 
-            <p class="mt-1 text-[10px] leading-4 text-brand-muted">
+            <p class="mt-1 text-xs leading-4 text-brand-muted">
               Эта кладовка сейчас недоступна для аренды.
             </p>
           </div>

@@ -8,7 +8,13 @@ import { attachesToken, tokenStore } from '../auth/token-session';
 import { environment } from '../../../environments/environment';
 
 /** Endpoints where 401 is an expected answer, not an expired session. */
-const AUTH_CALLS = ['/auth/login', '/auth/me', '/auth/register', '/auth/iin-status', '/auth/logout'];
+const AUTH_CALLS = [
+  '/auth/login',
+  '/auth/me',
+  '/auth/register',
+  '/auth/iin-status',
+  '/auth/logout',
+];
 
 /**
  * A request that hangs (server waking up, the app was in the background) must
@@ -56,9 +62,13 @@ export const credentialsInterceptor: HttpInterceptorFn = (req, next) => {
         !AUTH_CALLS.some((p) => req.url.includes(p)) &&
         auth.currentUser()
       ) {
+        // The login page says «Сессия истекла» and keeps the resident's ИИН filled in.
+        const iin = auth.currentUser()?.iin;
         auth.currentUser.set(null);
         tokenStore.clear();
-        router.navigate(['/login'], { queryParams: { returnUrl: router.url } });
+        router.navigate(['/login'], {
+          queryParams: { returnUrl: router.url, expired: 1, ...(iin ? { login: iin } : {}) },
+        });
       }
       return throwError(() => err);
     }),

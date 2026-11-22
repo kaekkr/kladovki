@@ -1,7 +1,7 @@
 <div class="space-y-4">
   @if (unreadCount()) {
     <div class="flex justify-end">
-      <button type="button" (click)="markAll()" class="text-[11px] font-medium text-brand-accent">
+      <button type="button" (click)="markAll()" class="text-xs font-medium text-brand-accent">
         Прочитать все
       </button>
     </div>
@@ -10,9 +10,7 @@
   @if (loading()) {
     <div class="h-24 animate-pulse rounded-2xl bg-brand-surface"></div>
   } @else if (error()) {
-    <section class="rounded-2xl border border-brand-line bg-brand-surface p-6 text-center text-xs text-status-overdue">
-      Не удалось загрузить уведомления. Попробуйте позже.
-    </section>
+    <app-load-error message="Не удалось загрузить уведомления." (retry)="load()" />
   } @else if (!items().length) {
     <section class="rounded-2xl border border-brand-line bg-brand-surface p-6 text-center">
       <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-elevated text-brand-muted">
@@ -45,8 +43,8 @@
                 <span class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-accent"></span>
               }
             </div>
-            <p class="mt-1 text-[11px] leading-5 text-brand-muted">{{ n.body }}</p>
-            <p class="mt-2 text-[10px] text-brand-subtle">{{ n.created_at | date: 'd MMMM, HH:mm' }}</p>
+            <p class="mt-1 text-xs leading-5 text-brand-muted">{{ n.body }}</p>
+            <p class="mt-2 text-xs text-brand-subtle">{{ n.created_at | date: 'd MMMM y, HH:mm' }}</p>
           </div>
         </button>
       }

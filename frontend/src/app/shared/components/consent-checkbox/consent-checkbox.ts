@@ -20,7 +20,7 @@ import { AgreementView } from '../agreement/agreement';
         (change)="checked.set($any($event.target).checked)"
         class="mt-0.5 shrink-0 cursor-pointer rounded border-brand-line text-brand-accent focus:ring-0"
       />
-      <span class="text-[11px] leading-relaxed text-brand-muted">
+      <span class="text-xs leading-relaxed text-brand-muted">
         {{ prefix() }}
         <a href="#" role="button" (click)="$event.preventDefault(); $event.stopPropagation(); open.set(true)" class="font-medium text-brand-accent hover:underline">{{ linkText() }}</a>
       </span>
