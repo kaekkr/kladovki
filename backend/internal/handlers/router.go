@@ -9,6 +9,7 @@ import (
 // Access rules:
 //   - admin  = OSI administrator, may manage only their own JK (token jk_id).
 //   - resident may read their own JK's storages and only their own rentals/payments.
+//   - superadmin = platform operator, no JK; only /platform routes (not ОСИ routes).
 //
 // JK ownership of path/body IDs is checked inside the handlers.
 func (h *Handler) Register(r *gin.Engine) {
@@ -123,6 +124,18 @@ func (h *Handler) Register(r *gin.Engine) {
 			me.GET("/channels", h.MyChannels)
 			me.POST("/telegram/link", h.TelegramLink)
 			me.DELETE("/telegram", h.TelegramUnlink)
+		}
+
+		// Platform operator (superadmin, no ЖК): creates ЖК and their ОСИ accounts.
+		platform := api.Group("/platform", auth, middleware.RequireSuperadmin())
+		{
+			platform.GET("/jks", h.PlatformListJKs)
+			platform.POST("/jks", h.PlatformCreateJK)
+			platform.GET("/jks/:id", h.PlatformGetJK)
+			platform.PUT("/jks/:id", h.PlatformUpdateJK)
+			platform.GET("/jks/:id/admins", h.PlatformListAdmins)
+			platform.POST("/jks/:id/admins", h.PlatformAddAdmin)
+			platform.POST("/admins/:id/reset-password", h.PlatformResetAdminPassword)
 		}
 
 		// Telegram bot updates; authenticated by the secret-token header.

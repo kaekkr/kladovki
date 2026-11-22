@@ -8,7 +8,7 @@
 
 ## Authorization: two layers
 
-1. **Route level** (`router.go`): `Require()` means logged in. `RequireAdmin()` means role `admin`.
+1. **Route level** (`router.go`): `Require()` means logged in. `RequireAdmin()` means role `admin`. `RequireSuperadmin()` means role `superadmin` (platform operator, `/platform/...`). A superadmin has no ЖК and does **not** pass `RequireAdmin`, so it can't read any ЖК's rentals, payments or residents.
 2. **Ownership** (handlers):
    - `SameJK(c, jkID)`: the path's ЖК must equal the token's ЖК.
    - `storageInMyJK`: loads the storage room and checks its ЖК.
