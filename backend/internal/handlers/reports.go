@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -47,6 +48,23 @@ func parsePeriod(c *gin.Context) (from, to time.Time, ok bool) {
 	return from, to, !to.Before(from)
 }
 
+// plainNumberRe: a cell that is just a number (amounts, phones) is no formula.
+var plainNumberRe = regexp.MustCompile(`^[+-]?[0-9]+([.,][0-9]+)?$`)
+
+// csvCell neutralises CSV/formula injection (OWASP): a cell starting with
+// = + - @ TAB or CR would run as a formula in Excel, so it gets a leading '.
+// Plain numbers such as -2500 or +77001234567 are left alone.
+func csvCell(v string) string {
+	if v == "" || plainNumberRe.MatchString(v) {
+		return v
+	}
+	switch v[0] {
+	case '=', '+', '-', '@', '\t', '\r':
+		return "'" + v
+	}
+	return v
+}
+
 func writeCSV(c *gin.Context, filename string, header []string, rows [][]string) {
 	var buf bytes.Buffer
 	buf.WriteString("\uFEFF")
@@ -54,7 +72,14 @@ func writeCSV(c *gin.Context, filename string, header []string, rows [][]string)
 	w.Comma = ';'
 	w.UseCRLF = true
 	_ = w.Write(header)
-	_ = w.WriteAll(rows)
+	for _, row := range rows {
+		safe := make([]string, len(row))
+		for i, cell := range row {
+			safe[i] = csvCell(cell)
+		}
+		_ = w.Write(safe)
+	}
+	w.Flush()
 	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 	c.Data(http.StatusOK, "text/csv; charset=utf-8", buf.Bytes())
 }
