@@ -56,6 +56,9 @@ func (s *Service) CreatePaymentInvoice(ctx context.Context, in CreatePaymentInpu
 		return nil, ErrInvalid
 	}
 
+	if err := s.requireApproved(ctx, in.UserID); err != nil {
+		return nil, err
+	}
 	phone, err := s.kaspiPhone(ctx, in.UserID, in.Phone)
 	if err != nil {
 		return nil, err
@@ -181,6 +184,9 @@ func (s *Service) PrepareRenewal(ctx context.Context, in RenewRentalInput) (*mod
 func (s *Service) CreateRenewalInvoice(ctx context.Context, in RenewRentalInput, apipayKey, apipayBaseURL string) (*models.Payment, error) {
 	if in.Months < 1 || in.Months > MaxRentalMonths {
 		return nil, ErrInvalid
+	}
+	if err := s.requireApproved(ctx, in.UserID); err != nil {
+		return nil, err
 	}
 	phone, err := s.kaspiPhone(ctx, in.UserID, in.Phone)
 	if err != nil {

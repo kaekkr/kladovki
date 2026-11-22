@@ -335,6 +335,10 @@ func (h *Handler) ConfirmPayment(c *gin.Context) {
 			return
 		}
 
+		if errors.Is(err, service.ErrNotApproved) {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
 		if errors.Is(err, service.ErrLocked) {
 			c.JSON(http.StatusConflict, gin.H{
 				"error": "Срок бронирования истёк",

@@ -131,6 +131,9 @@ func (s *Service) ConfirmPayment(
 	if rentalID == "" || userID == "" {
 		return nil, ErrInvalid
 	}
+	if err := s.requireApproved(ctx, userID); err != nil {
+		return nil, err
+	}
 
 	return s.repo.ConfirmRentalPayment(
 		ctx,

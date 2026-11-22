@@ -41,7 +41,7 @@ The **platform operator** (`superadmin`) belongs to no ЖК. In the super-admin 
 Per the user agreement (п. 2.1), only **owners of a flat or commercial premises** in the ЖК may rent. This covers individuals and companies; one owner may rent several rooms. Flat tenants and outsiders may not.
 
 - At registration the user states **what they own**: a flat or commercial premises, and its number. They also say whether they act as a person or **represent a company**. A company representative adds the company's **БИН** (12 digits) and name; the ИИН stays the representative's own. An ИП registers as a person, since its БИН is the ИИН.
-- The account starts as **pending**: they can log in and browse, but booking and renewal are refused (403).
+- The account starts as **pending**: they can log in and browse, but booking, paying a hold and renewal are refused (403). The message depends on the status: pending «Аккаунт ожидает подтверждения ОСИ…», rejected «ОСИ отклонил подтверждение аккаунта…», blocked «Аккаунт заблокирован ОСИ…». A hold made before the ОСИ rejected/blocked the user can't be paid either.
 - The ОСИ checks them on **Жители** (`/admin/residents`):
   - **Подтвердить**: the user becomes `active`;
   - **Отклонить**: a reason is required, and the user sees it, fixes the data, and resubmits;

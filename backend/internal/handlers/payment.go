@@ -82,6 +82,10 @@ func (h *Handler) CreatePayment(c *gin.Context) {
 			RentalID: req.RentalID,
 			UserID:   userID,
 		})
+		if errors.Is(err, service.ErrNotApproved) {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
 		if err != nil {
 			c.JSON(http.StatusConflict, gin.H{"error": "Не удалось подтвердить тестовую оплату"})
 			return
@@ -100,6 +104,8 @@ func (h *Handler) CreatePayment(c *gin.Context) {
 		switch {
 		case errors.Is(err, service.ErrNotFound):
 			c.JSON(http.StatusNotFound, gin.H{"error": "Аренда не найдена"})
+		case errors.Is(err, service.ErrNotApproved):
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		case errors.Is(err, service.ErrPaymentPending):
 			c.JSON(http.StatusConflict, gin.H{"error": "Счёт уже отправлен в Kaspi. Подтвердите оплату в приложении Kaspi."})
 		case errors.Is(err, service.ErrLocked):
