@@ -269,4 +269,8 @@ var migrations = []string{
 
 	// Platform operator who creates ЖК and their ОСИ accounts (super-admin panel).
 	`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'superadmin'`,
+
+	// Revocable sessions: every JWT carries the user's token_version; logout and
+	// password changes/resets bump it, so older tokens stop working at once.
+	`ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 0`,
 }

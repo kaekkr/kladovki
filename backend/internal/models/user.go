@@ -51,6 +51,18 @@ type User struct {
 	PremisesCadastral string `json:"premises_cadastral"`
 
 	MustChangePassword bool `json:"must_change_password"`
+	// TokenVersion is copied into every JWT; bumping it revokes all sessions.
+	TokenVersion int `json:"-"`
+}
+
+// SessionUser is what the auth middleware re-reads on every request.
+type SessionUser struct {
+	ID                 string
+	Role               Role
+	JKID               string
+	Status             UserStatus
+	TokenVersion       int
+	MustChangePassword bool
 }
 
 // Verification is what a user declares about the property they own.

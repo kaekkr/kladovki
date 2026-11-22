@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/kaekkr/kladovki/internal/middleware"
+	"github.com/kaekkr/kladovki/internal/ratelimit"
 )
 
 // Access rules:
@@ -13,14 +14,16 @@ import (
 //
 // JK ownership of path/body IDs is checked inside the handlers.
 func (h *Handler) Register(r *gin.Engine) {
-	r.Use(h.mw.Optional())
+	// No global Optional(): it would cost a DB lookup on every static file,
+	// and no public route needs the user.
+	r.Use(middleware.BodyLimit(middleware.MaxBodyBytes), middleware.ParamGuard())
 
 	auth := h.mw.Require()
 	admin := middleware.RequireAdmin()
 
 	api := r.Group(h.cfg.APIPrefix)
 	{
-		api.POST("/lead", h.CreateLead)
+		api.POST("/lead", ratelimit.PerIP(h.limits.lead), h.CreateLead)
 
 		// User agreements (texts are public; consent is recorded per user).
 		api.GET("/legal/status", auth, h.AgreementStatus)
@@ -35,9 +38,10 @@ func (h *Handler) Register(r *gin.Engine) {
 
 		authGroup := api.Group("/auth")
 		{
-			authGroup.POST("/register", h.RegisterResident)
-			authGroup.POST("/login", h.Login)
-			authGroup.POST("/iin-status", h.IINStatus)
+			perIP := ratelimit.PerIP(h.limits.auth)
+			authGroup.POST("/register", perIP, h.RegisterResident)
+			authGroup.POST("/login", perIP, h.Login)
+			authGroup.POST("/iin-status", perIP, h.IINStatus)
 			authGroup.POST("/logout", h.Logout)
 			authGroup.GET("/me", auth, h.Me)
 		}
@@ -77,7 +81,7 @@ func (h *Handler) Register(r *gin.Engine) {
 			rentals.GET("/jk/:jk_id", admin, h.ListRentalsByJK)
 			rentals.GET("/storage/:storage_id", admin, h.GetActiveRentalByStorage)
 
-			rentals.POST("/lock", h.LockStorage)
+			rentals.POST("/lock", ratelimit.PerIP(h.limits.lock), h.LockStorage)
 			// Activates a rental without payment — local development only.
 			if h.cfg.Env == "development" {
 				rentals.POST("/confirm-payment", h.ConfirmPayment)

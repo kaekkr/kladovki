@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
+	"unicode/utf8"
+
+	"github.com/google/uuid"
 
 	"github.com/kaekkr/kladovki/internal/models"
 	"github.com/kaekkr/kladovki/internal/repository"
@@ -56,23 +60,42 @@ func (s *Service) IINRegistered(ctx context.Context, iin string) (bool, error) {
 	return s.repo.IINRegistered(ctx, iin)
 }
 
+// validateRegistration checks the typed fields (all answered with 400) and
+// returns the trimmed name, ИИН and canonical phone.
+func validateRegistration(in RegisterInput) (fullName, iin, phone string, err error) {
+	v := in.Verification
+	if !cleanText(in.FullName, in.Phone, in.IIN, in.Password, v.OwnerType, v.PremisesKind,
+		v.PremisesNumber, v.CompanyBIN, v.CompanyName, v.PremisesCadastral) {
+		return "", "", "", ErrInvalidText
+	}
+	fullName = strings.TrimSpace(in.FullName)
+	iin = strings.TrimSpace(in.IIN)
+	switch {
+	case !ValidIIN(iin):
+		return "", "", "", ErrInvalidIIN
+	case fullName == "" || strings.TrimSpace(in.Phone) == "":
+		return "", "", "", ErrMissingFields
+	case utf8.RuneCountInString(fullName) > maxNameLen:
+		return "", "", "", ErrNameTooLong
+	}
+	phone, ok := NormalizePhone(in.Phone)
+	if !ok {
+		return "", "", "", ErrInvalidPhone
+	}
+	if err := checkPassword(in.Password); err != nil {
+		return "", "", "", err
+	}
+	return fullName, iin, phone, nil
+}
+
 // Register creates a resident on first login. The JK comes from the OSI's
 // QR link; when the system has exactly one JK it is used automatically.
 func (s *Service) Register(ctx context.Context, in RegisterInput) (*models.User, error) {
-	fullName := strings.TrimSpace(in.FullName)
-	phone := strings.TrimSpace(in.Phone)
-	iin := strings.TrimSpace(in.IIN)
+	fullName, iin, phone, err := validateRegistration(in)
+	if err != nil {
+		return nil, err
+	}
 	password := in.Password
-
-	if !ValidIIN(iin) {
-		return nil, ErrInvalidIIN
-	}
-	if fullName == "" || phone == "" {
-		return nil, ErrMissingFields
-	}
-	if len([]rune(password)) < minPasswordLen {
-		return nil, ErrWeakPassword
-	}
 	declared, cadastralJK, err := s.resolvePremises(ctx, in.Verification)
 	if err != nil {
 		return nil, err
@@ -168,6 +191,9 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*models.User, error
 	user, err := s.GetUserByLogin(ctx, login)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
+			// Same bcrypt cost as a real check, so response time doesn't tell
+			// whether an ИИН / phone / email is registered.
+			CheckPassword(dummyHash(), password)
 			return nil, ErrInvalidCredentials
 		}
 		return nil, err
@@ -198,6 +224,15 @@ func (s *Service) Me(ctx context.Context, userID string) (*models.User, error) {
 }
 
 // ---------- Password Helpers ----------
+
+// dummyHash is a bcrypt hash of a random value, computed once.
+var dummyHash = sync.OnceValue(func() string {
+	h, err := HashPassword(uuid.NewString())
+	if err != nil {
+		return "$2a$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinv"
+	}
+	return h
+})
 
 func HashPassword(pw string) (string, error) {
 	b, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)

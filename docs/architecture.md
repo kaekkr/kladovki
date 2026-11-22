@@ -25,7 +25,7 @@ A single Go binary runs on Render. It serves the REST API under `/api/v1` and th
 
 ```
 HTTP request
-  → middleware.Optional / Require (JWT from cookie or Authorization header)
+  → middleware.Require (JWT from cookie or Authorization header; user re-read from DB: token_version, role, jk_id)
   → RequireAdmin (admin routes)          ← role check
   → handler: parse body, SameJK / storageInMyJK / canSeeRental   ← ownership checks
   → service: business rules, events → notifications
@@ -63,7 +63,7 @@ The workers run inside the web process. If Render ever runs more than one instan
 1. `config.Load()` reads env files (`.env.local`, `/etc/secrets/.env.local`, `.env`, `/etc/secrets/.env`) and the process environment. Real env vars win.
 2. `database.Open` connects and runs the idempotent migrations.
 3. It builds the services, sets up the notification channels from env, and creates the token service and middleware.
-4. It registers the gin routes, adds CORS (localhost:4200, capacitor `https://localhost`, `*.onrender.com`) and the SPA fallback.
+4. It registers the gin routes, adds CORS with an exact allow-list (`APP_BASE_URL`, Capacitor `https://localhost` / `capacitor://localhost`, `CORS_ORIGINS`, and `localhost:4200` only in development) and the SPA fallback.
 5. It starts the workers. If Telegram is configured, it registers the bot webhook at `APP_BASE_URL/api/v1/telegram/webhook`.
 6. It starts the HTTP server with graceful shutdown on SIGINT/SIGTERM.
 

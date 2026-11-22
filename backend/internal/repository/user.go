@@ -13,7 +13,7 @@ import (
 
 const userColumns = `id, full_name, phone, email, password_hash, role, jk_id, created_at, iin,
 	status, review_comment, owner_type, premises_kind, premises_number, company_bin, company_name, must_change_password,
-	premises_cadastral`
+	premises_cadastral, token_version`
 
 func (r *Repo) CreateUser(ctx context.Context, u *models.User) error {
 	if u.ID == "" {
@@ -68,12 +68,22 @@ func (r *Repo) GetUserByPhone(ctx context.Context, phone string) (*models.User, 
 	return r.scanUser(r.db.QueryRowContext(ctx, query, phone))
 }
 
-func (r *Repo) GetUserByLogin(ctx context.Context, login string) (*models.User, error) {
+// GetUserByIIN finds a user by ИИН (unique).
+func (r *Repo) GetUserByIIN(ctx context.Context, iin string) (*models.User, error) {
+	query := fmt.Sprintf(`SELECT %s FROM users WHERE iin = $1`, userColumns)
+	return r.scanUser(r.db.QueryRowContext(ctx, query, iin))
+}
+
+// GetUserByPhoneLogin finds a user by the canonical phone (+7XXXXXXXXXX) or,
+// for rows stored before phones were normalized, by the raw input. The
+// superadmin placeholder phone (superadmin:…) is never a login.
+func (r *Repo) GetUserByPhoneLogin(ctx context.Context, canonical, raw string) (*models.User, error) {
 	query := fmt.Sprintf(`
-		SELECT %s FROM users 
-		WHERE phone = $1 OR (email IS NOT NULL AND lower(email) = lower($1)) OR (iin IS NOT NULL AND iin = $1)
-	`, userColumns)
-	return r.scanUser(r.db.QueryRowContext(ctx, query, login))
+		SELECT %s FROM users
+		WHERE ($1 <> '' AND phone = $1) OR (phone = $2 AND phone NOT LIKE 'superadmin:%%')
+		ORDER BY (phone = $1) DESC
+		LIMIT 1`, userColumns)
+	return r.scanUser(r.db.QueryRowContext(ctx, query, canonical, raw))
 }
 
 func (r *Repo) scanUser(s rowScanner) (*models.User, error) {
@@ -93,6 +103,7 @@ func (r *Repo) scanUser(s rowScanner) (*models.User, error) {
 		&u.Status, &u.ReviewComment, &u.OwnerType, &u.PremisesKind, &u.PremisesNumber, &u.CompanyBIN, &u.CompanyName,
 		&u.MustChangePassword,
 		&u.PremisesCadastral,
+		&u.TokenVersion,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -187,8 +198,10 @@ func (r *Repo) ResubmitVerification(ctx context.Context, userID string, v models
 }
 
 // SetPassword stores a new password hash; mustChange forces a change at next login.
+// It bumps token_version, so every existing session of the user ends.
 func (r *Repo) SetPassword(ctx context.Context, userID, hash string, mustChange bool) error {
-	res, err := r.db.ExecContext(ctx, `UPDATE users SET password_hash = $2, must_change_password = $3 WHERE id = $1`,
+	res, err := r.db.ExecContext(ctx, `UPDATE users SET password_hash = $2, must_change_password = $3,
+		token_version = token_version + 1 WHERE id = $1`,
 		userID, hash, mustChange)
 	if err != nil {
 		return fmt.Errorf("repository.SetPassword: %w", err)
@@ -202,13 +215,41 @@ func (r *Repo) SetPassword(ctx context.Context, userID, hash string, mustChange 
 // ResetResidentPassword sets a temporary password for a resident of the given ЖК.
 func (r *Repo) ResetResidentPassword(ctx context.Context, userID, jkID, hash string) error {
 	res, err := r.db.ExecContext(ctx, `
-		UPDATE users SET password_hash = $3, must_change_password = true
+		UPDATE users SET password_hash = $3, must_change_password = true, token_version = token_version + 1
 		WHERE id = $1 AND jk_id = $2 AND role = 'resident'`, userID, jkID, hash)
 	if err != nil {
 		return fmt.Errorf("repository.ResetResidentPassword: %w", err)
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
 		return ErrNotFound
+	}
+	return nil
+}
+
+// GetSessionUser is the per-request auth lookup (primary key, one row).
+func (r *Repo) GetSessionUser(ctx context.Context, id string) (*models.SessionUser, error) {
+	var u models.SessionUser
+	var jkID sql.NullString
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, role, jk_id, status, token_version, must_change_password FROM users WHERE id = $1`, id).
+		Scan(&u.ID, &u.Role, &jkID, &u.Status, &u.TokenVersion, &u.MustChangePassword)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("repository.GetSessionUser: %w", err)
+	}
+	u.JKID = jkID.String
+	return &u, nil
+}
+
+// RevokeSessions bumps token_version when it still equals version (the
+// session being logged out), ending every session issued before.
+func (r *Repo) RevokeSessions(ctx context.Context, userID string, version int) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE users SET token_version = token_version + 1 WHERE id = $1 AND token_version = $2`, userID, version)
+	if err != nil {
+		return fmt.Errorf("repository.RevokeSessions: %w", err)
 	}
 	return nil
 }

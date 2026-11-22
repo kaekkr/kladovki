@@ -170,7 +170,7 @@ func (r *Repo) ListJKAdmins(ctx context.Context, jkID string) ([]*models.User, e
 // ResetAdminPassword sets a temporary password for an ОСИ account (role admin only).
 func (r *Repo) ResetAdminPassword(ctx context.Context, userID, hash string) error {
 	res, err := r.db.ExecContext(ctx, `
-		UPDATE users SET password_hash = $2, must_change_password = true
+		UPDATE users SET password_hash = $2, must_change_password = true, token_version = token_version + 1
 		WHERE id = $1 AND role = 'admin'`, userID, hash)
 	if err != nil {
 		return fmt.Errorf("repository.ResetAdminPassword: %w", err)

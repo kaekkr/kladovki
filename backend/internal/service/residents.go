@@ -26,6 +26,9 @@ var (
 
 // normalizeVerification validates what a user declares about their property.
 func normalizeVerification(v models.Verification) (models.Verification, error) {
+	if !cleanText(v.OwnerType, v.PremisesKind, v.PremisesNumber, v.CompanyBIN, v.CompanyName, v.PremisesCadastral) {
+		return v, ErrInvalidText
+	}
 	v.OwnerType = strings.TrimSpace(v.OwnerType)
 	v.PremisesKind = strings.TrimSpace(v.PremisesKind)
 	v.PremisesNumber = strings.TrimSpace(v.PremisesNumber)

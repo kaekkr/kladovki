@@ -90,9 +90,12 @@ func normalizeAccount(in AccountInput) (AccountInput, error) {
 		return out, invalid("Укажите корректный email.")
 	case out.Phone == "":
 		return out, invalid("Укажите номер телефона.")
-	case utf8.RuneCountInString(out.Phone) > maxPhoneLen:
-		return out, invalid("Номер телефона слишком длинный.")
 	}
+	phone, ok := NormalizePhone(out.Phone)
+	if !ok {
+		return out, invalid(ErrInvalidPhone.Error())
+	}
+	out.Phone = phone
 	return out, nil
 }
 

@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/kaekkr/kladovki/internal/config"
 	"github.com/kaekkr/kladovki/internal/database"
@@ -52,39 +51,20 @@ func main() {
 		cfg.JWTAccessTTL,
 	)
 
-	mw := middleware.NewAuth(tokens, cfg)
+	mw := middleware.NewAuth(tokens, cfg, svc)
 
 	// 3. Router & Handlers
 	r := gin.Default()
+	// Who may set X-Forwarded-For (TRUSTED_PROXIES / TRUST_RENDER_PROXY); default nobody.
+	if err := middleware.ConfigureClientIP(r, cfg); err != nil {
+		log.Fatalf("CRITICAL: %v", err)
+	}
+	if len(cfg.TrustedProxies) == 0 && cfg.Env == "production" {
+		log.Println("WARNING: no trusted proxies: behind Render every client shares the proxy IP for rate limits; set TRUST_RENDER_PROXY=true")
+	}
 
-	r.Use(cors.New(cors.Config{
-		AllowOriginFunc: func(origin string) bool {
-			return origin == "http://localhost:4200" ||
-				origin == "http://127.0.0.1:4200" || // local cross-site testing (like the mobile app)
-				origin == "https://localhost" || // Capacitor Android
-				origin == "capacitor://localhost" || // Capacitor iOS
-				strings.HasSuffix(origin, ".onrender.com")
-		},
-		AllowMethods: []string{
-			"GET",
-			"POST",
-			"PUT",
-			"PATCH",
-			"DELETE",
-			"OPTIONS",
-		},
-		AllowHeaders: []string{
-			"Origin",
-			"Content-Type",
-			"Accept",
-			"Authorization",
-			"X-Requested-With",
-			"X-Kladovki-Client", // mobile app asks for a bearer token
-		},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
-	}))
+	// Exact allow-list: APP_BASE_URL, Capacitor app, CORS_ORIGINS (+ ng serve in development).
+	r.Use(middleware.CORS(cfg))
 
 	h := handlers.New(svc, tokens, cfg, mw)
 	h.Register(r)
