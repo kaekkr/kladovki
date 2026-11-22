@@ -125,6 +125,7 @@ func (h *Handler) Register(r *gin.Engine) {
 		{
 			me.PUT("/verification", h.ResubmitVerification)
 			me.PUT("/password", h.ChangePassword)
+			me.PUT("/phone", h.UpdatePhone)
 			me.GET("/channels", h.MyChannels)
 			me.POST("/telegram/link", h.TelegramLink)
 			me.DELETE("/telegram", h.TelegramUnlink)

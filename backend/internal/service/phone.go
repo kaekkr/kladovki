@@ -1,8 +1,11 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"strings"
+
+	"github.com/kaekkr/kladovki/internal/repository"
 )
 
 // ErrInvalidPhone: registration and ОСИ accounts accept only Kazakhstan numbers.
@@ -33,4 +36,22 @@ func NormalizePhone(raw string) (phone string, ok bool) {
 		return "+7" + s[1:], true
 	}
 	return "", false
+}
+
+// UpdatePhone changes the user's own phone (Kaspi invoices go to it).
+func (s *Service) UpdatePhone(ctx context.Context, userID, raw string) (string, error) {
+	phone, ok := NormalizePhone(raw)
+	if !ok {
+		return "", ErrInvalidPhone
+	}
+	switch err := s.repo.UpdatePhone(ctx, userID, phone); {
+	case err == nil:
+		return phone, nil
+	case errors.Is(err, repository.ErrPhoneTaken):
+		return "", ErrPhoneTaken
+	case errors.Is(err, repository.ErrNotFound):
+		return "", ErrNotFound
+	default:
+		return "", err
+	}
 }

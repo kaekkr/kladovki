@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/kaekkr/kladovki/internal/models"
 )
 
@@ -252,4 +253,33 @@ func (r *Repo) RevokeSessions(ctx context.Context, userID string, version int) e
 		return fmt.Errorf("repository.RevokeSessions: %w", err)
 	}
 	return nil
+}
+
+// UpdatePhone sets a user's (already normalized) phone. ErrPhoneTaken when another user has it.
+func (r *Repo) UpdatePhone(ctx context.Context, userID, phone string) error {
+	var taken bool
+	if err := r.db.QueryRowContext(ctx,
+		`SELECT EXISTS (SELECT 1 FROM users WHERE phone = $1 AND id <> $2)`, phone, userID).Scan(&taken); err != nil {
+		return fmt.Errorf("repository.UpdatePhone check: %w", err)
+	}
+	if taken {
+		return ErrPhoneTaken
+	}
+	res, err := r.db.ExecContext(ctx, `UPDATE users SET phone = $2 WHERE id = $1`, userID, phone)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return ErrPhoneTaken
+		}
+		return fmt.Errorf("repository.UpdatePhone: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// isUniqueViolation: Postgres 23505 (two concurrent updates to the same phone).
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }

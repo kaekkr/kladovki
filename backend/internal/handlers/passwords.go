@@ -68,3 +68,30 @@ func (h *Handler) ResetResidentPassword(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось сбросить пароль"})
 	}
 }
+
+type updatePhoneRequest struct {
+	Phone string `json:"phone" binding:"required"`
+}
+
+// UpdatePhone: PUT /me/phone — the user's own phone, where Kaspi invoices go.
+func (h *Handler) UpdatePhone(c *gin.Context) {
+	var req updatePhoneRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": service.ErrInvalidPhone.Error()})
+		return
+	}
+	phone, err := h.svc.UpdatePhone(c.Request.Context(), middleware.UserID(c), req.Phone)
+	switch {
+	case err == nil:
+		c.JSON(http.StatusOK, gin.H{"phone": phone, "message": "Номер телефона сохранён"})
+	case errors.Is(err, service.ErrInvalidPhone):
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	case errors.Is(err, service.ErrPhoneTaken):
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	case errors.Is(err, service.ErrNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": "Пользователь не найден"})
+	default:
+		log.Printf("UpdatePhone: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось сохранить номер"})
+	}
+}
