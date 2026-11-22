@@ -2,8 +2,11 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/kaekkr/kladovki/internal/models"
 )
@@ -61,9 +64,24 @@ func (s *Service) GetUserByID(ctx context.Context, id string) (*models.User, err
 	return user, nil
 }
 
+// MaxLoginLen: a login identifier (ИИН, phone or email) longer than this is a 400.
+const MaxLoginLen = 255
+
+// ValidLoginIdentifier: at most MaxLoginLen characters, valid UTF-8, no NUL.
+// Checked before the limiter or the DB see the identifier.
+func ValidLoginIdentifier(login string) bool {
+	return utf8.ValidString(login) && !strings.ContainsRune(login, 0) &&
+		utf8.RuneCountInString(login) <= MaxLoginLen
+}
+
 // LoginKey is the identifier in one canonical spelling, so the failed-login
-// counter is shared by "87001234567" and "+7 700 123 45 67".
+// counter is shared by "87001234567" and "+7 700 123 45 67". It is hashed:
+// the limiter keeps fixed-size keys and no identifiers in memory.
 func LoginKey(login string) string {
+	return "login:" + hashKey(canonicalLogin(login))
+}
+
+func canonicalLogin(login string) string {
 	login = strings.TrimSpace(login)
 	if ValidIIN(login) {
 		return "iin:" + login
@@ -75,6 +93,11 @@ func LoginKey(login string) string {
 		return "phone:" + p
 	}
 	return "raw:" + login
+}
+
+func hashKey(s string) string {
+	sum := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(sum[:])
 }
 
 // GetUserByLogin looks the identifier up by its type only, so one user's

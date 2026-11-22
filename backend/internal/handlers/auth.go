@@ -90,6 +90,11 @@ func (h *Handler) Login(c *gin.Context) {
 	if loginIdentifier == "" {
 		loginIdentifier = req.Phone
 	}
+	// Bounded and clean before the failed-login limiter or the DB see it.
+	if !service.ValidLoginIdentifier(loginIdentifier) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный формат логина"})
+		return
+	}
 
 	key := service.LoginKey(loginIdentifier)
 	if h.limits.loginFailures.Blocked(key) {

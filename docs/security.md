@@ -23,7 +23,7 @@ In-memory, per process (`internal/ratelimit`, fixed window, expired keys swept o
 | `/auth/login`, `/auth/iin-status`, `/auth/register` (one shared budget) | client IP | 30 / min | 429 `{"error":"Слишком много запросов…","code":"rate_limited"}` + `Retry-After` |
 | `POST /lead` | client IP | 10 / hour | same |
 | `POST /rentals/lock` | client IP | 20 / 10 min | same |
-| failed passwords on `/auth/login` | login identifier (canonical ИИН / email / phone) | 10 / 15 min | 429 «Слишком много попыток входа…», even with the right password, until the window ends; a successful login resets the counter |
+| failed passwords on `/auth/login` | login identifier (canonical ИИН / email / phone, stored as its SHA-256) | 10 / 15 min | 429 «Слишком много попыток входа…», even with the right password, until the window ends; a successful login resets the counter |
 
 - When the user is not found, login still runs one bcrypt compare against a dummy hash, so response time doesn't reveal which ИИН are registered (`/auth/iin-status` tells that by design; it is rate-limited).
 - Trade-offs: counters reset on restart and are not shared between instances. The per-identifier limit lets someone who knows a victim's ИИН keep that account locked for 15 minutes at a time; the ОСИ password reset does not lift it (the counter is in memory). Per-IP limits only work when the client IP is real — see «Trusted proxies» in [operations.md](operations.md).
@@ -33,6 +33,7 @@ In-memory, per process (`internal/ratelimit`, fixed window, expired keys swept o
 - Every request body is capped at **1 MB** (`middleware.BodyLimit`): 413 when `Content-Length` is larger, and parsing fails (400) when a chunked body goes past it.
 - `middleware.ParamGuard`: a path parameter with a NUL byte or invalid UTF-8 is **404**, and such a query value is **400**. Postgres would otherwise fail with 500.
 - Registration: `full_name` ≤ 255 characters, phone validated (see Authentication), password 6–72 bytes (bcrypt can't hash more), no NUL bytes in any text field (400). The same password rule applies to `PUT /me/password`, and the NUL rule to `PUT /me/verification`.
+- `POST /auth/login`: the identifier must be ≤ 255 characters, valid UTF-8, without NUL → 400 «Неверный формат логина», before the failed-login limiter or the DB see it.
 - `POST /lead`: name ≤ 255, phone ≤ 50, email ≤ 255 characters, no NUL bytes (400).
 
 ## Authorization: two layers
