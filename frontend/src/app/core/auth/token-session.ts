@@ -14,6 +14,14 @@ export function attachesToken(requestUrl: string, apiUrl: string): boolean {
   return requestUrl === apiUrl || requestUrl.startsWith(apiUrl.replace(/\/$/, '') + '/');
 }
 
+/**
+ * A password change ends every session on the server; the caller gets a new
+ * cookie (website) or, in the mobile app, a new access_token to keep.
+ */
+export function rotatedToken(res: { access_token?: string }, tokenMode: boolean): string | null {
+  return tokenMode && res.access_token ? res.access_token : null;
+}
+
 const KEY = 'kladovki.session';
 
 /** Token storage (WebView localStorage persists across app restarts). */

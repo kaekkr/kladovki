@@ -52,7 +52,7 @@ func main() {
 		cfg.JWTAccessTTL,
 	)
 
-	mw := middleware.NewAuth(tokens, cfg)
+	mw := middleware.NewAuth(tokens, cfg, svc)
 
 	// 3. Router & Handlers
 	r := gin.Default()

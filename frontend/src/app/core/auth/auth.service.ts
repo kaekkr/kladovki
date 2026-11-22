@@ -3,7 +3,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { tap, catchError, of, finalize } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { LoginPayload, RegisterPayload, User } from './auth.models';
-import { tokenStore, usesTokenAuth } from './token-session';
+import { rotatedToken, tokenStore, usesTokenAuth } from './token-session';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -51,11 +51,20 @@ export class AuthService {
     );
   }
 
+  /** The server revokes all sessions on a password change and returns a fresh one for this device. */
   changePassword(currentPassword: string, newPassword: string) {
-    return this.http.put<{ message: string }>(`${this.baseUrl}/me/password`, {
-      current_password: currentPassword,
-      new_password: newPassword,
-    });
+    return this.http
+      .put<{ message: string; access_token?: string }>(
+        `${this.baseUrl}/me/password`,
+        { current_password: currentPassword, new_password: newPassword },
+        { headers: this.sessionHeaders },
+      )
+      .pipe(
+        tap((res) => {
+          const token = rotatedToken(res, this.tokenMode);
+          if (token) tokenStore.set(token);
+        }),
+      );
   }
 
   /** Whether an IIN already has an account (one password field) or needs first-login setup. */

@@ -22,6 +22,15 @@ func (e *testEnv) mkSuperadmin() string {
 	return id
 }
 
+// changeTempPassword replaces a temporary password (the server allows nothing else before).
+func (e *testEnv) changeTempPassword(userID, temp string) {
+	e.t.Helper()
+	r := e.do(http.MethodPut, "/me/password", userID, map[string]any{"current_password": temp, "new_password": "own-password-1"})
+	if r.Code != http.StatusOK {
+		e.t.Fatalf("change temporary password: %d %s", r.Code, r.Body)
+	}
+}
+
 type createdJK struct {
 	JK struct {
 		ID              string `json:"id"`
@@ -131,7 +140,11 @@ func TestPlatformCreateJKWithAdmin(t *testing.T) {
 	if me.Role != "admin" || me.JKID != out.JK.ID || !me.MustChange {
 		t.Fatalf("login profile: %+v", me)
 	}
-	// …and can use their own ЖК's ОСИ routes.
+	// …must replace the temporary password first, then can use their own ЖК's ОСИ routes.
+	if r := e.do(http.MethodGet, "/rentals/jk/"+out.JK.ID, out.Admin.ID, nil); r.Code != http.StatusForbidden {
+		t.Fatalf("before the password change: want 403, got %d %s", r.Code, r.Body)
+	}
+	e.changeTempPassword(out.Admin.ID, out.TemporaryPassword)
 	if r := e.do(http.MethodGet, "/rentals/jk/"+out.JK.ID, out.Admin.ID, nil); r.Code != http.StatusOK {
 		t.Fatalf("new admin own ЖК: %d %s", r.Code, r.Body)
 	}
@@ -289,6 +302,7 @@ func TestPlatformAdminsOfJK(t *testing.T) {
 	if e.loginCode("second@example.kz", added.TemporaryPassword) != http.StatusOK {
 		t.Fatal("added admin must log in with the temporary password")
 	}
+	e.changeTempPassword(added.Admin.ID, added.TemporaryPassword)
 	if r := e.do(http.MethodGet, "/rentals/jk/"+e.jkA, added.Admin.ID, nil); r.Code != http.StatusOK {
 		t.Fatalf("added admin on own ЖК: %d", r.Code)
 	}

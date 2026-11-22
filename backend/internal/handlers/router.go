@@ -14,8 +14,8 @@ import (
 //
 // JK ownership of path/body IDs is checked inside the handlers.
 func (h *Handler) Register(r *gin.Engine) {
-	r.Use(h.mw.Optional())
-
+	// No global Optional(): it would cost a DB lookup on every static file,
+	// and no public route needs the user.
 	auth := h.mw.Require()
 	admin := middleware.RequireAdmin()
 

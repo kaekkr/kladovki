@@ -153,7 +153,14 @@ func (h *Handler) Me(c *gin.Context) {
 	c.JSON(http.StatusOK, userJSON(user))
 }
 
+// Logout is public (an expired session must still be able to clear its
+// cookie); a still-valid token also revokes that user's sessions everywhere.
 func (h *Handler) Logout(c *gin.Context) {
+	if claims, ok := h.mw.ValidClaims(c); ok {
+		if err := h.svc.Logout(c.Request.Context(), claims.UserID, claims.TokenVersion); err != nil {
+			log.Printf("Logout: %v", err)
+		}
+	}
 	h.clearAuthCookie(c)
 	c.JSON(http.StatusOK, gin.H{"message": "Успешный выход"})
 }
@@ -202,7 +209,7 @@ func (h *Handler) issueToken(c *gin.Context, u *models.User) (string, error) {
 	}
 
 	// Pass u.Role directly as a string
-	token, exp, err := h.tokens.Generate(u.ID, string(u.Role), jkID, u.Email)
+	token, exp, err := h.tokens.Generate(u.ID, string(u.Role), jkID, u.Email, u.TokenVersion)
 	if err != nil {
 		return "", err
 	}

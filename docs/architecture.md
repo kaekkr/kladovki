@@ -25,7 +25,7 @@ A single Go binary runs on Render. It serves the REST API under `/api/v1` and th
 
 ```
 HTTP request
-  → middleware.Optional / Require (JWT from cookie or Authorization header)
+  → middleware.Require (JWT from cookie or Authorization header; user re-read from DB: token_version, role, jk_id)
   → RequireAdmin (admin routes)          ← role check
   → handler: parse body, SameJK / storageInMyJK / canSeeRental   ← ownership checks
   → service: business rules, events → notifications

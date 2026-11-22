@@ -93,3 +93,13 @@ func (s *Service) GetUserByLogin(ctx context.Context, login string) (*models.Use
 	canonical, _ := NormalizePhone(login)
 	return s.repo.GetUserByPhoneLogin(ctx, canonical, login)
 }
+
+// SessionUser re-reads what authorization needs for one request.
+func (s *Service) SessionUser(ctx context.Context, userID string) (*models.SessionUser, error) {
+	return s.repo.GetSessionUser(ctx, userID)
+}
+
+// Logout ends every session of the user that was issued with tokenVersion.
+func (s *Service) Logout(ctx context.Context, userID string, tokenVersion int) error {
+	return s.repo.RevokeSessions(ctx, userID, tokenVersion)
+}
