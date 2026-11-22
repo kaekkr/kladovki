@@ -49,11 +49,7 @@
 
   <!-- Error -->
   @else if (error()) {
-    <div
-      class="mt-6 h-[280px] flex items-center justify-center rounded-md border border-brand-line"
-    >
-      <p class="text-sm text-status-overdue">Не удалось загрузить данные.</p>
-    </div>
+    <app-load-error message="Не удалось загрузить данные." (retry)="loadRevenue()" />
   }
 
   <!-- Empty -->

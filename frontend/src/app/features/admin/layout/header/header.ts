@@ -4,6 +4,7 @@ import { AuthService } from '../../../../core/auth/auth.service';
 import { JkService } from '../../../../core/services/jk';
 import { NotificationService } from '../../../../core/services/notification';
 import { RouterLink } from '@angular/router';
+import { AdminNav } from '../admin-nav';
 
 @Component({
   selector: 'app-admin-header',
@@ -15,6 +16,7 @@ export class AdminHeader implements OnInit {
   private authService = inject(AuthService);
   private jkService = inject(JkService);
 
+  nav = inject(AdminNav);
   currentJk = this.jkService.currentJk;
   private notifications = inject(NotificationService);
   unread = this.notifications.unread;

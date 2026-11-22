@@ -1,3 +1,4 @@
+import { LoadError } from '../../../../shared/components/load-error/load-error';
 import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { AuthService } from '../../../../core/auth/auth.service';
@@ -9,7 +10,7 @@ import { chargeStatusLabel } from '../../../../core/utils/charge-display';
 @Component({
   selector: 'app-admin-charges',
   standalone: true,
-  imports: [DatePipe],
+  imports: [LoadError, DatePipe],
   templateUrl: './charges.html',
 })
 export class AdminCharges {
@@ -62,7 +63,7 @@ export class AdminCharges {
     this.load();
   }
 
-  private load(): void {
+  load(): void {
     const jkId = this.authService.currentUser()?.jk_id;
     if (!jkId) {
       this.loading.set(false);

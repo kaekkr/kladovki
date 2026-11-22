@@ -4,17 +4,21 @@ import { AuthService } from '../../../../core/auth/auth.service';
 import { Rental, RentalStatus } from '../../../../core/models/rental';
 import { RentalService } from '../../../../core/services/rental';
 import { DatePipe } from '@angular/common';
+import { AdminConfirm } from '../../components/confirm-dialog/confirm';
+import { LoadError } from '../../../../shared/components/load-error/load-error';
+import { matchesSearch } from '../../../../core/utils/admin-search';
 import { TerminationRecord, AdminRentalDetails } from './components/rental_details/rental_details';
 
 @Component({
   selector: 'app-admin-rentals',
   standalone: true,
-  imports: [DatePipe, AdminRentalDetails],
+  imports: [DatePipe, AdminRentalDetails, LoadError],
   templateUrl: './rentals.html',
 })
 export class AdminRentals {
   private authService = inject(AuthService);
   private rentalService = inject(RentalService);
+  private confirm = inject(AdminConfirm);
 
   rentals = signal<Rental[]>([]);
 
@@ -22,7 +26,7 @@ export class AdminRentals {
   error = signal(false);
 
   search = signal('');
-  statusFilter = signal<RentalStatus | 'all'>('all');
+  statusFilter = signal<RentalStatus | 'all' | 'overdue'>('all');
 
   selectedRental = signal<Rental | null>(null);
 
@@ -33,15 +37,11 @@ export class AdminRentals {
     const status = this.statusFilter();
 
     return this.rentals().filter((rental) => {
-      const matchesSearch =
-        !search ||
-        rental.storage_number.toLowerCase().includes(search) ||
-        rental.user_name.toLowerCase().includes(search) ||
-        rental.user_phone.toLowerCase().includes(search);
-
-      const matchesStatus = status === 'all' || rental.status === status;
-
-      return matchesSearch && matchesStatus;
+      const found = matchesSearch([rental.storage_number, rental.user_name, rental.user_phone], search);
+      const matchesStatus =
+        status === 'all' ||
+        (status === 'overdue' ? this.overdueDays(rental) > 0 : rental.status === status);
+      return found && matchesStatus;
     });
   });
 
@@ -78,7 +78,7 @@ export class AdminRentals {
     this.search.set(value);
   }
 
-  setStatusFilter(status: RentalStatus | 'all'): void {
+  setStatusFilter(status: RentalStatus | 'all' | 'overdue'): void {
     this.statusFilter.set(status);
   }
 
@@ -90,10 +90,14 @@ export class AdminRentals {
     this.selectedRental.set(null);
   }
 
-  cancelRental(rental: Rental): void {
-    if (!confirm(`Досрочно завершить аренду кладовки №${rental.storage_number}?`)) {
-      return;
-    }
+  async cancelRental(rental: Rental): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: 'Завершить аренду досрочно',
+      message: `Аренда кладовки №${rental.storage_number} будет отменена, кладовка станет свободной. Деньги арендатору приложение не возвращает.`,
+      confirmLabel: 'Завершить аренду',
+      danger: true,
+    });
+    if (!ok) return;
 
     this.actionError.set('');
 
@@ -112,10 +116,13 @@ export class AdminRentals {
     });
   }
 
-  forceReleaseRental(rental: Rental): void {
-    if (!confirm(`Снять блокировку с кладовки №${rental.storage_number}?`)) {
-      return;
-    }
+  async forceReleaseRental(rental: Rental): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: 'Снять бронь',
+      message: `Неоплаченная бронь кладовки №${rental.storage_number} будет снята, кладовка станет свободной.`,
+      confirmLabel: 'Снять бронь',
+    });
+    if (!ok) return;
     this.actionError.set('');
     this.rentalService.forceRelease(rental.id).subscribe({
       next: (updated) => {
@@ -130,10 +137,14 @@ export class AdminRentals {
     });
   }
 
-  releaseOverdueRental({ rental, record }: { rental: Rental; record: TerminationRecord }) {
-    if (!confirm('Расторгнуть договор и освободить кладовку? Арендатор получит уведомление.')) {
-      return;
-    }
+  async releaseOverdueRental({ rental, record }: { rental: Rental; record: TerminationRecord }) {
+    const ok = await this.confirm.ask({
+      title: 'Расторгнуть договор',
+      message: `Договор по кладовке №${rental.storage_number} будет расторгнут, кладовка станет свободной. Арендатор получит уведомление.`,
+      confirmLabel: 'Расторгнуть',
+      danger: true,
+    });
+    if (!ok) return;
 
     this.rentalService.releaseOverdue(rental.id, record).subscribe({
       next: (updated) => {

@@ -7,11 +7,12 @@ import { Storage, StorageStatus } from '../../../../core/models/storage';
 import { StorageService } from '../../../../core/services/storage';
 import { AdminStorageDetailsModal } from './components/storage_details_modal/storage_details_modal';
 import { AdminStorageCreateModal } from './components/storage_create_modal/storage_create_modal';
+import { LoadError } from '../../../../shared/components/load-error/load-error';
 
 @Component({
   selector: 'app-admin-storages',
   standalone: true,
-  imports: [AdminStorageDetailsModal, AdminStorageCreateModal],
+  imports: [AdminStorageDetailsModal, AdminStorageCreateModal, LoadError],
   templateUrl: './storages.html',
 })
 export class AdminStorages {
@@ -53,20 +54,21 @@ export class AdminStorages {
     const search = this.search().trim().toLowerCase();
     const status = this.statusFilter();
 
-    return this.storages().filter((storage) => {
-      const matchesSearch = !search || storage.number.toLowerCase().includes(search);
-
-      const matchesStatus = status === 'all' || storage.status === status;
-
-      return matchesSearch && matchesStatus;
-    });
+    return this.storages()
+      .filter((storage) => {
+        const matchesSearch = !search || storage.number.toLowerCase().includes(search);
+        const matchesStatus = status === 'all' || storage.status === status;
+        return matchesSearch && matchesStatus;
+      })
+      // Natural order: Т-2 before Т-10.
+      .sort((a, b) => a.number.localeCompare(b.number, 'ru', { numeric: true, sensitivity: 'base' }));
   });
 
   constructor() {
     this.loadStorages();
   }
 
-  private loadStorages(): void {
+  loadStorages(): void {
     const jkId = this.authService.currentUser()?.jk_id;
 
     if (!jkId) {
@@ -102,11 +104,13 @@ export class AdminStorages {
   statusLabel = storageStatusLabel;
 
   openStorage(storage: Storage) {
+    this.updateError.set(null);
     this.selectedStorage.set(storage);
   }
 
   closeStorage() {
     this.selectedStorage.set(null);
+    this.updateError.set(null);
   }
 
   updateStorage(updated: Storage): void {

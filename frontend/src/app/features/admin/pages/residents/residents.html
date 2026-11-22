@@ -7,6 +7,15 @@
     </p>
   </div>
 
+  <input
+    type="search"
+    [ngModel]="search()"
+    (ngModelChange)="search.set($event)"
+    placeholder="Поиск: ФИО, телефон, ИИН, квартира"
+    aria-label="Поиск жителей"
+    class="w-full rounded-md border border-brand-line bg-brand-surface px-3 py-2 text-sm text-brand-text outline-none focus:border-brand-accent"
+  />
+
   <div class="flex flex-wrap gap-2">
     @for (f of filters; track f.key) {
       <button
@@ -30,9 +39,7 @@
   @if (loading()) {
     <div class="h-40 animate-pulse rounded-lg border border-brand-line bg-brand-surface"></div>
   } @else if (error()) {
-    <div class="rounded-lg border border-brand-line bg-brand-surface p-5 text-sm text-status-overdue">
-      Не удалось загрузить жителей.
-    </div>
+    <app-load-error message="Не удалось загрузить жителей." (retry)="load()" />
   } @else if (visible().length === 0) {
     <div class="rounded-lg border border-brand-line bg-brand-surface p-8 text-center text-sm text-brand-muted">
       {{ filter() === 'pending' ? 'Новых заявок нет' : 'Никого нет' }}

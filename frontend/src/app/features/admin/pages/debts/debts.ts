@@ -1,3 +1,4 @@
+import { LoadError } from '../../../../shared/components/load-error/load-error';
 import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ChargeService } from '../../../../core/services/charge';
@@ -9,7 +10,7 @@ import { Charge, ChargeStatus } from '../../../../core/models/charge';
 @Component({
   selector: 'app-admin-debts',
   standalone: true,
-  imports: [DatePipe],
+  imports: [LoadError, DatePipe],
   templateUrl: './debts.html',
 })
 export class AdminDebts {
@@ -63,7 +64,7 @@ export class AdminDebts {
     this.load();
   }
 
-  private load(): void {
+  load(): void {
     const jkId = this.authService.currentUser()?.jk_id;
     if (!jkId) {
       this.loading.set(false);

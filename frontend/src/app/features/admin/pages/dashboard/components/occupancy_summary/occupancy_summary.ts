@@ -1,8 +1,10 @@
+import { LoadError } from '../../../../../../shared/components/load-error/load-error';
 import { Component, computed, inject, signal } from '@angular/core';
 import { DashboardOccupancy } from '../../../../../../core/models/dashboard';
 import { DashboardService } from '../../../../../../core/services/dashboard';
 
 @Component({
+  imports: [LoadError],
   selector: 'app-admin-occupancy-summary',
   standalone: true,
   templateUrl: './occupancy_summary.html',
@@ -49,7 +51,7 @@ export class AdminOccupancySummary {
     this.loadOccupancy();
   }
 
-  private loadOccupancy(): void {
+  loadOccupancy(): void {
     this.loading.set(true);
     this.error.set(false);
 

@@ -142,13 +142,17 @@
             Закрыть
           </button>
 
-          <button
-            type="button"
-            class="px-4 py-2 rounded-md bg-brand-accent text-brand-bg text-sm font-medium hover:opacity-90 transition-opacity"
-            (click)="startEdit()"
-          >
-            Редактировать
-          </button>
+          @if (editable) {
+            <button
+              type="button"
+              class="px-4 py-2 rounded-md bg-brand-accent text-brand-bg text-sm font-medium hover:opacity-90 transition-opacity"
+              (click)="startEdit()"
+            >
+              Редактировать
+            </button>
+          } @else {
+            <p class="self-center text-xs text-brand-muted">Изменить можно, когда кладовка свободна</p>
+          }
         </div>
       }
 
@@ -220,6 +224,9 @@
             Отмена
           </button>
 
+          @if (errorText()) {
+            <p role="alert" class="mr-auto self-center text-xs text-status-overdue">{{ errorText() }}</p>
+          }
           <button
             type="button"
             [disabled]="saving()"

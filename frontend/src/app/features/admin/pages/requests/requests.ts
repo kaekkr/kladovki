@@ -4,6 +4,8 @@ import { DatePipe } from '@angular/common';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { TenantRequest } from '../../../../core/models/request';
 import { RequestService } from '../../../../core/services/request';
+import { LoadError } from '../../../../shared/components/load-error/load-error';
+import { AdminBadges } from '../../layout/admin-badges';
 import {
   isTenantQuery,
   needsOsiAction,
@@ -17,12 +19,13 @@ type Filter = 'open' | 'closed' | 'all';
 @Component({
   selector: 'app-admin-requests',
   standalone: true,
-  imports: [DatePipe],
+  imports: [DatePipe, LoadError],
   templateUrl: './requests.html',
 })
 export class AdminRequests {
   private auth = inject(AuthService);
   private requestService = inject(RequestService);
+  private badges = inject(AdminBadges);
 
   requests = signal<TenantRequest[]>([]);
   loading = signal(true);
@@ -104,6 +107,7 @@ export class AdminRequests {
         this.saving.set(false);
         this.active.set(null);
         this.load();
+        this.badges.refresh();
       },
       error: (err) => {
         this.saving.set(false);

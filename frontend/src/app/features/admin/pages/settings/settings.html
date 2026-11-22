@@ -11,11 +11,7 @@
       <div class="h-32 animate-pulse rounded-lg border border-brand-line bg-brand-surface"></div>
     </div>
   } @else if (error()) {
-    <div
-      class="p-5 bg-brand-surface border border-brand-line rounded-lg text-sm text-status-overdue"
-    >
-      Не удалось загрузить настройки.
-    </div>
+    <app-load-error message="Не удалось загрузить настройки." (retry)="load()" />
   } @else {
     <!-- Feedback -->
     @if (saveMessage()) {

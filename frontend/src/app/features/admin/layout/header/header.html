@@ -1,9 +1,19 @@
 <header
-  class="h-16 shrink-0 border-b border-brand-line bg-brand-bg flex items-center justify-between px-6"
+  class="h-14 lg:h-16 shrink-0 border-b border-brand-line bg-brand-bg flex items-center justify-between gap-2 px-3 lg:px-6"
 >
-  <div class="flex items-center gap-3">
-    <div>
-      <p class="text-[13px] font-medium text-brand-text">
+  <div class="flex min-w-0 items-center gap-2 lg:gap-3">
+    <button
+      type="button"
+      (click)="nav.toggle()"
+      class="lg:hidden flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-brand-text hover:bg-brand-elevated"
+      aria-label="Открыть меню"
+      aria-controls="admin-menu"
+      [attr.aria-expanded]="nav.open()"
+    >
+      <i class="fas fa-bars"></i>
+    </button>
+    <div class="min-w-0">
+      <p class="truncate text-[13px] font-medium text-brand-text">
         {{ currentJk()?.name ?? 'Загрузка...' }}
       </p>
 

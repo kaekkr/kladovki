@@ -1,3 +1,4 @@
+import { LoadError } from '../../../../../../shared/components/load-error/load-error';
 import { Component, computed, inject, signal } from '@angular/core';
 
 import { DashboardPeriod, RevenuePoint } from '../../../../../../core/models/dashboard';
@@ -5,6 +6,7 @@ import { DashboardPeriod, RevenuePoint } from '../../../../../../core/models/das
 import { DashboardService } from '../../../../../../core/services/dashboard';
 
 @Component({
+  imports: [LoadError],
   selector: 'app-admin-revenue-chart',
   standalone: true,
   templateUrl: './revenue_chart.html',
@@ -102,7 +104,7 @@ export class AdminRevenueChart {
     }).format(new Date(date));
   }
 
-  private loadRevenue(): void {
+  loadRevenue(): void {
     this.loading.set(true);
     this.error.set(false);
 

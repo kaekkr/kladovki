@@ -1,3 +1,4 @@
+import { LoadError } from '../../../../shared/components/load-error/load-error';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -9,7 +10,7 @@ import { AdminSettings } from '../../../../core/models/settings';
 @Component({
   selector: 'app-admin-settings',
   standalone: true,
-  imports: [FormsModule, RouterLink, ChangePassword],
+  imports: [LoadError, FormsModule, RouterLink, ChangePassword],
   templateUrl: './settings.html',
 })
 export class AdminSettingsPage {
@@ -49,7 +50,7 @@ export class AdminSettingsPage {
     this.load();
   }
 
-  private load(): void {
+  load(): void {
     const user = this.authService.currentUser();
     const jkId = user?.jk_id;
     if (!jkId) {

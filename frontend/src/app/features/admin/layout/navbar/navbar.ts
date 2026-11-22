@@ -1,10 +1,9 @@
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
 
-import { RequestService } from '../../../../core/services/request';
-import { ResidentService } from '../../../../core/services/resident';
+import { AdminBadges } from '../admin-badges';
 
 @Component({
   selector: 'app-admin-navbar',
@@ -16,30 +15,18 @@ import { ResidentService } from '../../../../core/services/resident';
   },
 })
 export class AdminNavbar {
-  private requests = inject(RequestService);
-  private residents = inject(ResidentService);
-  openRequests = signal(0);
-  pendingResidents = signal(0);
+  private badges = inject(AdminBadges);
+  openRequests = this.badges.openRequests;
+  pendingResidents = this.badges.pendingResidents;
 
   constructor() {
-    this.refresh();
-    // Refresh the badge after each navigation (e.g. after resolving a request).
+    // Initial load + after each navigation. The navbar is created during the
+    // first navigation, so its NavigationEnd covers the initial load too.
     inject(Router)
       .events.pipe(
         filter((e) => e instanceof NavigationEnd),
         takeUntilDestroyed(inject(DestroyRef)),
       )
-      .subscribe(() => this.refresh());
-  }
-
-  private refresh(): void {
-    this.requests.openCount().subscribe({
-      next: (r) => this.openRequests.set(r.open),
-      error: () => this.openRequests.set(0),
-    });
-    this.residents.pendingCount().subscribe({
-      next: (r) => this.pendingResidents.set(r.pending),
-      error: () => this.pendingResidents.set(0),
-    });
+      .subscribe(() => this.badges.refresh());
   }
 }

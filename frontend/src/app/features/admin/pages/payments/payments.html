@@ -67,11 +67,7 @@
   @if (loading()) {
     <div class="bg-brand-surface border border-brand-line rounded-lg animate-pulse h-64"></div>
   } @else if (error()) {
-    <div
-      class="p-5 bg-brand-surface border border-brand-line rounded-lg text-sm text-status-overdue"
-    >
-      Не удалось загрузить историю платежей.
-    </div>
+    <app-load-error message="Не удалось загрузить историю платежей." (retry)="loadPayments()" />
   } @else {
     <div class="bg-brand-surface border border-brand-line rounded-lg overflow-hidden">
       <div class="overflow-x-auto">

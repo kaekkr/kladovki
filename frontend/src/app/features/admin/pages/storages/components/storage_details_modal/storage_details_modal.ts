@@ -11,7 +11,31 @@ import { Storage } from '../../../../../../core/models/storage';
   templateUrl: './storage_details_modal.html',
 })
 export class AdminStorageDetailsModal {
-  @Input() storage: Storage | null = null;
+  private current: Storage | null = null;
+
+  /** A new object after a successful save ends the edit mode; an error keeps it open. */
+  @Input() set storage(value: Storage | null) {
+    if (value !== this.current) {
+      this.editing.set(false);
+      this.saving.set(false);
+    }
+    this.current = value;
+  }
+  get storage(): Storage | null {
+    return this.current;
+  }
+
+  /** Server error of the last save, shown inside the modal. */
+  @Input() set error(value: string | null) {
+    this.errorText.set(value);
+    if (value) this.saving.set(false);
+  }
+  errorText = signal<string | null>(null);
+
+  /** Number, area, floor and entrance can be changed only while the room is free (server rule). */
+  get editable(): boolean {
+    return this.current?.status === 'free';
+  }
 
   @Output() closed = new EventEmitter<void>();
   @Output() saved = new EventEmitter<Storage>();
@@ -49,6 +73,7 @@ export class AdminStorageDetailsModal {
     }
 
     this.saving.set(true);
+    this.errorText.set(null);
 
     this.saved.emit({
       ...this.storage,
@@ -57,9 +82,6 @@ export class AdminStorageDetailsModal {
       floor: this.editFloor,
       entrance: this.editEntrance,
     });
-
-    this.saving.set(false);
-    this.editing.set(false);
   }
 
   close(): void {
