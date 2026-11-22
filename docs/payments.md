@@ -54,7 +54,9 @@ Processing:
 `POST /rentals/:id/renew` creates a payment with `kind = 'renewal'` and `months = N`. Booking payments have `kind = 'booking'`. The webhook branches on `kind`:
 
 - **booking**: activate the hold, as above;
-- **renewal**: if the rental is still `active`, `ends_at += N months` from the current end, `total_paid += amount`, `price_per_month = amount / N`. Otherwise the money goes to a `payment_refund` request.
+- **renewal**: if the rental is still `active` and has no open early-termination request, `ends_at += N months` from the current end, `total_paid += amount`, `price_per_month = amount / N`, and the remaining-value anchor is reset (see [domain.md](domain.md#remaining-value)). Otherwise the money goes to a `payment_refund` request.
+
+`POST /rentals/:id/renew` is refused (409) while an early termination is open; `POST /rentals/:id/terminate` is refused (409) while a renewal invoice younger than 30 minutes is pending.
 
 ## Why it is built this way
 

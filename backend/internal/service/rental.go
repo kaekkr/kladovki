@@ -109,6 +109,9 @@ func (s *Service) LockStorage(
 	pricePerMonth := int64(
 		math.Round(st.Area * float64(tariffAmount)),
 	)
+	if _, err := rentalTotal(pricePerMonth, months); err != nil {
+		return nil, err
+	}
 
 	return s.repo.LockStorage(
 		ctx,
@@ -130,6 +133,9 @@ func (s *Service) ConfirmPayment(
 
 	if rentalID == "" || userID == "" {
 		return nil, ErrInvalid
+	}
+	if err := s.requireApproved(ctx, userID); err != nil {
+		return nil, err
 	}
 
 	return s.repo.ConfirmRentalPayment(

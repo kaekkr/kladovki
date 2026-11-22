@@ -13,6 +13,8 @@ import (
 	"github.com/kaekkr/kladovki/internal/service"
 )
 
+const tariffBoundsMsg = "Тариф: целое число от 1 до 1 000 000 ₸ за м² в месяц"
+
 type SetTariffRequest struct {
 	Amount int64 `json:"amount"`
 }
@@ -41,8 +43,8 @@ func (h *Handler) GetTariffPreview(c *gin.Context) {
 	}
 
 	amount, err := strconv.ParseInt(c.Query("amount"), 10, 64)
-	if err != nil || amount <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Укажите новый тариф"})
+	if err != nil || !service.ValidTariff(amount) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": tariffBoundsMsg})
 		return
 	}
 
@@ -71,7 +73,7 @@ func (h *Handler) SetTariff(c *gin.Context) {
 	affected, err := h.svc.SetTariff(c.Request.Context(), service.SetTariffInput{JKID: jkID, Amount: req.Amount})
 	if err != nil {
 		if errors.Is(err, service.ErrInvalid) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Тариф должен быть больше нуля"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": tariffBoundsMsg})
 			return
 		}
 		log.Printf("SetTariff: %v", err)

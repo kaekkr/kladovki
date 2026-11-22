@@ -42,7 +42,7 @@ export class SettingsService {
   getRentalSettings(jkId: string): Observable<RentalSettings> {
     return this.http
       .get<RentalSettings>(`${this.baseUrl}/jks/${jkId}/rental-settings`)
-      .pipe(catchError(() => of({ lock_duration_minutes: 2 })));
+      .pipe(catchError(() => of({ lock_duration_minutes: 5 })));
   }
 
   /** Предварительный расчет при уменьшении тарифа (Preview) */

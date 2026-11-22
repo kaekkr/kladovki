@@ -207,6 +207,10 @@ func (h *Handler) SetStorageTransfer(c *gin.Context) {
 		req.IIN,
 	)
 	if err != nil {
+		if errors.Is(err, service.ErrSelfTransfer) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		if errors.Is(err, service.ErrInvalid) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Некорректный ИИН или статус кладовки"})
 			return

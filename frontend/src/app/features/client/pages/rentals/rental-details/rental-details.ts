@@ -98,13 +98,14 @@ export class ClientRentalDetails implements OnDestroy {
   notFound = signal(false);
   rental = signal<Rental | null>(null);
 
-  /** Already deducted from total_paid by the server, but not yet returned by the ОСИ. */
+  /** Refund the ОСИ still owes (server field; older servers: from the open request). */
   refundDue = computed(() => {
     const r = this.rental();
-    return r ? pendingTariffRefund(r.id, this.requests()) : 0;
+    if (!r) return 0;
+    return r.refund_pending ?? pendingTariffRefund(r.id, this.requests());
   });
-  /** What the tenant actually paid (the refund is not back in their pocket yet). */
-  paidTotal = computed(() => (this.rental()?.total_paid ?? 0) + this.refundDue());
+  /** The server keeps total_paid whole until the ОСИ confirms the refund. */
+  paidTotal = computed(() => this.rental()?.total_paid ?? 0);
   periodLabel = computed(() => {
     const r = this.rental();
     return r ? rentalPeriodLabel(r.starts_at, this.displayEndsAt(r)) : '—';

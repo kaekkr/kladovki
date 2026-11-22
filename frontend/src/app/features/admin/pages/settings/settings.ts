@@ -35,7 +35,7 @@ export class AdminSettingsPage {
   jkCadastral = signal('');
   tariffAmount = signal(0);
   initialTariffAmount = signal(0); // Для отслеживания уменьшения
-  lockMinutes = signal(2);
+  lockMinutes = signal(5);
 
   // Read-only account
   userName = signal('');

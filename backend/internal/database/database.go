@@ -273,4 +273,13 @@ var migrations = []string{
 	// Revocable sessions: every JWT carries the user's token_version; logout and
 	// password changes/resets bump it, so older tokens stop working at once.
 	`ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 0`,
+	// Remaining value anchor (docs/domain.md "Remaining value"): the unused paid
+	// time was worth value_left ₸ at value_at and runs down linearly to 0 at
+	// ends_at. NULL = never re-anchored: total_paid at starts_at.
+	`ALTER TABLE rentals ADD COLUMN IF NOT EXISTS value_left BIGINT`,
+	`ALTER TABLE rentals ADD COLUMN IF NOT EXISTS value_at TIMESTAMPTZ`,
+
+	// Booking hold: 2 minutes was tight for older residents (QA 2026-11-22).
+	// New ЖК start at 5; existing ЖК keep what their ОСИ set.
+	`ALTER TABLE jks ALTER COLUMN lock_minutes SET DEFAULT 5`,
 }

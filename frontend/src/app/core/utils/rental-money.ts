@@ -47,8 +47,8 @@ type RefundFields = Pick<TenantRequest, 'rental_id' | 'type' | 'status' | 'choic
 
 /**
  * Money the ОСИ still has to return for a tariff decrease the tenant chose to
- * refund. The server already lowered `total_paid` by it, so the money the tenant
- * actually paid is `total_paid + pendingTariffRefund` until the ОСИ closes it.
+ * refund (fallback when the rental has no `refund_pending` field). `total_paid`
+ * is reduced by the server only when the ОСИ confirms the money was returned.
  */
 export function pendingTariffRefund(rentalId: string, requests: readonly RefundFields[]): number {
   return requests
