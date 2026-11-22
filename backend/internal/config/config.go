@@ -1,6 +1,8 @@
 package config
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -58,6 +60,42 @@ func loadEnvFiles(paths ...string) []string {
 	return loaded
 }
 
+const (
+	EnvDevelopment = "development"
+	EnvProduction  = "production"
+	// devJWTSecret is public (it is in this repo): only APP_ENV=development may use it.
+	devJWTSecret = "dev-secret-change-me-in-production-32chars"
+)
+
+// resolveEnv picks APP_ENV (or ENV). Unset means production: forgetting the
+// variable on a server must never switch on dev shortcuts (public JWT secret,
+// unsigned webhooks, payment without Kaspi, non-Secure cookie).
+func resolveEnv(appEnv, env string) (string, error) {
+	v := appEnv
+	if v == "" {
+		v = env
+	}
+	switch v {
+	case "":
+		return EnvProduction, nil
+	case EnvDevelopment, EnvProduction:
+		return v, nil
+	}
+	return "", fmt.Errorf("APP_ENV=%q is not supported: use exactly %q or %q (unset means %q)",
+		v, EnvDevelopment, EnvProduction, EnvProduction)
+}
+
+// resolveJWTSecret returns JWT_SECRET; the built-in fallback is allowed only in development.
+func resolveJWTSecret(env, secret string) (string, error) {
+	if secret != "" {
+		return secret, nil
+	}
+	if env == EnvDevelopment {
+		return devJWTSecret, nil
+	}
+	return "", errors.New("JWT_SECRET is required unless APP_ENV=development")
+}
+
 func Load() Config {
 	if loaded := loadEnvFiles(envFiles...); len(loaded) > 0 {
 		log.Printf("Info: env loaded from %v", loaded)
@@ -65,13 +103,9 @@ func Load() Config {
 		log.Println("Info: no .env files found, relying on system environment variables")
 	}
 
-	// Supports both APP_ENV and standard ENV variables
-	env := os.Getenv("APP_ENV")
-	if env == "" {
-		env = os.Getenv("ENV")
-	}
-	if env == "" {
-		env = "development"
+	env, err := resolveEnv(os.Getenv("APP_ENV"), os.Getenv("ENV"))
+	if err != nil {
+		log.Fatalf("CRITICAL: %v", err)
 	}
 
 	port := os.Getenv("PORT")
@@ -84,13 +118,12 @@ func Load() Config {
 		dbPath = "postgres://kladovki:kladovki_secret@localhost:5432/kladovki?sslmode=disable"
 	}
 
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		if env == "production" {
-			log.Fatal("CRITICAL: JWT_SECRET environment variable is required in production!")
-		}
-		secret = "dev-secret-change-me-in-production-32chars"
-		log.Println("WARNING: Using default JWT secret. Do not use in production!")
+	secret, err := resolveJWTSecret(env, os.Getenv("JWT_SECRET"))
+	if err != nil {
+		log.Fatalf("CRITICAL: %v", err)
+	}
+	if secret == devJWTSecret {
+		log.Println("WARNING: Using default JWT secret (APP_ENV=development). Do not use in production!")
 	}
 
 	ttlHours := 24

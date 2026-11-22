@@ -4,7 +4,7 @@
 
 - Passwords are hashed with **bcrypt**. Login accepts ИИН, phone or email.
 - The JWT (HS256, `JWT_SECRET`, TTL `JWT_TTL_HOURS`, default 24 h) holds `user_id`, `role` and `jk_id`. It is sent as an **HTTP-only** cookie (`Secure` in production), or as `Authorization: Bearer` from the Android app.
-- In production the server refuses to start without `JWT_SECRET`.
+- `APP_ENV` unset means **production** (fail closed). The server refuses to start without `JWT_SECRET` unless `APP_ENV=development` exactly, and refuses any other `APP_ENV` value. The public fallback secret exists only for development.
 
 ## Authorization: two layers
 

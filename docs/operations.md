@@ -9,6 +9,7 @@ docker compose up -d postgres adminer
 # 2. Backend (:8080). Migrations run automatically on start.
 cd backend
 cp .env.example .env.local      # once; fill in only what you need
+echo 'APP_ENV=development' >> .env.local   # required locally: unset means production
 air                              # hot reload; or: go run ./cmd/server
 
 # 3. Frontend (:4200, talks to http://localhost:8080/api/v1)
@@ -16,6 +17,8 @@ cd frontend
 npm ci
 npm start
 ```
+
+**Local development must set `APP_ENV=development`.** When `APP_ENV` (and `ENV`) are unset the server runs as **production**: it needs a real `JWT_SECRET`, sets `Secure` cookies and rejects unsigned webhooks. Any value other than exactly `development` or `production` stops the server at startup.
 
 With `APP_ENV=development` you can activate a rental without Kaspi by calling `POST /api/v1/rentals/confirm-payment`.
 
@@ -25,10 +28,10 @@ Env files are loaded in this order: `.env.local` â†’ `/etc/secrets/.env.local` â
 
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
-| `APP_ENV` | prod: `production` | `development` | Enables secure cookies and hides the dev-only routes |
+| `APP_ENV` (or `ENV`) | local: `development` | `production` | Exactly `development` or `production`; anything else is a startup error. `development` enables the dev-only routes, the dev JWT secret and non-Secure cookies |
 | `PORT` | | `8080` | HTTP port (Render sets it) |
 | `DB_PATH` | **yes** | local docker DSN | Postgres DSN (Supabase connection string) |
-| `JWT_SECRET` | **prod** | dev value | Signs login tokens. Server won't start in production without it |
+| `JWT_SECRET` | **yes** (except development) | dev value only in development | Signs login tokens. Server won't start without it unless `APP_ENV=development` |
 | `JWT_TTL_HOURS` | | `24` | Session length |
 | `COOKIE_SECURE`, `COOKIE_NAME` | | auto / `access_token` | |
 | `API_PREFIX` | | `/api/v1` | |
