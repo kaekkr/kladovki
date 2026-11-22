@@ -25,7 +25,10 @@ const rentalDetailsColumns = `
 	r.starts_at,
 	r.ends_at,
 	r.status,
-	r.created_at
+	r.created_at,
+	COALESCE((SELECT SUM(q.amount) FROM requests q
+	          WHERE q.rental_id = r.id AND q.status = 'open'
+	            AND q.type IN ('payment_refund', 'tariff_recalc')), 0)::bigint
 `
 
 func (r *Repo) LockStorage(
@@ -233,7 +236,7 @@ func (r *Repo) ConfirmRentalPayment(
 		&rt.ID, &rt.StorageID, &rt.StorageNumber,
 		&rt.UserID, &rt.UserName, &rt.UserPhone,
 		&rt.JKID, &rt.Months, &rt.PricePerMonth, &rt.TotalPaid,
-		&rt.StartsAt, &rt.EndsAt, &rt.Status, &rt.CreatedAt,
+		&rt.StartsAt, &rt.EndsAt, &rt.Status, &rt.CreatedAt, &rt.RefundPending,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -346,7 +349,7 @@ func (r *Repo) ForceReleaseLocked(
 		&rt.ID, &rt.StorageID, &rt.StorageNumber,
 		&rt.UserID, &rt.UserName, &rt.UserPhone,
 		&rt.JKID, &rt.Months, &rt.PricePerMonth, &rt.TotalPaid,
-		&rt.StartsAt, &rt.EndsAt, &rt.Status, &rt.CreatedAt,
+		&rt.StartsAt, &rt.EndsAt, &rt.Status, &rt.CreatedAt, &rt.RefundPending,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -405,7 +408,7 @@ func (r *Repo) ReleaseOverdueRental(
 		&rt.ID, &rt.StorageID, &rt.StorageNumber,
 		&rt.UserID, &rt.UserName, &rt.UserPhone,
 		&rt.JKID, &rt.Months, &rt.PricePerMonth, &rt.TotalPaid,
-		&rt.StartsAt, &rt.EndsAt, &rt.Status, &rt.CreatedAt,
+		&rt.StartsAt, &rt.EndsAt, &rt.Status, &rt.CreatedAt, &rt.RefundPending,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -721,6 +724,7 @@ func (r *Repo) CancelRental(
 		&rt.EndsAt,
 		&rt.Status,
 		&rt.CreatedAt,
+		&rt.RefundPending,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -753,9 +757,7 @@ func (r *Repo) CancelRental(
 		}
 	}
 	// Choices and termination requests about this rental are moot now.
-	if _, err := tx.ExecContext(ctx, `
-		UPDATE requests SET status = 'superseded', resolved_at = now()
-		WHERE rental_id = $1 AND status IN ('open', 'awaiting_choice') AND type <> 'payment_refund'`, rentalID); err != nil {
+	if _, err := tx.ExecContext(ctx, supersedeRentalRequestsSQL, rentalID, ""); err != nil {
 		return nil, fmt.Errorf("repository.CancelRental supersede requests: %w", err)
 	}
 	rt.RefundDue = refund
@@ -840,6 +842,7 @@ func scanRentalDetails(s rowScanner) (*models.Rental, error) {
 		&rt.EndsAt,
 		&rt.Status,
 		&rt.CreatedAt,
+		&rt.RefundPending,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -889,7 +892,11 @@ func (r *Repo) GetTermination(ctx context.Context, rentalID string) (*models.Ter
 const supersedeRentalRequestsSQL = `
 	UPDATE requests SET status = 'superseded', resolved_at = now()
 	WHERE rental_id = $1 AND id <> $2
-	  AND status IN ('open', 'awaiting_choice') AND type <> 'payment_refund'`
+	  AND status IN ('open', 'awaiting_choice') AND NOT ` + refundOwedSQL
+
+// refundOwedSQL: requests (alias-free) that are money still owed to the tenant —
+// a payment refund, or a tariff difference the tenant chose to get back.
+const refundOwedSQL = `(type = 'payment_refund' OR (type = 'tariff_recalc' AND status = 'open'))`
 
 // StorageHasRentals: a storage with any rental history cannot be deleted.
 func (r *Repo) StorageHasRentals(ctx context.Context, storageID string) (bool, error) {

@@ -17,6 +17,8 @@ var (
 	ErrLocked             = errors.New("storage locked or occupied")
 	ErrTransferPending    = errors.New("storage transfer pending")
 	ErrPaymentPending     = errors.New("payment already pending")
+	// ErrRefundNotRejectable: the ОСИ may only confirm a tariff refund, not reject it.
+	ErrRefundNotRejectable = errors.New("Возврат разницы по тарифу отклонить нельзя: арендатор уже отказался от продления срока. Верните деньги и отметьте «Деньги возвращены».")
 	// ErrTerminationPending: renewal refused while an early termination request is open.
 	ErrTerminationPending = errors.New("Подана заявка на досрочное расторжение — продление недоступно, пока ОСИ её не рассмотрит.")
 	// ErrRenewalPending: early termination refused while a renewal invoice may still be paid.

@@ -15,6 +15,8 @@ func requestError(c *gin.Context, err error, conflictMsg string) {
 	switch {
 	case errors.Is(err, service.ErrNotFound):
 		c.JSON(http.StatusNotFound, gin.H{"error": "Заявка не найдена"})
+	case errors.Is(err, service.ErrRefundNotRejectable):
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 	case errors.Is(err, service.ErrAlreadyExists):
 		c.JSON(http.StatusConflict, gin.H{"error": conflictMsg})
 	case errors.Is(err, service.ErrInvalid):

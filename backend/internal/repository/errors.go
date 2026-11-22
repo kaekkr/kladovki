@@ -17,4 +17,7 @@ var (
 	)
 	// ErrInvalid is returned when the provided data or operation is invalid.
 	ErrInvalid = errors.New("invalid data or operation")
+
+	// ErrRefundNotRejectable: a tariff refund the tenant chose can only be confirmed as paid.
+	ErrRefundNotRejectable = errors.New("tariff refund cannot be rejected")
 )

@@ -99,7 +99,8 @@ func (r *Repo) CreateTariffRecalcRequests(ctx context.Context, jkID string, newT
 
 // ApplyTariffChoice records the tenant's answer to a tariff_recalc request.
 //   - extend: remaining time is stretched by old/new price; applied at once.
-//   - refund: the difference goes to the OSI as an open request.
+//   - refund: the difference (computed now) goes to the OSI as an open request.
+//     total_paid is lowered only when the ОСИ confirms the money was returned.
 func (r *Repo) ApplyTariffChoice(ctx context.Context, requestID, userID, choice string) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -125,12 +126,12 @@ func (r *Repo) ApplyTariffChoice(ctx context.Context, requestID, userID, choice 
 
 	// The rental may have ended since the request was created (early termination,
 	// release, cancel): then there is nothing to extend or refund.
-	var active bool
-	if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM rentals WHERE id = $1 AND status = 'active')`, rentalID).
-		Scan(&active); err != nil {
+	var rentalStatus string
+	err = tx.QueryRowContext(ctx, `SELECT status FROM rentals WHERE id = $1 FOR UPDATE`, rentalID).Scan(&rentalStatus)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
-	if !active {
+	if rentalStatus != string(models.RentalStatusActive) {
 		_, _ = tx.ExecContext(ctx, `UPDATE requests SET status = 'superseded', resolved_at = now() WHERE id = $1`, requestID)
 		_ = tx.Commit()
 		return ErrConflict
@@ -149,12 +150,19 @@ func (r *Repo) ApplyTariffChoice(ctx context.Context, requestID, userID, choice 
 				UPDATE requests SET status = 'done', choice = 'extend', resolved_at = now() WHERE id = $1`, requestID)
 		}
 	case "refund":
-		_, err = tx.ExecContext(ctx, `
-			UPDATE rentals r SET price_per_month = $2, total_paid = GREATEST(0, r.total_paid - $3),
-			    value_left = GREATEST(0, `+remainingValueRoundedSQL+` - $3), value_at = now()
-			WHERE r.id = $1 AND r.status = 'active'`, rentalID, newPrice, amount)
+		// The difference for the time still left now, not when the tariff changed.
+		err = tx.QueryRowContext(ctx, `
+			SELECT GREATEST(0, ROUND(`+remainingValueSQL+` * (1 - $2::numeric / r.price_per_month)))::bigint
+			FROM rentals r WHERE r.id = $1`, rentalID, newPrice).Scan(&amount)
 		if err == nil {
-			_, err = tx.ExecContext(ctx, `UPDATE requests SET status = 'open', choice = 'refund' WHERE id = $1`, requestID)
+			_, err = tx.ExecContext(ctx, `
+				UPDATE rentals r SET price_per_month = $2,
+				    value_left = GREATEST(0, `+remainingValueRoundedSQL+` - $3), value_at = now()
+				WHERE r.id = $1 AND r.status = 'active'`, rentalID, newPrice, amount)
+		}
+		if err == nil {
+			_, err = tx.ExecContext(ctx, `UPDATE requests SET status = 'open', choice = 'refund', amount = $2 WHERE id = $1`,
+				requestID, amount)
 		}
 	default:
 		return ErrInvalid
@@ -233,9 +241,10 @@ func (r *Repo) ResolveRequest(ctx context.Context, requestID, jkID, adminID, act
 	defer tx.Rollback()
 
 	var typ, status, rentalID string
+	var amount int64
 	err = tx.QueryRowContext(ctx, `
-		SELECT type, status, COALESCE(rental_id, '') FROM requests
-		WHERE id = $1 AND jk_id = $2 FOR UPDATE`, requestID, jkID).Scan(&typ, &status, &rentalID)
+		SELECT type, status, COALESCE(rental_id, ''), amount FROM requests
+		WHERE id = $1 AND jk_id = $2 FOR UPDATE`, requestID, jkID).Scan(&typ, &status, &rentalID, &amount)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound
 	}
@@ -245,10 +254,22 @@ func (r *Repo) ResolveRequest(ctx context.Context, requestID, jkID, adminID, act
 	if status != string(models.RequestOpen) {
 		return ErrConflict
 	}
+	// The tenant already gave up the extension for this refund: the ОСИ can
+	// only confirm it was paid.
+	if typ == string(models.RequestTariffRecalc) && action == "reject" {
+		return ErrRefundNotRejectable
+	}
 
 	newStatus := models.RequestRejected
 	if action == "approve" {
 		newStatus = models.RequestDone
+		if typ == string(models.RequestTariffRecalc) && rentalID != "" {
+			// The money is back with the tenant: «Оплачено» drops by it now.
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE rentals SET total_paid = GREATEST(0, total_paid - $2) WHERE id = $1`, rentalID, amount); err != nil {
+				return err
+			}
+		}
 		if typ == string(models.RequestEarlyTermination) && rentalID != "" {
 			var storageID string
 			err := tx.QueryRowContext(ctx, `
