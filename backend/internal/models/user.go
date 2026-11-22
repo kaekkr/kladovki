@@ -7,6 +7,8 @@ type Role string
 const (
 	RoleResident Role = "resident"
 	RoleAdmin    Role = "admin"
+	// RoleSuperadmin operates the platform: creates ЖК and their ОСИ accounts. Has no ЖК.
+	RoleSuperadmin Role = "superadmin"
 )
 
 // UserStatus: new residents wait for the ОСИ to confirm they own property in the ЖК.
@@ -45,8 +47,22 @@ type User struct {
 	PremisesNumber string     `json:"premises_number"`
 	CompanyBIN     string     `json:"company_bin"`
 	CompanyName    string     `json:"company_name"`
+	// PremisesCadastral: full cadastral number of the owned premises (may be empty for old accounts).
+	PremisesCadastral string `json:"premises_cadastral"`
 
 	MustChangePassword bool `json:"must_change_password"`
+	// TokenVersion is copied into every JWT; bumping it revokes all sessions.
+	TokenVersion int `json:"-"`
+}
+
+// SessionUser is what the auth middleware re-reads on every request.
+type SessionUser struct {
+	ID                 string
+	Role               Role
+	JKID               string
+	Status             UserStatus
+	TokenVersion       int
+	MustChangePassword bool
 }
 
 // Verification is what a user declares about the property they own.
@@ -56,4 +72,6 @@ type Verification struct {
 	PremisesNumber string `json:"premises_number"`
 	CompanyBIN     string `json:"company_bin"`
 	CompanyName    string `json:"company_name"`
+	// PremisesCadastral, e.g. 21:319:021:848:8:ВП-2 — finds the ЖК and the unit number.
+	PremisesCadastral string `json:"premises_cadastral"`
 }

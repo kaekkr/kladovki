@@ -13,6 +13,28 @@ import (
 
 const tariffColumns = `id, jk_id, amount, created_at, updated_at`
 
+// SetTariffWithRecalc saves the tariff and, in the same transaction, asks the
+// tenants whose rental gets cheaper to choose extend/refund. Returns how many.
+func (r *Repo) SetTariffWithRecalc(ctx context.Context, jkID string, amount int64) (int64, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("repository.SetTariffWithRecalc begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	if err := setTariffTx(ctx, tx, jkID, amount); err != nil {
+		return 0, err
+	}
+	n, err := createTariffRecalcRequestsTx(ctx, tx, jkID, amount)
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("repository.SetTariffWithRecalc commit: %w", err)
+	}
+	return n, nil
+}
+
 func (r *Repo) SetTariff(ctx context.Context, jkID string, amount int64) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -20,6 +42,16 @@ func (r *Repo) SetTariff(ctx context.Context, jkID string, amount int64) error {
 	}
 	defer tx.Rollback()
 
+	if err := setTariffTx(ctx, tx, jkID, amount); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("repository.SetTariff commit tx: %w", err)
+	}
+	return nil
+}
+
+func setTariffTx(ctx context.Context, tx *sql.Tx, jkID string, amount int64) error {
 	now := time.Now().UTC()
 
 	// 1. Insert history record
@@ -44,11 +76,6 @@ func (r *Repo) SetTariff(ctx context.Context, jkID string, amount int64) error {
 	if _, err := tx.ExecContext(ctx, upsertQuery, tariffID, jkID, amount, now); err != nil {
 		return fmt.Errorf("repository.SetTariff upsert tariff: %w", err)
 	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("repository.SetTariff commit tx: %w", err)
-	}
-
 	return nil
 }
 

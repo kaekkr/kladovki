@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { ChangePassword } from '../../../../shared/components/change-password/change-password';
+import { PhoneEditor } from './phone-editor';
 
 import { AuthService } from '../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../core/services/notification';
@@ -9,7 +10,7 @@ import { NotificationChannels } from '../../../../core/models/notification';
 @Component({
   selector: 'app-client-profile',
   standalone: true,
-  imports: [RouterLink, ChangePassword],
+  imports: [RouterLink, ChangePassword, PhoneEditor],
   templateUrl: './profile.html',
 })
 export class ClientProfile {
@@ -24,6 +25,8 @@ export class ClientProfile {
   linkHint = signal('');
 
   passwordOpen = signal(false);
+  /** «Пароль изменён» stays visible after the form closes. */
+  passwordSaved = signal(false);
 
   constructor() {
     this.loadChannels();

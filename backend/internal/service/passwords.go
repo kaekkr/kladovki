@@ -18,8 +18,8 @@ func (s *Service) ChangePassword(ctx context.Context, userID, current, next stri
 	if !CheckPassword(u.PasswordHash, current) {
 		return ErrWrongPassword
 	}
-	if len([]rune(next)) < minPasswordLen {
-		return ErrWeakPassword
+	if err := checkPassword(next); err != nil {
+		return err
 	}
 	hash, err := HashPassword(next)
 	if err != nil {

@@ -10,11 +10,15 @@ import { SettingsService } from '../../../../../core/services/settings';
 import { Storage } from '../../../../../core/models/storage';
 import { RentalService } from '../../../../../core/services/rental';
 import { canBook } from '../../../../../core/utils/resident-display';
+import { formatArea } from '../../../../../core/utils/area';
+import { formatTenge } from '../../../../../core/utils/date-format';
+import { renewalPrice } from '../../../../../core/utils/rental-display';
+import { LoadError } from '../../../../../shared/components/load-error/load-error';
 
 @Component({
   selector: 'app-client-storage-details',
   standalone: true,
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, LoadError],
   templateUrl: './storage-details.html',
 })
 export class ClientStorageDetails {
@@ -31,6 +35,8 @@ export class ClientStorageDetails {
 
   loading = signal(true);
   error = signal(false);
+  /** 404 → «Кладовка не найдена»; other failures → «Повторить». */
+  notFound = signal(false);
 
   storage = signal<Storage | null>(null);
   tariff = signal(0);
@@ -79,7 +85,8 @@ export class ClientStorageDetails {
       return 0;
     }
 
-    return currentStorage.area * this.tariff();
+    // Same as the server: round(area × tariff).
+    return renewalPrice(currentStorage.area, this.tariff(), 1);
   });
 
   totalPrice = computed(() => {
@@ -92,19 +99,14 @@ export class ClientStorageDetails {
     this.load();
   }
 
-  formatMoney(value: number): string {
-    return (
-      new Intl.NumberFormat('ru-RU', {
-        maximumFractionDigits: 0,
-      }).format(value) + ' ₸'
-    );
-  }
+  formatMoney = formatTenge;
+  area = formatArea;
 
   floorLabel = floorLabel;
 
   statusLabel = storageStatusLabel;
 
-  private load(): void {
+  load(): void {
     const storageId = this.route.snapshot.paramMap.get('id');
     const user = this.auth.currentUser();
 
@@ -116,6 +118,7 @@ export class ClientStorageDetails {
 
     this.loading.set(true);
     this.error.set(false);
+    this.notFound.set(false);
 
     this.storageService.getById(storageId).subscribe({
       next: (storage) => {
@@ -132,10 +135,11 @@ export class ClientStorageDetails {
           },
         });
       },
-      error: () => {
+      error: (err) => {
         this.storage.set(null);
         this.loading.set(false);
         this.error.set(true);
+        this.notFound.set(err?.status === 404);
       },
     });
   }

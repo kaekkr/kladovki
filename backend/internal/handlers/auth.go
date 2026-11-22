@@ -10,6 +10,7 @@ import (
 	"github.com/kaekkr/kladovki/internal/legal"
 	"github.com/kaekkr/kladovki/internal/middleware"
 	"github.com/kaekkr/kladovki/internal/models"
+	"github.com/kaekkr/kladovki/internal/ratelimit"
 	"github.com/kaekkr/kladovki/internal/service"
 )
 
@@ -54,9 +55,7 @@ func (h *Handler) RegisterResident(c *gin.Context) {
 		switch {
 		case errors.Is(err, service.ErrIINTaken), errors.Is(err, service.ErrPhoneTaken):
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-		case errors.Is(err, service.ErrInvalidIIN), errors.Is(err, service.ErrWeakPassword),
-			errors.Is(err, service.ErrJKRequired), errors.Is(err, service.ErrMissingFields),
-			isVerificationError(err):
+		case isRegistrationInputError(err), isVerificationError(err):
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		default:
 			log.Printf("RegisterResident: %v", err)
@@ -91,6 +90,18 @@ func (h *Handler) Login(c *gin.Context) {
 	if loginIdentifier == "" {
 		loginIdentifier = req.Phone
 	}
+	// Bounded and clean before the failed-login limiter or the DB see it.
+	if !service.ValidLoginIdentifier(loginIdentifier) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный формат логина"})
+		return
+	}
+
+	key := service.LoginKey(loginIdentifier)
+	if h.limits.loginFailures.Blocked(key) {
+		ratelimit.TooMany(c, h.limits.loginFailures.RetryAfter(key),
+			"Слишком много попыток входа. Попробуйте через несколько минут.")
+		return
+	}
 
 	user, err := h.svc.Login(c.Request.Context(), service.LoginInput{
 		Login:    loginIdentifier,
@@ -98,6 +109,7 @@ func (h *Handler) Login(c *gin.Context) {
 	})
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidCredentials) || errors.Is(err, service.ErrInvalid) {
+			h.limits.loginFailures.Add(key)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Неверный логин или пароль"})
 			return
 		}
@@ -105,6 +117,7 @@ func (h *Handler) Login(c *gin.Context) {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Сервер временно недоступен. Попробуйте позже."})
 		return
 	}
+	h.limits.loginFailures.Reset(key)
 
 	// issueToken internally invokes h.setAuthCookie using h.cfg properties
 	token, err := h.issueToken(c, user)
@@ -143,7 +156,14 @@ func (h *Handler) Me(c *gin.Context) {
 	c.JSON(http.StatusOK, userJSON(user))
 }
 
+// Logout is public (an expired session must still be able to clear its
+// cookie); a still-valid token also revokes that user's sessions everywhere.
 func (h *Handler) Logout(c *gin.Context) {
+	if claims, ok := h.mw.ValidClaims(c); ok {
+		if err := h.svc.Logout(c.Request.Context(), claims.UserID, claims.TokenVersion); err != nil {
+			log.Printf("Logout: %v", err)
+		}
+	}
 	h.clearAuthCookie(c)
 	c.JSON(http.StatusOK, gin.H{"message": "Успешный выход"})
 }
@@ -192,7 +212,7 @@ func (h *Handler) issueToken(c *gin.Context, u *models.User) (string, error) {
 	}
 
 	// Pass u.Role directly as a string
-	token, exp, err := h.tokens.Generate(u.ID, string(u.Role), jkID, u.Email)
+	token, exp, err := h.tokens.Generate(u.ID, string(u.Role), jkID, u.Email, u.TokenVersion)
 	if err != nil {
 		return "", err
 	}
@@ -239,12 +259,24 @@ func userJSON(user *models.User) gin.H {
 		"company_bin":     user.CompanyBIN,
 		"company_name":    user.CompanyName,
 
+		"premises_cadastral":   user.PremisesCadastral,
 		"must_change_password": user.MustChangePassword,
 	}
 }
 
+func isRegistrationInputError(err error) bool {
+	for _, e := range []error{service.ErrInvalidIIN, service.ErrWeakPassword, service.ErrPasswordTooLong, service.ErrInvalidPhone,
+		service.ErrJKRequired, service.ErrMissingFields, service.ErrInvalidText, service.ErrNameTooLong} {
+		if errors.Is(err, e) {
+			return true
+		}
+	}
+	return false
+}
+
 func isVerificationError(err error) bool {
-	for _, e := range []error{service.ErrPremisesRequired, service.ErrPremisesKind, service.ErrInvalidBIN, service.ErrCompanyName} {
+	for _, e := range []error{service.ErrInvalidText, service.ErrPremisesRequired, service.ErrPremisesKind, service.ErrInvalidBIN, service.ErrCompanyName,
+		service.ErrCadastralInvalid, service.ErrCadastralUnknownJK, service.ErrCadastralOtherJK} {
 		if errors.Is(err, e) {
 			return true
 		}

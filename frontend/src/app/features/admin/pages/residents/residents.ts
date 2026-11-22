@@ -6,6 +6,10 @@ import { AuthService } from '../../../../core/auth/auth.service';
 import { User, UserStatus } from '../../../../core/auth/auth.models';
 import { ResidentService, ReviewAction } from '../../../../core/services/resident';
 import { propertyLabel, residentStatusLabel } from '../../../../core/utils/resident-display';
+import { matchesSearch } from '../../../../core/utils/admin-search';
+import { LoadError } from '../../../../shared/components/load-error/load-error';
+import { AdminConfirm } from '../../components/confirm-dialog/confirm';
+import { AdminBadges } from '../../layout/admin-badges';
 
 type Filter = UserStatus | 'all';
 
@@ -13,17 +17,20 @@ type Filter = UserStatus | 'all';
 @Component({
   selector: 'app-admin-residents',
   standalone: true,
-  imports: [DatePipe, FormsModule],
+  imports: [DatePipe, FormsModule, LoadError],
   templateUrl: './residents.html',
 })
 export class AdminResidents {
   private auth = inject(AuthService);
   private residents = inject(ResidentService);
+  private confirm = inject(AdminConfirm);
+  private badges = inject(AdminBadges);
 
   list = signal<User[]>([]);
   loading = signal(true);
   error = signal(false);
   filter = signal<Filter>('pending');
+  search = signal('');
 
   // Decision dialog (reject / block need a comment)
   active = signal<User | null>(null);
@@ -40,8 +47,13 @@ export class AdminResidents {
   resetError = signal<string | null>(null);
   copied = signal(false);
 
-  resetPassword(u: User): void {
-    if (!confirm(`Сбросить пароль для ${u.full_name}? Старый пароль перестанет работать.`)) return;
+  async resetPassword(u: User): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: 'Сбросить пароль',
+      message: `Житель ${u.full_name} получит временный пароль, старый перестанет работать. При входе он должен будет придумать новый.`,
+      confirmLabel: 'Сбросить пароль',
+    });
+    if (!ok) return;
     this.resetFor.set(u);
     this.tempPassword.set(null);
     this.resetError.set(null);
@@ -69,7 +81,12 @@ export class AdminResidents {
   pendingCount = computed(() => this.list().filter((u) => u.status === 'pending').length);
   visible = computed(() => {
     const f = this.filter();
-    return f === 'all' ? this.list() : this.list().filter((u) => u.status === f);
+    const q = this.search();
+    return this.list().filter(
+      (u) =>
+        (f === 'all' || u.status === f) &&
+        matchesSearch([u.full_name, u.phone, u.iin, u.premises_number, u.premises_cadastral, u.company_name], q),
+    );
   });
 
   constructor() {
@@ -136,6 +153,7 @@ export class AdminResidents {
         this.saving.set(false);
         this.active.set(null);
         this.load();
+        this.badges.refresh();
       },
       error: (err) => {
         this.saving.set(false);

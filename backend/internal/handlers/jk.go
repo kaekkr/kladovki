@@ -32,8 +32,10 @@ func (h *Handler) GetJKByID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"id":         jk.ID,
-		"name":       jk.Name,
-		"created_at": jk.CreatedAt,
+		"id":               jk.ID,
+		"name":             jk.Name,
+		"address":          jk.Address,
+		"cadastral_number": jk.CadastralNumber,
+		"created_at":       jk.CreatedAt,
 	})
 }

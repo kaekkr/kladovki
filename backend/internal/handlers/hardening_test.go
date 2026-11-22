@@ -64,8 +64,11 @@ func TestViewingALapsedHoldDoesNotModifyData(t *testing.T) {
 func TestRequestsCloseWhenRentalEnds(t *testing.T) {
 	e := newTestEnv(t)
 	id := e.activeRental(e.resident, e.storageA)
-	e.do(http.MethodPut, "/jks/"+e.jkA+"/tariff", e.adminA, map[string]any{"amount": 800}) // awaiting_choice
 	e.do(http.MethodPost, "/rentals/"+id+"/terminate", e.resident, map[string]any{"comment": "x"})
+	// An unanswered tariff choice left from before termination and tariff
+	// choices became mutually exclusive (see termination_tariff_test.go).
+	e.exec(`INSERT INTO requests (id, jk_id, user_id, rental_id, type, status, amount, old_price, new_price)
+		VALUES ('rq-choice', $1, $2, $3, 'tariff_recalc', 'awaiting_choice', 1000, 5000, 4000)`, e.jkA, e.resident, id)
 
 	var term string
 	for _, q := range e.adminRequests(e.adminA) {

@@ -11,6 +11,7 @@ Base path: **`/api/v1`** (configurable with `API_PREFIX`). All bodies are JSON. 
 | — | public |
 | 🔑 | any logged-in user |
 | 🛡 | ОСИ admin only |
+| 🌐 | platform operator (`superadmin`) only |
 | ЖК | the resource must belong to the caller's own ЖК (otherwise 403) |
 
 Source of truth: [`backend/internal/handlers/router.go`](../backend/internal/handlers/router.go).
@@ -34,8 +35,15 @@ The texts live in `backend/internal/legal/texts/` (Russian + Kazakh). Each docum
 | POST | `/auth/iin-status` | — | `{iin}` → `{registered: bool}`. Step 1 of the IIN login |
 | POST | `/auth/login` | — | `{login, password}`. `login` = ИИН, phone or email. 401 means bad credentials; 503 means the DB is unavailable |
 | POST | `/auth/register` | — | `{iin, full_name, phone, password, jk_id?, premises_kind (flat\|commercial), premises_number, owner_type (person\|company), company_bin?, company_name?}`. First login of a resident; the account is **pending** until the ОСИ confirms ownership. 409 if the ИИН or phone is taken |
-| POST | `/auth/logout` | — | Clears the cookie |
+| POST | `/auth/logout` | — | Clears the cookie; a valid token also revokes all sessions of that user |
 | GET | `/auth/me` | 🔑 | The current user, including `status` (`pending`/`active`/`rejected`/`blocked`), `review_comment`, and the property fields |
+| PUT | `/me/password` | 🔑 | `{current_password, new_password}`. Ends every session of the user and starts a new one for the caller: new cookie, plus `access_token` in the body when `X-Kladovki-Client: native` |
+| PUT | `/me/phone` | 🔑 | `{phone, current_password}`. The phone Kaspi invoices go to, stored as `+7XXXXXXXXXX`. 400 bad phone / no password, 403 wrong password, 409 number taken (any spelling), 429 per-IP limit |
+
+- `login` is looked up by type: 12 digits → ИИН, contains `@` → email, otherwise → phone. `phone` at registration must be a Kazakhstan number (`+7XXXXXXXXXX`, `8XXXXXXXXXX`, `7XXXXXXXXXX`); it is stored as `+7XXXXXXXXXX`; anything else is 400.
+- Rate limits answer **429** `{"error": "…", "code": "rate_limited"}` with `Retry-After` (see [security.md](security.md#rate-limits)).
+- While `must_change_password` is true, every 🔑 route except `GET /auth/me`, `PUT /me/password`, `GET /legal/status` and `POST /legal/accept` answers **403** `{"code": "password_change_required"}`.
+- A token stops working (401) after logout, a password change or reset, or when the user is deleted.
 
 ## ЖК & tariff
 
@@ -131,6 +139,20 @@ All are 🛡 and scoped to the admin's ЖК.
 | GET | `/dashboard/attention` | Rentals needing action (ending soon, overdue) with tenant contacts |
 | GET | `/dashboard/activity` | Recent events |
 | GET | `/dashboard/occupancy` | Free / occupied / locked breakdown |
+
+## Platform (super-admin panel)
+
+All are 🌐. A superadmin has no ЖК, so every ОСИ / ЖК-scoped route above answers 403 for them. Temporary passwords are 10 characters, returned **once**, and the account gets `must_change_password = true`.
+
+| Method | Path | Body / notes |
+|---|---|---|
+| GET | `/platform/jks` | `[{id, name, address, cadastral_number, owner_id, created_at, storages_count, admins_count, residents_count}]`, newest first |
+| POST | `/platform/jks` | `{name, address, cadastral_number?, admin: {full_name, email, phone}}` → 201 `{jk, admin: {id, full_name, email, phone, jk_id, created_at, must_change_password}, temporary_password}`. ЖК and its first ОСИ are created in one transaction. 400: empty/too long fields, bad email, cadastral not like `21:319:021:848:8`; 409: cadastral, email (case-insensitive) or phone taken |
+| GET | `/platform/jks/:id` | One ЖК with the counts; 404 if unknown |
+| PUT | `/platform/jks/:id` | `{name, address, cadastral_number}` (empty cadastral clears it) → the ЖК with counts. Same 400/409 rules |
+| GET | `/platform/jks/:id/admins` | ОСИ accounts of the ЖК `[{id, full_name, email, phone, jk_id, created_at, must_change_password}]` |
+| POST | `/platform/jks/:id/admins` | `{full_name, email, phone}` → 201 `{admin, temporary_password}` |
+| POST | `/platform/admins/:id/reset-password` | → `{temporary_password}`. Only `admin` accounts; 404 otherwise |
 
 ## Misc
 

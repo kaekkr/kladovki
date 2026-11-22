@@ -15,7 +15,7 @@ type SetTariffInput struct {
 
 func (s *Service) GetTariffPreview(ctx context.Context, jkID string, newAmount int64) (models.TariffPreviewResponse, error) {
 	jkID = strings.TrimSpace(jkID)
-	if jkID == "" || newAmount <= 0 {
+	if jkID == "" || !ValidTariff(newAmount) {
 		return models.TariffPreviewResponse{}, ErrInvalid
 	}
 	return s.repo.TariffDecreasePreview(ctx, jkID, newAmount)
@@ -26,19 +26,16 @@ func (s *Service) GetTariffPreview(ctx context.Context, jkID string, newAmount i
 // extending the period and a refund. Returns how many tenants were asked.
 func (s *Service) SetTariff(ctx context.Context, in SetTariffInput) (int64, error) {
 	jkID := strings.TrimSpace(in.JKID)
-	if jkID == "" || in.Amount <= 0 {
+	if jkID == "" || !ValidTariff(in.Amount) {
 		return 0, ErrInvalid
 	}
 
 	oldTariff, _ := s.repo.GetTariff(ctx, jkID)
 
-	if err := s.repo.SetTariff(ctx, jkID, in.Amount); err != nil {
-		return 0, fmt.Errorf("service.SetTariff: %w", err)
-	}
-
-	n, err := s.repo.CreateTariffRecalcRequests(ctx, jkID, in.Amount)
+	// One transaction: the tariff is never saved without its recalc requests.
+	n, err := s.repo.SetTariffWithRecalc(ctx, jkID, in.Amount)
 	if err != nil {
-		return 0, fmt.Errorf("service.SetTariff recalc requests: %w", err)
+		return 0, fmt.Errorf("service.SetTariff: %w", err)
 	}
 	s.notifyTariffChange(ctx, jkID, oldTariff, in.Amount)
 	return n, nil

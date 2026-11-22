@@ -2,9 +2,16 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { AuthService } from '../../../../core/auth/auth.service';
-import { OwnerType, PremisesKind } from '../../../../core/auth/auth.models';
+import { OwnerType } from '../../../../core/auth/auth.models';
 import { ResidentService } from '../../../../core/services/resident';
 import { propertyLabel, verificationProblem } from '../../../../core/utils/resident-display';
+import {
+  CADASTRAL_EXAMPLE,
+  CADASTRAL_PROBLEM,
+  parsePremisesCadastral,
+  premisesFields,
+  premisesPlaceLabel,
+} from '../../../../core/utils/cadastral';
 
 /** Banner for residents the ОСИ has not confirmed yet (pending / rejected / blocked). */
 @Component({
@@ -38,8 +45,10 @@ export class AccountStatus {
   // Resubmit form (rejected users)
   editing = signal(false);
   ownerType = signal<OwnerType>('person');
-  premisesKind = signal<PremisesKind>('flat');
-  premisesNumber = signal('');
+  cadastral = signal('');
+  premises = computed(() => parsePremisesCadastral(this.cadastral()));
+  readonly cadastralExample = CADASTRAL_EXAMPLE;
+  placeLabel = premisesPlaceLabel;
   companyBin = signal('');
   companyName = signal('');
   saving = signal(false);
@@ -48,8 +57,7 @@ export class AccountStatus {
   startEdit(): void {
     const u = this.user();
     this.ownerType.set(u?.owner_type ?? 'person');
-    this.premisesKind.set(u?.premises_kind ?? 'flat');
-    this.premisesNumber.set(u?.premises_number ?? '');
+    this.cadastral.set(u?.premises_cadastral ?? '');
     this.companyBin.set(u?.company_bin ?? '');
     this.companyName.set(u?.company_name ?? '');
     this.error.set(null);
@@ -58,10 +66,14 @@ export class AccountStatus {
 
   resubmit(): void {
     const company = this.ownerType() === 'company';
+    const premises = this.premises();
+    if (!premises) {
+      this.error.set(CADASTRAL_PROBLEM);
+      return;
+    }
     const v = {
       owner_type: this.ownerType(),
-      premises_kind: this.premisesKind(),
-      premises_number: this.premisesNumber().trim(),
+      ...premisesFields(premises),
       company_bin: company ? this.companyBin().trim() : '',
       company_name: company ? this.companyName().trim() : '',
     };

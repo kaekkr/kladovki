@@ -260,4 +260,57 @@ var migrations = []string{
 
 	// Set when the ОСИ resets a resident's password: they must choose a new one.
 	`ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT false`,
+
+	// Cadastral numbers (tester, 2026-11-22): a premises 21:319:021:848:8:ВП-2 belongs to
+	// the ЖК 21:319:021:848:8. Used to find a resident's ЖК at registration (no QR needed).
+	`ALTER TABLE jks ADD COLUMN IF NOT EXISTS cadastral_number VARCHAR(64) NOT NULL DEFAULT ''`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_jks_cadastral ON jks(cadastral_number) WHERE cadastral_number <> ''`,
+	`ALTER TABLE users ADD COLUMN IF NOT EXISTS premises_cadastral VARCHAR(80) NOT NULL DEFAULT ''`,
+
+	// Platform operator who creates ЖК and their ОСИ accounts (super-admin panel).
+	`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'superadmin'`,
+
+	// Revocable sessions: every JWT carries the user's token_version; logout and
+	// password changes/resets bump it, so older tokens stop working at once.
+	`ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 0`,
+	// Remaining value anchor (docs/domain.md "Remaining value"): the unused paid
+	// time was worth value_left ₸ at value_at and runs down linearly to 0 at
+	// ends_at. NULL = never re-anchored: total_paid at starts_at.
+	`ALTER TABLE rentals ADD COLUMN IF NOT EXISTS value_left BIGINT`,
+	`ALTER TABLE rentals ADD COLUMN IF NOT EXISTS value_at TIMESTAMPTZ`,
+
+	// Booking hold: 2 minutes was tight for older residents (QA 2026-11-22).
+	// New ЖК start at 5; existing ЖК keep what their ОСИ set.
+	`ALTER TABLE jks ALTER COLUMN lock_minutes SET DEFAULT 5`,
+
+	// Tariff refunds: before 2026-11-22 choosing «refund» lowered total_paid at
+	// once; now approval lowers it. refund_deducted marks requests whose money
+	// is already off total_paid, so approval doesn't deduct it again. Rows that
+	// exist when the column is added get true (legacy), later rows false; both
+	// statements are no-ops on re-run.
+	`ALTER TABLE requests ADD COLUMN IF NOT EXISTS refund_deducted BOOLEAN NOT NULL DEFAULT true`,
+	`ALTER TABLE requests ALTER COLUMN refund_deducted SET DEFAULT false`,
+
+	// Legacy phones (87001234567, "8 (700) 123-45-67") → +77001234567, but only
+	// where no other user has the same number in any spelling (key = digits,
+	// leading 8 → 7). Colliding rows stay as they are for a person to resolve;
+	// login refuses an ambiguous number. Re-running finds nothing more to do.
+	`WITH legacy AS (
+		SELECT id, regexp_replace(phone, '[ ()-]', '', 'g') AS compact,
+		       regexp_replace(phone, '\D', '', 'g') AS digits
+		FROM users
+		WHERE phone NOT LIKE 'superadmin:%' AND phone !~ '^\+7[0-9]{10}$'
+	), fixable AS (
+		SELECT l.id, '+7' || right(l.digits, 10) AS canonical, '7' || right(l.digits, 10) AS key
+		FROM legacy l
+		WHERE l.compact ~ '^(\+7|7|8)[0-9]{10}$'
+	)
+	UPDATE users u SET phone = f.canonical
+	FROM fixable f
+	WHERE u.id = f.id AND NOT EXISTS (
+		SELECT 1 FROM users o
+		WHERE o.id <> u.id AND o.phone NOT LIKE 'superadmin:%'
+		  AND (CASE WHEN regexp_replace(o.phone, '\D', '', 'g') ~ '^8[0-9]{10}$'
+		            THEN '7' || substr(regexp_replace(o.phone, '\D', '', 'g'), 2)
+		            ELSE regexp_replace(o.phone, '\D', '', 'g') END) = f.key)`,
 }

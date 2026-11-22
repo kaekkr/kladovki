@@ -14,7 +14,7 @@ import { ChangePassword } from './change-password';
         <div class="w-full max-w-sm space-y-3 rounded-xl border border-brand-line bg-brand-surface p-5">
           <p class="text-sm font-semibold text-brand-text">Придумайте новый пароль</p>
           <p class="text-xs text-brand-muted">
-            Вы вошли с временным паролем, который выдал ОСИ. Задайте свой пароль, чтобы продолжить.
+            Вы вошли с временным паролем. Задайте свой пароль, чтобы продолжить.
           </p>
           <app-change-password currentLabel="Временный пароль" (done)="refresh()" />
         </div>

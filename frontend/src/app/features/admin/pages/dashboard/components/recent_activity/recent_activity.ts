@@ -1,8 +1,10 @@
+import { LoadError } from '../../../../../../shared/components/load-error/load-error';
 import { Component, inject, signal } from '@angular/core';
 import { DashboardActivity } from '../../../../../../core/models/dashboard';
 import { DashboardService } from '../../../../../../core/services/dashboard';
 
 @Component({
+  imports: [LoadError],
   selector: 'app-admin-recent-activity',
   standalone: true,
   templateUrl: './recent_activity.html',
@@ -18,7 +20,7 @@ export class AdminRecentActivity {
     this.loadActivity();
   }
 
-  private loadActivity(): void {
+  loadActivity(): void {
     this.loading.set(true);
     this.error.set(false);
 

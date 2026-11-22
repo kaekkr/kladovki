@@ -1,8 +1,10 @@
+import { LoadError } from '../../../../../../shared/components/load-error/load-error';
 import { Component, inject, signal } from '@angular/core';
 import { DashboardService } from '../../../../../../core/services/dashboard';
 import { DashboardAttention } from '../../../../../../core/models/dashboard';
 
 @Component({
+  imports: [LoadError],
   selector: 'app-admin-attention',
   standalone: true,
   templateUrl: './attention.html',
@@ -20,7 +22,7 @@ export class AdminAttention {
     this.loadAttention();
   }
 
-  private loadAttention(): void {
+  loadAttention(): void {
     this.loading.set(true);
     this.error.set(false);
 

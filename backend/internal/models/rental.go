@@ -31,6 +31,11 @@ type Rental struct {
 	Status    RentalStatus `json:"status"`
 	CreatedAt time.Time    `json:"created_at"`
 
+	// RefundPending: money the ОСИ still has to return for this rental (open
+	// payment_refund / tariff refund requests). «Оплачено» (total_paid) drops
+	// only once it is returned.
+	RefundPending int64 `json:"refund_pending"`
+
 	// RefundDue is set when the ОСИ cancels a paid rental: money owed for the unused period.
 	RefundDue int64 `json:"refund_due,omitempty"`
 

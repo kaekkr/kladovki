@@ -315,6 +315,16 @@ func (s *Service) notifyNewRequest(ctx context.Context, q *models.Request) {
 	}, "req:"+q.ID)
 }
 
+// notifyTariffRefundRequest: the tenant chose a refund after a tariff decrease.
+func (s *Service) notifyTariffRefundRequest(ctx context.Context, q *models.Request) {
+	s.notifyJKAdmins(ctx, q.JKID, KindRequestNew, notify.Message{
+		Title: "Новая заявка: возврат разницы по тарифу",
+		Body: fmt.Sprintf("%s выбрал(а) возврат разницы после снижения тарифа по кладовке №%s. К возврату: %s.",
+			q.UserName, q.StorageNumber, money(q.Amount)),
+		Link: "/admin/requests",
+	}, "req:"+q.ID)
+}
+
 func (s *Service) notifyRequestResolved(ctx context.Context, requestID string) {
 	q, err := s.repo.GetRequestByID(ctx, requestID)
 	if err != nil {

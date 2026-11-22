@@ -3,6 +3,8 @@ import { TenantRequest } from '../models/request';
 export function requestTitle(r: TenantRequest): string {
   switch (r.type) {
     case 'tariff_recalc':
+      if (r.choice === 'refund') return 'Возврат разницы после снижения тарифа';
+      if (r.choice === 'extend') return 'Продление срока после снижения тарифа';
       return 'Перерасчёт после снижения тарифа';
     case 'early_termination':
       return 'Досрочное завершение аренды';
@@ -29,4 +31,12 @@ export function requestStatusLabel(r: TenantRequest): string {
 
 export function needsOsiAction(r: TenantRequest): boolean {
   return r.status === 'open';
+}
+
+/**
+ * A query to the tenant (extend or refund after a tariff decrease) that has not
+ * been answered yet. Once answered it becomes the tenant's заявка.
+ */
+export function isTenantQuery(r: TenantRequest): boolean {
+  return r.status === 'awaiting_choice';
 }

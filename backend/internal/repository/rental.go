@@ -21,12 +21,25 @@ const rentalDetailsColumns = `
 	r.jk_id,
 	r.months,
 	r.price_per_month,
-	r.total_paid,
+	r.total_paid + ` + legacyDeductedRefundSQL + `,
 	r.starts_at,
 	r.ends_at,
 	r.status,
-	r.created_at
+	r.created_at,
+	COALESCE((SELECT SUM(q.amount) FROM requests q
+	          WHERE q.rental_id = r.id AND q.status = 'open'
+	            AND q.type IN ('payment_refund', 'tariff_recalc')), 0)::bigint
 `
+
+// legacyDeductedRefundSQL: open tariff refunds chosen before 2026-11-22 were
+// already taken off total_paid. They are added back for display, so «Оплачено»
+// and refund_pending read the same as for a new refund until it is returned.
+const legacyDeductedRefundSQL = `COALESCE((SELECT SUM(q.amount) FROM requests q
+	WHERE q.rental_id = r.id AND q.type = 'tariff_recalc' AND q.status = 'open'
+	  AND q.refund_deducted), 0)::bigint`
+
+// MaxUnpaidHoldsPerUser: live `locked` (unpaid) bookings one user may have at once.
+const MaxUnpaidHoldsPerUser = 1
 
 func (r *Repo) LockStorage(
 	ctx context.Context,
@@ -45,6 +58,25 @@ func (r *Repo) LockStorage(
 
 	now := time.Now().UTC()
 	lockEndsAt := now.Add(lockDuration)
+
+	// 0. One live unpaid hold per user (QA: one resident could hold every free
+	// storage). The user row lock serialises concurrent bookings by one user.
+	var holds int
+	err = tx.QueryRowContext(ctx, `SELECT 1 FROM users WHERE id = $1 FOR UPDATE`, userID).Scan(new(int))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("repository.LockStorage lock user: %w", err)
+	}
+	if err := tx.QueryRowContext(ctx, `
+		SELECT count(*) FROM rentals WHERE user_id = $1 AND status = 'locked' AND ends_at > $2`,
+		userID, now).Scan(&holds); err != nil {
+		return nil, fmt.Errorf("repository.LockStorage count holds: %w", err)
+	}
+	if holds >= MaxUnpaidHoldsPerUser {
+		return nil, ErrHoldLimit
+	}
 
 	// 1. Lock the storage row.
 	var storageStatus string
@@ -93,26 +125,22 @@ FOR UPDATE`,
 		}
 	}
 
-	// An invited tenant may take over an occupied storage only after the
-	// current paid rental ends and while the 14-day transfer window is open.
+	// The named successor may take over an occupied storage while the transfer
+	// window is open — but only while the current tenant owes nothing: an
+	// overdue rental (ends_at passed) must be paid first (owner, 2026-11-22).
 	if storageStatus == string(models.StatusOccupied) {
-		var takeoverAllowed bool
-		err = tx.QueryRowContext(ctx, `
-			SELECT EXISTS (
-				SELECT 1 FROM rentals r
-				JOIN users u ON u.id = $2
-				WHERE r.storage_id = $1
-				  AND r.status = 'active'
-				  AND r.ends_at <= $3
-				  AND r.ends_at + INTERVAL '14 days' > $3
-				  AND u.iin = $4
-			)
-		`, storageID, userID, now, transferToIIN.String).Scan(&takeoverAllowed)
-		if err != nil {
-			return nil, fmt.Errorf("repository.LockStorage check transfer eligibility: %w", err)
-		}
-		if !takeoverAllowed || !transferUntil.Valid || !transferUntil.Time.After(now) {
+		if !transferToIIN.Valid || transferToIIN.String == "" || !transferUntil.Valid || !transferUntil.Time.After(now) {
 			return nil, ErrStorageAlreadyLocked
+		}
+		var overdue bool
+		err = tx.QueryRowContext(ctx, `
+			SELECT EXISTS (SELECT 1 FROM rentals WHERE storage_id = $1 AND status = 'active' AND ends_at <= $2)`,
+			storageID, now).Scan(&overdue)
+		if err != nil {
+			return nil, fmt.Errorf("repository.LockStorage check previous tenant debt: %w", err)
+		}
+		if overdue {
+			return nil, ErrPreviousTenantDebt
 		}
 		// The previous tenant keeps the rental until the successor actually
 		// pays (ActivatePaidRental closes it then); an unpaid takeover must not
@@ -233,7 +261,7 @@ func (r *Repo) ConfirmRentalPayment(
 		&rt.ID, &rt.StorageID, &rt.StorageNumber,
 		&rt.UserID, &rt.UserName, &rt.UserPhone,
 		&rt.JKID, &rt.Months, &rt.PricePerMonth, &rt.TotalPaid,
-		&rt.StartsAt, &rt.EndsAt, &rt.Status, &rt.CreatedAt,
+		&rt.StartsAt, &rt.EndsAt, &rt.Status, &rt.CreatedAt, &rt.RefundPending,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -270,16 +298,8 @@ func (r *Repo) ConfirmRentalPayment(
 		return nil, fmt.Errorf("repository.ConfirmRentalPayment update rental: %w", err)
 	}
 
-	_, err = tx.ExecContext(ctx, `
-		UPDATE rentals
-		SET status = 'expired'
-		WHERE storage_id = $1
-		  AND id <> $2
-		  AND status = 'active'
-		  AND ends_at <= $3
-	`, rt.StorageID, rt.ID, now)
-	if err != nil {
-		return nil, fmt.Errorf("repository.ConfirmRentalPayment expire previous rental: %w", err)
+	if err := closePreviousTenant(ctx, tx, rt.StorageID, rt.ID); err != nil {
+		return nil, fmt.Errorf("repository.ConfirmRentalPayment: %w", err)
 	}
 
 	res, err := tx.ExecContext(ctx, `
@@ -346,7 +366,7 @@ func (r *Repo) ForceReleaseLocked(
 		&rt.ID, &rt.StorageID, &rt.StorageNumber,
 		&rt.UserID, &rt.UserName, &rt.UserPhone,
 		&rt.JKID, &rt.Months, &rt.PricePerMonth, &rt.TotalPaid,
-		&rt.StartsAt, &rt.EndsAt, &rt.Status, &rt.CreatedAt,
+		&rt.StartsAt, &rt.EndsAt, &rt.Status, &rt.CreatedAt, &rt.RefundPending,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -405,7 +425,7 @@ func (r *Repo) ReleaseOverdueRental(
 		&rt.ID, &rt.StorageID, &rt.StorageNumber,
 		&rt.UserID, &rt.UserName, &rt.UserPhone,
 		&rt.JKID, &rt.Months, &rt.PricePerMonth, &rt.TotalPaid,
-		&rt.StartsAt, &rt.EndsAt, &rt.Status, &rt.CreatedAt,
+		&rt.StartsAt, &rt.EndsAt, &rt.Status, &rt.CreatedAt, &rt.RefundPending,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -721,6 +741,7 @@ func (r *Repo) CancelRental(
 		&rt.EndsAt,
 		&rt.Status,
 		&rt.CreatedAt,
+		&rt.RefundPending,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -740,7 +761,7 @@ func (r *Repo) CancelRental(
 	// The unused, already paid part is owed back to the tenant (agreement 4.2:
 	// refunds are handled by the ОСИ through a request).
 	var refund int64
-	if err := tx.QueryRowContext(ctx, `SELECT ROUND(COALESCE(`+remainingValueSQL+`, 0))::bigint FROM rentals r WHERE r.id = $1`,
+	if err := tx.QueryRowContext(ctx, `SELECT `+remainingValueRoundedSQL+` FROM rentals r WHERE r.id = $1`,
 		rentalID).Scan(&refund); err != nil {
 		return nil, fmt.Errorf("repository.CancelRental remaining value: %w", err)
 	}
@@ -753,9 +774,7 @@ func (r *Repo) CancelRental(
 		}
 	}
 	// Choices and termination requests about this rental are moot now.
-	if _, err := tx.ExecContext(ctx, `
-		UPDATE requests SET status = 'superseded', resolved_at = now()
-		WHERE rental_id = $1 AND status IN ('open', 'awaiting_choice') AND type <> 'payment_refund'`, rentalID); err != nil {
+	if _, err := tx.ExecContext(ctx, supersedeRentalRequestsSQL, rentalID, ""); err != nil {
 		return nil, fmt.Errorf("repository.CancelRental supersede requests: %w", err)
 	}
 	rt.RefundDue = refund
@@ -840,6 +859,7 @@ func scanRentalDetails(s rowScanner) (*models.Rental, error) {
 		&rt.EndsAt,
 		&rt.Status,
 		&rt.CreatedAt,
+		&rt.RefundPending,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -883,13 +903,65 @@ func (r *Repo) GetTermination(ctx context.Context, rentalID string) (*models.Ter
 	return &t, nil
 }
 
+// closePreviousTenant ends the rental of the tenant who handed storageID over
+// to newRentalID's tenant (transfer by ИИН): it ends now, its unused part is
+// owed back through a payment_refund, and its pending requests are closed.
+func closePreviousTenant(ctx context.Context, tx *sql.Tx, storageID, newRentalID string) error {
+	rows, err := tx.QueryContext(ctx, `
+		SELECT r.id, r.jk_id, r.user_id, `+remainingValueRoundedSQL+`
+		FROM rentals r WHERE r.storage_id = $1 AND r.id <> $2 AND r.status = 'active'
+		FOR UPDATE`, storageID, newRentalID)
+	if err != nil {
+		return fmt.Errorf("closePreviousTenant select: %w", err)
+	}
+	type prev struct {
+		id, jkID, userID string
+		refund           int64
+	}
+	var list []prev
+	for rows.Next() {
+		var p prev
+		if err := rows.Scan(&p.id, &p.jkID, &p.userID, &p.refund); err != nil {
+			rows.Close()
+			return err
+		}
+		list = append(list, p)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, p := range list {
+		if _, err := tx.ExecContext(ctx, supersedeRentalRequestsSQL, p.id, ""); err != nil {
+			return fmt.Errorf("closePreviousTenant supersede: %w", err)
+		}
+		if p.refund > 0 {
+			if _, err := tx.ExecContext(ctx, `
+				INSERT INTO requests (id, jk_id, user_id, rental_id, type, status, amount, comment)
+				VALUES ($1, $2, $3, $4, 'payment_refund', 'open', $5, $6)`,
+				uuid.NewString(), p.jkID, p.userID, p.id, p.refund, refundReasonHandedOver); err != nil {
+				return fmt.Errorf("closePreviousTenant refund: %w", err)
+			}
+		}
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE rentals SET status = 'expired', ends_at = LEAST(ends_at, now()) WHERE id = $1`, p.id); err != nil {
+			return fmt.Errorf("closePreviousTenant expire: %w", err)
+		}
+	}
+	return nil
+}
+
 // supersedeRentalRequestsSQL closes choices and requests that no longer make
 // sense because the rental ended ($1 rental, $2 request to keep or ”). Refund
 // requests stay: that money is still owed.
 const supersedeRentalRequestsSQL = `
 	UPDATE requests SET status = 'superseded', resolved_at = now()
 	WHERE rental_id = $1 AND id <> $2
-	  AND status IN ('open', 'awaiting_choice') AND type <> 'payment_refund'`
+	  AND status IN ('open', 'awaiting_choice') AND NOT ` + refundOwedSQL
+
+// refundOwedSQL: requests (alias-free) that are money still owed to the tenant —
+// a payment refund, or a tariff difference the tenant chose to get back.
+const refundOwedSQL = `(type = 'payment_refund' OR (type = 'tariff_recalc' AND status = 'open'))`
 
 // StorageHasRentals: a storage with any rental history cannot be deleted.
 func (r *Repo) StorageHasRentals(ctx context.Context, storageID string) (bool, error) {

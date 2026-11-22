@@ -10,11 +10,21 @@ import (
 // Debt is the time a tenant keeps a storage after the paid period ended
 // (agreement п. 5): every started day costs the rental's monthly price / 30.
 // Paid rentals are never expired automatically, so an overdue rental is an
-// active one whose ends_at has passed. All fragments use alias "r".
+// active one whose ends_at has passed. When the ОСИ releases it for debt
+// (release-overdue → expired + a terminations row), the debt is frozen at the
+// release moment and the recorded costs are added: it stays owed. There is no
+// "settled" mark yet — the ОСИ collects it outside the app. Alias "r".
 const (
-	overdueDaysSQL = `(CASE WHEN r.status = 'active' AND r.ends_at < now()
-		THEN CEIL(EXTRACT(EPOCH FROM (now() - r.ends_at)) / 86400)::int ELSE 0 END)`
-	debtSQL = `ROUND(r.price_per_month * ` + overdueDaysSQL + ` / 30.0)::bigint`
+	releasedAtSQL  = `(SELECT t.created_at FROM terminations t WHERE t.rental_id = r.id)`
+	overdueDaysSQL = `(CASE
+		WHEN r.status = 'active' AND r.ends_at < now()
+		THEN CEIL(EXTRACT(EPOCH FROM (now() - r.ends_at)) / 86400)::int
+		WHEN r.status = 'expired'
+		THEN COALESCE(GREATEST(0, CEIL(EXTRACT(EPOCH FROM (` + releasedAtSQL + ` - r.ends_at)) / 86400))::int, 0)
+		ELSE 0 END)`
+	terminationCostsSQL = `(CASE WHEN r.status = 'expired'
+		THEN COALESCE((SELECT t.costs FROM terminations t WHERE t.rental_id = r.id), 0) ELSE 0 END)`
+	debtSQL = `(ROUND(r.price_per_month * ` + overdueDaysSQL + ` / 30.0) + ` + terminationCostsSQL + `)::bigint`
 	// paidRentalSQL excludes bookings that were never paid (holds) — they are not charges.
 	paidRentalSQL = `r.status <> 'locked' AND NOT (r.status IN ('expired', 'cancelled') AND r.total_paid = 0)`
 )
@@ -64,6 +74,6 @@ func (r *Repo) DebtTotals(ctx context.Context, jkID string) (int64, int, error) 
 	var n int
 	err := r.db.QueryRowContext(ctx, `
 		SELECT COALESCE(SUM(`+debtSQL+`), 0)::bigint, COUNT(*) FILTER (WHERE `+debtSQL+` > 0)
-		FROM rentals r WHERE r.jk_id = $1 AND r.status = 'active'`, jkID).Scan(&sum, &n)
+		FROM rentals r WHERE r.jk_id = $1 AND r.status IN ('active', 'expired')`, jkID).Scan(&sum, &n)
 	return sum, n, err
 }

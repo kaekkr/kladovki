@@ -2,13 +2,45 @@
 
 ## Authentication
 
-- Passwords are hashed with **bcrypt**. Login accepts ИИН, phone or email.
-- The JWT (HS256, `JWT_SECRET`, TTL `JWT_TTL_HOURS`, default 24 h) holds `user_id`, `role` and `jk_id`. It is sent as an **HTTP-only** cookie (`Secure` in production), or as `Authorization: Bearer` from the Android app.
-- In production the server refuses to start without `JWT_SECRET`.
+- Passwords are hashed with **bcrypt**. Login accepts ИИН, phone or email, looked up **by type only**: 12 digits → `iin`; contains `@` → `email`; anything else → `phone`. So nobody can register a phone equal to someone else's ИИН or email and take over (or lock out) their login.
+- Phones are validated at registration and when the platform creates an ОСИ: Kazakhstan numbers `+7XXXXXXXXXX`, `8XXXXXXXXXX` or `7XXXXXXXXXX` (spaces, dashes, parentheses allowed) are stored as `+7XXXXXXXXXX`; anything else is a 400. **Legacy spellings are the same number** (code review 2026-11-22): uniqueness checks (registration, `PUT /me/phone`, platform accounts) and phone login compare a digit key (digits only, a leading 8 of 11 digits read as 7), so `87001234567`, `8 (700) 123-45-67` and `+77001234567` are one number. A boot migration rewrites legacy phones to `+7XXXXXXXXXX` unless another row holds the same number; such colliding rows are left untouched. If a phone login matches two accounts it is refused as invalid credentials (and logged as a warning), never resolved to one of them. Login with input that isn't a KZ number matches the stored text exactly. The superadmin placeholder phone `superadmin:…` is never a login.
+- The JWT (HS256, `JWT_SECRET`, TTL `JWT_TTL_HOURS`, default 24 h) holds `user_id`, `role`, `jk_id` and `tv` (the user's `token_version`). It is sent as an **HTTP-only** cookie (`Secure` in production), or as `Authorization: Bearer` from the Android app.
+- **Sessions are checked against the DB on every request.** `middleware.Require` re-reads `id, role, jk_id, status, token_version, must_change_password` by primary key. The token is rejected (401) when the user is gone or `token_version` differs; role and ЖК for every downstream check come from the DB, not from the token (a demoted or moved ОСИ loses access at once). If the DB is down the answer is 503.
+- **Changing the phone needs the current password** (`PUT /me/phone {phone, current_password}`: 400 when missing, 403 when wrong). Kaspi invoices go to that phone, so a stolen session alone can't redirect them.
+- `token_version` is bumped by: logout (`POST /auth/logout`, all devices of that user), password change (`PUT /me/password`; the caller immediately gets a new cookie, or a new `access_token` when it sends `X-Kladovki-Client: native`), the ОСИ resetting a resident's password, and the platform resetting an ОСИ password.
+- **Temporary passwords are enforced by the server.** While `must_change_password` is set, only `GET /auth/me`, `PUT /me/password`, `GET /legal/status`, `POST /legal/accept` (plus public routes like `POST /auth/logout`, `GET /legal/:doc`) work; everything else behind login answers 403 `{"error":"Сначала смените временный пароль","code":"password_change_required"}`.
+- `APP_ENV` unset means **production** (fail closed). The server refuses to start without `JWT_SECRET` unless `APP_ENV=development` exactly, and refuses any other `APP_ENV` value. The public fallback secret exists only for development.
+
+## CORS
+
+`middleware.CORS` allows credentials, so the allow-list is **exact** (no wildcards, no `*.onrender.com`): the origin of `APP_BASE_URL`, the Capacitor app (`https://localhost` on Android — Capacitor 8's default `androidScheme: "https"` — and `capacitor://localhost` on iOS), any origins in `CORS_ORIGINS`, and `http://localhost:4200` / `http://127.0.0.1:4200` only with `APP_ENV=development`. `http://localhost` is not allowed (Capacitor 8 doesn't use it). Same-origin requests from the website and non-browser clients are not affected. Tests: `internal/middleware/cors_test.go`.
+
+## Rate limits
+
+In-memory, per process (`internal/ratelimit`, fixed window, expired keys swept once per window). Defaults are in `config.DefaultRateLimits()`; the zero config (used by tests) disables them.
+
+| What | Key | Default | Answer |
+|---|---|---|---|
+| `/auth/login`, `/auth/iin-status`, `/auth/register` (one shared budget) | client IP | 30 / min | 429 `{"error":"Слишком много запросов…","code":"rate_limited"}` + `Retry-After` |
+| `PUT /me/phone` (checks the password; same budget as `/auth/*`) | client IP | 30 / min | same |
+| `POST /lead` | client IP | 10 / hour | same |
+| `POST /rentals/lock` | client IP | 20 / 10 min | same |
+| failed passwords on `/auth/login` | login identifier (canonical ИИН / email / phone, stored as its SHA-256) | 10 / 15 min | 429 «Слишком много попыток входа…», even with the right password, until the window ends; a successful login resets the counter |
+
+- When the user is not found, login still runs one bcrypt compare against a dummy hash, so response time doesn't reveal which ИИН are registered (`/auth/iin-status` tells that by design; it is rate-limited).
+- Trade-offs: counters reset on restart and are not shared between instances. The per-identifier limit lets someone who knows a victim's ИИН keep that account locked for 15 minutes at a time; the ОСИ password reset does not lift it (the counter is in memory). Per-IP limits only work when the client IP is real — see «Trusted proxies» in [operations.md](operations.md).
+
+## Input limits
+
+- Every request body is capped at **1 MB** (`middleware.BodyLimit`): 413 when `Content-Length` is larger, and parsing fails (400) when a chunked body goes past it.
+- `middleware.ParamGuard`: a path parameter with a NUL byte or invalid UTF-8 is **404**, and such a query value is **400**. Postgres would otherwise fail with 500.
+- Registration: `full_name` ≤ 255 characters, phone validated (see Authentication), password 6–72 bytes (bcrypt can't hash more), no NUL bytes in any text field (400). The same password rule applies to `PUT /me/password`, and the NUL rule to `PUT /me/verification`.
+- `POST /auth/login`: the identifier must be ≤ 255 characters, valid UTF-8, without NUL → 400 «Неверный формат логина», before the failed-login limiter or the DB see it.
+- `POST /lead`: name ≤ 255, phone ≤ 50, email ≤ 255 characters, no NUL bytes (400).
 
 ## Authorization: two layers
 
-1. **Route level** (`router.go`): `Require()` means logged in. `RequireAdmin()` means role `admin`.
+1. **Route level** (`router.go`): `Require()` means logged in. `RequireAdmin()` means role `admin`. `RequireSuperadmin()` means role `superadmin` (platform operator, `/platform/...`). A superadmin has no ЖК and does **not** pass `RequireAdmin`, so it can't read any ЖК's rentals, payments or residents.
 2. **Ownership** (handlers):
    - `SameJK(c, jkID)`: the path's ЖК must equal the token's ЖК.
    - `storageInMyJK`: loads the storage room and checks its ЖК.
@@ -57,3 +89,6 @@ New users are `pending` until the ОСИ confirms they own property in the ЖК.
 - [ ] Does the server compute money amounts, rather than taking them from the client?
 - [ ] Do error messages avoid leaking other users' data?
 - [ ] Is there an integration test for the "wrong user / other ЖК" case?
+- [ ] Are text fields length-checked against their columns, so bad input is a 400 and not a DB 500?
+- [ ] Is a public, write or expensive endpoint rate-limited (`internal/ratelimit`)?
+- [ ] Should the route stay reachable while `must_change_password` is set? (By default it is not.)

@@ -2,14 +2,44 @@
   <div>
     <h1 class="text-2xl font-semibold tracking-tight text-brand-text">Заявки</h1>
     <p class="mt-1 text-sm text-brand-muted">
-      Досрочное завершение аренды, возвраты после снижения тарифа и поздние оплаты
+      Досрочное завершение аренды, выбор арендаторов после снижения тарифа и поздние оплаты
     </p>
   </div>
+
+  @if (!loading() && !error() && queries().length > 0) {
+    <section class="rounded-lg border border-status-locked/30 bg-brand-surface">
+      <div class="border-b border-brand-line px-4 py-3">
+        <h2 class="text-sm font-semibold text-brand-text">
+          Ждут ответа арендатора
+          <span class="ml-1 rounded bg-status-locked/15 px-1.5 text-xs text-status-locked">{{ queries().length }}</span>
+        </h2>
+        <p class="mt-1 text-xs leading-5 text-brand-muted">
+          Тариф снижен — арендатор выбирает: продлить срок аренды или вернуть разницу. Как только он
+          ответит, запрос исчезнет отсюда, а его выбор появится ниже как заявка.
+        </p>
+      </div>
+      <ul class="divide-y divide-brand-line">
+        @for (q of queries(); track q.id) {
+          <li class="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="min-w-0">
+              <p class="text-sm text-brand-text">Кладовка №{{ q.storage_number || '—' }} · {{ q.user_name }}</p>
+              <p class="text-xs text-brand-muted">
+                {{ q.user_phone }} · {{ formatMoney(q.old_price) }} → {{ formatMoney(q.new_price) }} в месяц ·
+                отправлен {{ q.created_at | date: 'dd.MM.yyyy' }}
+              </p>
+            </div>
+            <p class="shrink-0 text-xs text-brand-muted">
+              Разница <span class="font-semibold text-brand-text">{{ formatMoney(q.amount) }}</span>
+            </p>
+          </li>
+        }
+      </ul>
+    </section>
+  }
 
   <div class="flex flex-wrap gap-2">
     @for (f of [
       { key: 'open', label: 'Требуют решения', count: counts().open },
-      { key: 'awaiting_choice', label: 'Ждут арендатора', count: counts().awaiting },
       { key: 'closed', label: 'Закрытые', count: null },
       { key: 'all', label: 'Все', count: null }
     ]; track f.key) {
@@ -34,9 +64,7 @@
   @if (loading()) {
     <div class="h-40 animate-pulse rounded-lg border border-brand-line bg-brand-surface"></div>
   } @else if (error()) {
-    <div class="rounded-lg border border-brand-line bg-brand-surface p-5 text-sm text-status-overdue">
-      Не удалось загрузить заявки.
-    </div>
+    <app-load-error message="Не удалось загрузить заявки." (retry)="load()" />
   } @else if (visible().length === 0) {
     <div class="rounded-lg border border-brand-line bg-brand-surface p-8 text-center text-sm text-brand-muted">
       Заявок нет
@@ -78,13 +106,15 @@
 
           @if (needsAction(r)) {
             <div class="mt-4 flex flex-col gap-2 border-t border-brand-line pt-3 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                (click)="open(r, 'reject')"
-                class="rounded-md border border-brand-line px-3 py-2 text-xs font-medium text-brand-muted hover:text-brand-text"
-              >
-                Отклонить
-              </button>
+              @if (r.type !== 'tariff_recalc') {
+                <button
+                  type="button"
+                  (click)="open(r, 'reject')"
+                  class="rounded-md border border-brand-line px-3 py-2 text-xs font-medium text-brand-muted hover:text-brand-text"
+                >
+                  Отклонить
+                </button>
+              }
               <button
                 type="button"
                 (click)="open(r, 'approve')"

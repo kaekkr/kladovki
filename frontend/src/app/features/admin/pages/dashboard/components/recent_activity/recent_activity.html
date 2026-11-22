@@ -28,9 +28,7 @@
 
   <!-- Error -->
   @else if (error()) {
-    <div class="p-8 text-center">
-      <p class="text-sm text-status-overdue">Не удалось загрузить активность.</p>
-    </div>
+    <app-load-error message="Не удалось загрузить активность." (retry)="loadActivity()" />
   }
 
   <!-- Empty -->

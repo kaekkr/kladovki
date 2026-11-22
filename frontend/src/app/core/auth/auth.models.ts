@@ -7,6 +7,8 @@ export interface Verification {
   owner_type: OwnerType;
   premises_kind: PremisesKind;
   premises_number: string;
+  /** Full cadastral number of the premises, e.g. 21:319:021:848:8:154 — finds the ЖК. */
+  premises_cadastral?: string;
   company_bin?: string;
   company_name?: string;
 }
@@ -14,7 +16,8 @@ export interface Verification {
 export interface User {
   id: string;
   email: string;
-  role: 'admin' | 'resident';
+  /** superadmin = platform operator (no ЖК), works in /platform. */
+  role: 'admin' | 'resident' | 'superadmin';
   full_name?: string;
   phone?: string;
   jk_id?: string;
@@ -24,6 +27,7 @@ export interface User {
   owner_type?: OwnerType;
   premises_kind?: PremisesKind;
   premises_number?: string;
+  premises_cadastral?: string;
   company_bin?: string;
   company_name?: string;
   created_at?: string;

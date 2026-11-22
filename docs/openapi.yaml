@@ -1,0 +1,2289 @@
+openapi: 3.1.0
+info:
+  title: Kladovki REST API
+  version: 1.0.0
+  summary: Storage-room (кладовка) rental for residential complexes (ЖК) run by an ОСИ.
+  description: |
+    REST API of Kladovki. Generated from the Go source
+    (`backend/internal/handlers/router.go`, `handlers/*.go`, `models/*.go`,
+    `middleware/auth.go`); where `docs/api.md` disagrees, this file follows the code.
+
+    **Roles.** `resident` (property owner in a ЖК), `admin` (ОСИ administrator,
+    manages only their own ЖК — the `jk_id` in their token), `superadmin`
+    (platform operator; its `/platform/...` routes are not documented yet).
+
+    **Auth.** Login/register set an HttpOnly JWT cookie (`access_token` by default,
+    configurable with `COOKIE_NAME`; SameSite=Lax; Secure in production). The API also
+    accepts `Authorization: Bearer <jwt>`. The Android app (Capacitor) calls the API
+    cross-site where the cookie is not sent back, so it sends
+    `X-Kladovki-Client: native` on login/register and receives `access_token` in the
+    response body. JWT lifetime: `JWT_TTL_HOURS` (default 24h).
+
+    When authentication fails and the request has `HX-Request: true` or an `Accept`
+    containing `text/html`, the middleware answers `302` to `/login` instead of `401`.
+
+    **Errors.** Error bodies are `{"error": "<message in Russian>"}`.
+
+    **Own-ЖК rule.** Endpoints taking a `jk_id` / `id` of a ЖК answer `403`
+    (`Нет доступа к данным другого ЖК`) when it is not the caller's ЖК. Endpoints
+    that load a single storage room or rental answer `404` instead, so nothing leaks
+    across ЖК.
+
+    **Money** is integer tenge (₸). Timestamps are RFC 3339; report periods use
+    Kazakhstan days (UTC+5).
+servers:
+  - url: https://kladovki.onrender.com/api/v1
+    description: Production
+  - url: http://localhost:8080/api/v1
+    description: Local (set APP_ENV=development; unset means production)
+security:
+  - cookieAuth: []
+  - bearerAuth: []
+tags:
+  - name: platform
+    description: Platform operator (role `superadmin`, no ЖК). Creates ЖК and their ОСИ accounts. This role gets 403 on every ОСИ route.
+  - name: auth
+    description: Registration, login, session.
+  - name: legal
+    description: User agreements and recorded consent.
+  - name: jks/tariff
+    description: ЖК info, tariff (₸ per m² per month) and rental settings.
+  - name: storages
+    description: Storage rooms (кладовки).
+  - name: rentals
+    description: Holds, rentals, renewals, termination.
+  - name: payments
+    description: Kaspi invoices via ApiPay and the ApiPay webhook.
+  - name: requests
+    description: Заявки — tariff recalculation, early termination, payment refund.
+  - name: residents
+    description: ОСИ approval of residents (only property owners may rent).
+  - name: notifications
+    description: In-app notifications.
+  - name: me
+    description: The caller's own profile settings and notification channels.
+  - name: dashboard
+    description: ОСИ dashboard, scoped to the admin's ЖК.
+  - name: reports
+    description: Excel-friendly CSV reports for the ОСИ (regulation п. 5.1).
+  - name: charges
+    description: Charges / debt ledger.
+  - name: telegram
+    description: Telegram bot webhook.
+  - name: lead
+    description: Landing-page leads.
+
+paths:
+  /lead:
+    post:
+      tags: [lead]
+      operationId: createLead
+      summary: Submit a landing-page lead
+      description: "**Who:** anonymous. Stores a contact request from the landing page."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [full_name, phone]
+              properties:
+                full_name: {type: string}
+                phone: {type: string}
+                email: {type: string}
+      responses:
+        '201':
+          description: Lead stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: {type: string, examples: ['Заявка успешно принята']}
+                  lead: {$ref: '#/components/schemas/Lead'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  # ---------------------------------------------------------------- legal
+  /legal/{doc}:
+    get:
+      tags: [legal]
+      operationId: getAgreement
+      summary: Get the text of an agreement
+      description: |
+        **Who:** anonymous. Returns the current version of `resident_terms`
+        (Пользовательское соглашение и правила аренды кладовых) or `osi_rules`
+        (Регламент для ОСИ). Unknown `lang` falls back to `ru`.
+      security: []
+      parameters:
+        - name: doc
+          in: path
+          required: true
+          schema: {$ref: '#/components/schemas/AgreementDoc'}
+        - name: lang
+          in: query
+          schema: {type: string, enum: [ru, kk], default: ru}
+      responses:
+        '200':
+          description: Agreement text.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AgreementDocument'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /legal/status:
+    get:
+      tags: [legal]
+      operationId: getAgreementStatus
+      summary: Which agreement versions the caller has accepted
+      description: "**Who:** any logged-in user. Keyed by document: `resident_terms`, `osi_rules`."
+      responses:
+        '200':
+          description: Status per document.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  resident_terms: {$ref: '#/components/schemas/AgreementStatus'}
+                  osi_rules: {$ref: '#/components/schemas/AgreementStatus'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /legal/accept:
+    post:
+      tags: [legal]
+      operationId: acceptAgreement
+      summary: Record consent to the current agreement version
+      description: |
+        **Who:** any logged-in user. ОСИ admins may accept only `osi_rules`,
+        everyone else only `resident_terms` (otherwise 403). `version` must be the
+        current version, otherwise 400 (`Текст соглашения обновился. Обновите страницу.`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [doc, version]
+              properties:
+                doc: {$ref: '#/components/schemas/AgreementDoc'}
+                version: {type: string, examples: ['2026-09-21']}
+      responses:
+        '200': {$ref: '#/components/responses/Message'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenOtherJK'}
+
+  # ---------------------------------------------------------------- auth
+  /auth/iin-status:
+    post:
+      tags: [auth]
+      operationId: iinStatus
+      summary: Check whether an ИИН is registered
+      description: |
+        **Who:** anonymous. Step 1 of the ИИН login: `registered: true` → ask for the
+        password, `false` → show first-login registration.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                iin: {type: string, pattern: '^\d{12}$', examples: ['900101300001']}
+      responses:
+        '200':
+          description: Registration status.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [registered]
+                properties:
+                  registered: {type: boolean}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+  /auth/register:
+    post:
+      tags: [auth]
+      operationId: registerResident
+      summary: Register a resident (first login) and start a session
+      description: |
+        **Who:** anonymous. Creates a `resident` account in status **pending**: it cannot
+        book or renew until the ОСИ confirms property ownership. Requires
+        `accepted_terms_version` equal to the current `resident_terms` version (400 otherwise).
+
+        The ЖК is resolved from `premises_cadastral` when given (it must start with a
+        connected ЖК's cadastral number; if `jk_id` is also sent it must match), else
+        from `jk_id`, else the only ЖК if exactly one exists — otherwise 400.
+
+        Sets the session cookie. With header `X-Kladovki-Client: native` the token is
+        also returned as `access_token`.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/ClientHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RegisterRequest'}
+      responses:
+        '200':
+          description: Registered and logged in.
+          headers:
+            Set-Cookie: {$ref: '#/components/headers/SessionCookie'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Session'}
+        '400':
+          description: Missing fields, bad ИИН/БИН/cadastral number, weak password, ЖК not resolvable, or terms not accepted.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Error'
+                  - $ref: '#/components/schemas/TermsRequiredError'
+        '409':
+          description: ИИН or phone already registered.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+              example: {error: 'Этот ИИН уже зарегистрирован. Войдите с паролем.'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+  /auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: Log in
+      description: |
+        **Who:** anonymous. `login` is an ИИН, phone or email (legacy fields `email`
+        / `phone` are used when `login` is empty). Sets the session cookie; with header
+        `X-Kladovki-Client: native` the token is also returned as `access_token`.
+        If `must_change_password` is true the client must make the user pick a new
+        password (`PUT /me/password`).
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/ClientHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                login: {type: string, description: 'ИИН, phone or email'}
+                email: {type: string, deprecated: true}
+                phone: {type: string, deprecated: true}
+                password: {type: string, format: password}
+      responses:
+        '200':
+          description: Logged in.
+          headers:
+            Set-Cookie: {$ref: '#/components/headers/SessionCookie'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Session'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401':
+          description: Bad credentials.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+              example: {error: 'Неверный логин или пароль'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: Log out (clear the session cookie)
+      description: "**Who:** anyone. Clears the cookie; a Bearer token stays valid until it expires."
+      security: []
+      responses:
+        '200': {$ref: '#/components/responses/Message'}
+  /auth/me:
+    get:
+      tags: [auth]
+      operationId: me
+      summary: Current user profile
+      description: "**Who:** any logged-in user. Includes `status`, `review_comment` and the declared property fields."
+      responses:
+        '200':
+          description: Profile.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/UserProfile'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  # ---------------------------------------------------------------- jks / tariff
+  /jks/{id}:
+    get:
+      tags: [jks/tariff]
+      operationId: getJK
+      summary: Get a ЖК
+      description: "**Who:** any logged-in user, own ЖК only (403 otherwise). Returns id, name and created_at only."
+      parameters: [{$ref: '#/components/parameters/JKIdPath'}]
+      responses:
+        '200':
+          description: ЖК.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: {type: string}
+                  name: {type: string}
+                  created_at: {type: string, format: date-time}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenOtherJK'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /jks/{id}/tariff:
+    get:
+      tags: [jks/tariff]
+      operationId: getTariff
+      summary: Get the ЖК tariff
+      description: "**Who:** any logged-in user, own ЖК only. `amount` is ₸ per m² per month (0 if not set)."
+      parameters: [{$ref: '#/components/parameters/JKIdPath'}]
+      responses:
+        '200':
+          description: Tariff.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  amount: {type: integer, format: int64}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenOtherJK'}
+        '500': {$ref: '#/components/responses/InternalError'}
+    put:
+      tags: [jks/tariff]
+      operationId: setTariff
+      summary: Set the ЖК tariff
+      description: |
+        **Who:** admin (ОСИ), own ЖК only. New rentals use the new price. A **decrease**
+        creates a `tariff_recalc` request (status `awaiting_choice`) for every paid
+        active rental, where the tenant chooses to extend the period or get money back
+        (agreement: extend-or-refund). `recalc_requests` is how many were created.
+      parameters: [{$ref: '#/components/parameters/JKIdPath'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount: {type: integer, format: int64, minimum: 1}
+      responses:
+        '200':
+          description: Saved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: {type: string, examples: ['tariff updated']}
+                  amount: {type: integer, format: int64}
+                  recalc_requests: {type: integer, format: int64}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdminOrJK'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /jks/{id}/tariff/preview:
+    get:
+      tags: [jks/tariff]
+      operationId: previewTariff
+      summary: Preview the effect of a planned tariff
+      description: "**Who:** admin (ОСИ), own ЖК only. How many paid rentals a decrease affects and the total difference to recalculate."
+      parameters:
+        - $ref: '#/components/parameters/JKIdPath'
+        - name: amount
+          in: query
+          required: true
+          schema: {type: integer, format: int64, minimum: 1}
+      responses:
+        '200':
+          description: Preview.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TariffPreview'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdminOrJK'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /jks/{id}/rental-settings:
+    get:
+      tags: [jks/tariff]
+      operationId: getRentalSettings
+      summary: Get rental settings of the ЖК
+      description: "**Who:** any logged-in user, own ЖК only. `lock_duration_minutes` is how long a booking hold lasts before payment."
+      parameters: [{$ref: '#/components/parameters/JKIdPath'}]
+      responses:
+        '200':
+          description: Settings.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RentalSettings'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenOtherJK'}
+        '500': {$ref: '#/components/responses/InternalError'}
+    put:
+      tags: [jks/tariff]
+      operationId: setRentalSettings
+      summary: Update rental settings of the ЖК
+      description: "**Who:** admin (ОСИ), own ЖК only. `lock_duration_minutes` must be 1–60 (400 otherwise)."
+      parameters: [{$ref: '#/components/parameters/JKIdPath'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RentalSettings'}
+      responses:
+        '200':
+          description: Saved settings (echo).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RentalSettings'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdminOrJK'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  # ---------------------------------------------------------------- charges / reports
+  /charges/jk/{jk_id}:
+    get:
+      tags: [charges]
+      operationId: listCharges
+      summary: Charges / debt ledger of the ЖК
+      description: |
+        **Who:** admin (ОСИ), own ЖК only. One row per paid rental: paid amount,
+        days overdue past `ends_at`, debt and accrued (`paid + debt`), computed on the server.
+      parameters: [{$ref: '#/components/parameters/JKIdParam'}]
+      responses:
+        '200':
+          description: Ledger.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/Charge'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdminOrJK'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /reports/jk/{jk_id}/payments.csv:
+    get:
+      tags: [reports]
+      operationId: paymentsReport
+      summary: Income report (CSV)
+      description: |
+        **Who:** admin (ОСИ), own ЖК only. Bookings, renewals and refunds in the period
+        (inclusive Kazakhstan days; default: first day of the current month → today).
+        CSV with UTF-8 BOM, `;` separator, CRLF. Columns: Дата; Операция; Кладовка;
+        Арендатор; Компания; БИН; Телефон; Сумма, ₸.
+      parameters:
+        - $ref: '#/components/parameters/JKIdParam'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200': {$ref: '#/components/responses/CSV'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdminOrJK'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /reports/jk/{jk_id}/storages.csv:
+    get:
+      tags: [reports]
+      operationId: storagesReport
+      summary: Storage rooms with status and tenants (CSV)
+      description: |
+        **Who:** admin (ОСИ), own ЖК only. Columns: Кладовка; Площадь, м²; Этаж; Подъезд;
+        Статус; Арендатор; Компания; Телефон; Оплачено до.
+      parameters: [{$ref: '#/components/parameters/JKIdParam'}]
+      responses:
+        '200': {$ref: '#/components/responses/CSV'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdminOrJK'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /reports/jk/{jk_id}/charges.csv:
+    get:
+      tags: [reports]
+      operationId: chargesReport
+      summary: Charges / debt ledger (CSV)
+      description: |
+        **Who:** admin (ОСИ), own ЖК only. Same data as `GET /charges/jk/{jk_id}`.
+        Columns: Кладовка; Арендатор; Компания; Телефон; Начало; Оплачено до;
+        Цена в месяц, ₸; Оплачено, ₸; Дней просрочки; Долг, ₸; Статус.
+      parameters: [{$ref: '#/components/parameters/JKIdParam'}]
+      responses:
+        '200': {$ref: '#/components/responses/CSV'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdminOrJK'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  # ---------------------------------------------------------------- dashboard
+  /dashboard/stats:
+    get:
+      tags: [dashboard]
+      operationId: dashboardStats
+      summary: Key figures for the period
+      description: "**Who:** admin (ОСИ); always the admin's own ЖК (from the token)."
+      parameters: [{$ref: '#/components/parameters/Period'}]
+      responses:
+        '200':
+          description: Stats.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DashboardStats'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdmin'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /dashboard/revenue:
+    get:
+      tags: [dashboard]
+      operationId: dashboardRevenue
+      summary: Revenue series
+      description: |
+        **Who:** admin (ОСИ), own ЖК. Points grouped **by day** for `7d` / `30d` and
+        **by week** for `quarter`; `date` is `YYYY-MM-DD`.
+      parameters: [{$ref: '#/components/parameters/Period'}]
+      responses:
+        '200':
+          description: Revenue points.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DashboardRevenue'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdmin'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /dashboard/attention:
+    get:
+      tags: [dashboard]
+      operationId: dashboardAttention
+      summary: Items needing the ОСИ's action
+      description: "**Who:** admin (ОСИ), own ЖК. Rentals expiring soon, overdue rentals (with debt) and stuck holds, with tenant contacts."
+      responses:
+        '200':
+          description: Attention items.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/DashboardAttention'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdmin'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /dashboard/activity:
+    get:
+      tags: [dashboard]
+      operationId: dashboardActivity
+      summary: Recent events
+      description: "**Who:** admin (ОСИ), own ЖК. Recent payments, new rentals and expirations."
+      responses:
+        '200':
+          description: Activity feed.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/DashboardActivity'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdmin'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /dashboard/occupancy:
+    get:
+      tags: [dashboard]
+      operationId: dashboardOccupancy
+      summary: Free / occupied / locked breakdown
+      description: "**Who:** admin (ОСИ), own ЖК."
+      responses:
+        '200':
+          description: Occupancy.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DashboardOccupancy'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdmin'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  # ---------------------------------------------------------------- storages
+  /storages/jk/{jk_id}:
+    get:
+      tags: [storages]
+      operationId: listStoragesByJK
+      summary: List storage rooms of a ЖК
+      description: "**Who:** any logged-in user (resident or admin), own ЖК only (403 otherwise)."
+      parameters: [{$ref: '#/components/parameters/JKIdParam'}]
+      responses:
+        '200':
+          description: Storage rooms with status.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/Storage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenOtherJK'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /storages:
+    post:
+      tags: [storages]
+      operationId: createStorage
+      summary: Create a storage room
+      description: |
+        **Who:** admin (ОСИ). The ЖК is taken from the token; a `jk_id` in the body
+        that differs from it → 403. The number must be unique in the ЖК (409).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [number, area]
+              properties:
+                jk_id: {type: string, description: Optional; must equal the caller's ЖК.}
+                number: {type: string}
+                area: {type: number, exclusiveMinimum: 0, description: m²}
+                floor: {type: integer}
+                entrance: {type: integer}
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Storage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdminOrJK'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /storages/{id}:
+    parameters: [{$ref: '#/components/parameters/IdPath'}]
+    get:
+      tags: [storages]
+      operationId: getStorage
+      summary: Get a storage room
+      description: "**Who:** any logged-in user; a room of another ЖК answers 404."
+      responses:
+        '200':
+          description: Storage room.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Storage'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+    put:
+      tags: [storages]
+      operationId: updateStorage
+      summary: Update a storage room
+      description: |
+        **Who:** admin (ОСИ), own ЖК (404 otherwise). Number/area/floor/entrance cannot
+        change while the room is occupied or held (409); duplicate number → 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [number, area]
+              properties:
+                number: {type: string}
+                area: {type: number, exclusiveMinimum: 0}
+                floor: {type: integer}
+                entrance: {type: integer}
+                status: {$ref: '#/components/schemas/StorageStatus'}
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Storage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdmin'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+    delete:
+      tags: [storages]
+      operationId: deleteStorage
+      summary: Delete a storage room
+      description: |
+        **Who:** admin (ОСИ), own ЖК (404 otherwise). A room with rental history cannot be
+        deleted — it is needed for reports and disputes (409).
+      responses:
+        '200': {$ref: '#/components/responses/Message'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdmin'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /storages/{id}/transfer:
+    patch:
+      tags: [storages]
+      operationId: setStorageTransfer
+      summary: Name a successor for a storage room
+      description: |
+        **Who:** the current tenant of the room's active rental (403 for other
+        residents), or an admin (ОСИ) of the ЖК; own ЖК only (404 otherwise). For 14 days
+        only the user with this ИИН may book the room, and the current tenant cannot renew.
+        A non-admin caller gets 409 if the room has no active rental.
+      parameters: [{$ref: '#/components/parameters/IdPath'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [iin]
+              properties:
+                iin: {type: string, pattern: '^\d{12}$'}
+      responses:
+        '200': {$ref: '#/components/responses/Message'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  # ---------------------------------------------------------------- rentals
+  /rentals/my:
+    get:
+      tags: [rentals]
+      operationId: listMyRentals
+      summary: The caller's rentals
+      description: "**Who:** any logged-in user; only their own rentals."
+      responses:
+        '200':
+          description: Rentals.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/Rental'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /rentals/jk/{jk_id}:
+    get:
+      tags: [rentals]
+      operationId: listRentalsByJK
+      summary: All rentals of a ЖК
+      description: "**Who:** admin (ОСИ), own ЖК only."
+      parameters: [{$ref: '#/components/parameters/JKIdParam'}]
+      responses:
+        '200':
+          description: Rentals.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/Rental'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdminOrJK'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /rentals/storage/{storage_id}:
+    get:
+      tags: [rentals]
+      operationId: getActiveRentalByStorage
+      summary: The active rental of a storage room
+      description: "**Who:** admin (ОСИ), own ЖК (404 for another ЖК's room or when none is active)."
+      parameters:
+        - name: storage_id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Active rental.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Rental'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdmin'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /rentals/lock:
+    post:
+      tags: [rentals]
+      operationId: lockStorage
+      summary: Hold a free storage room before payment
+      description: |
+        **Who:** an **approved** (status `active`) resident; pending/rejected/blocked
+        residents get 403. The room must be in the caller's ЖК (404 otherwise) and free
+        (409). Creates a rental in status `locked` for the ЖК's `lock_duration_minutes`;
+        `price_per_month = round(area × tariff)`. While a transfer is pending, only the
+        named successor may book (400 for others).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [storage_id, months]
+              properties:
+                storage_id: {type: string}
+                months: {type: integer, minimum: 1, maximum: 120}
+      responses:
+        '201':
+          description: Hold created.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Rental'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/NotApproved'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /rentals/confirm-payment:
+    post:
+      tags: [rentals]
+      operationId: confirmPaymentDev
+      summary: "[DEV ONLY] Activate a held rental without paying"
+      description: |
+        **Available only when `ENV` / `APP_ENV` = `development`** — the route is not
+        registered in production (404 there). **Who:** the logged-in owner of the hold.
+        Turns a `locked` rental into `active`; 409 if the hold expired.
+      x-environment: development
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rental_id]
+              properties:
+                rental_id: {type: string}
+      responses:
+        '200':
+          description: Rental activated.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Rental'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /rentals/{id}:
+    get:
+      tags: [rentals]
+      operationId: getRental
+      summary: Get a rental
+      description: |
+        **Who:** the tenant, or an admin (ОСИ) of the rental's ЖК; anyone else gets 404.
+        For `expired` / `cancelled` rentals ended for debt, `termination` is included.
+      parameters: [{$ref: '#/components/parameters/IdPath'}]
+      responses:
+        '200':
+          description: Rental.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Rental'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /rentals/{id}/cancel:
+    patch:
+      tags: [rentals]
+      operationId: cancelRental
+      summary: Cancel a rental (ОСИ)
+      description: |
+        **Who:** admin (ОСИ), own ЖК. The room becomes free. For a paid rental,
+        `refund_due` is the money owed for the unused period. 409 if it cannot be cancelled.
+      parameters: [{$ref: '#/components/parameters/IdPath'}]
+      responses:
+        '200':
+          description: Cancelled rental.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Rental'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdmin'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /rentals/{id}/force-release:
+    patch:
+      tags: [rentals]
+      operationId: forceReleaseLocked
+      summary: Clear a stuck hold (ОСИ)
+      description: "**Who:** admin (ОСИ), own ЖК. Only a `locked` (unpaid) rental can be released (409 otherwise)."
+      parameters: [{$ref: '#/components/parameters/IdPath'}]
+      responses:
+        '200':
+          description: Released rental.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Rental'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdmin'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /rentals/{id}/release-overdue:
+    patch:
+      tags: [rentals]
+      operationId: releaseOverdueRental
+      summary: End an overdue rental for debt (ОСИ)
+      description: |
+        **Who:** admin (ОСИ), own ЖК. Agreement п. 5.2: ends an active rental that is
+        long overdue, frees the room and stores a termination record (reason, opening/
+        inventory note, police present, costs charged to the debtor). `reason` is
+        required (400). 409 if the rental is not overdue long enough or not active.
+      parameters: [{$ref: '#/components/parameters/IdPath'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: {type: string}
+                note: {type: string}
+                police: {type: boolean}
+                costs: {type: integer, format: int64, minimum: 0}
+      responses:
+        '200':
+          description: Ended rental.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Rental'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdmin'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /rentals/{id}/terminate:
+    post:
+      tags: [rentals]
+      operationId: requestEarlyTermination
+      summary: Ask to end a rental early
+      description: |
+        **Who:** the tenant of an active rental (404 otherwise). Creates an
+        `early_termination` request for the ОСИ (refund of the unused part).
+        Body is optional; `comment` is trimmed to 1000 chars. 409 if already sent.
+      parameters: [{$ref: '#/components/parameters/IdPath'}]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment: {type: string, maxLength: 1000}
+      responses:
+        '201':
+          description: Request created.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TenantRequest'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /rentals/{id}/renew:
+    post:
+      tags: [rentals]
+      operationId: renewRental
+      summary: Renew a rental (Kaspi invoice)
+      description: |
+        **Who:** the tenant, approved (403 if not `active`). Requires
+        `accepted_terms_version` = current `resident_terms`. Sends a Kaspi invoice at the
+        **current** tariff; when the webhook reports it paid, `ends_at += months` from
+        the current end. 409 if the rental is not paid/active or a transfer is pending.
+        In development the renewal is applied immediately.
+      parameters: [{$ref: '#/components/parameters/IdPath'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [months, accepted_terms_version]
+              properties:
+                months: {type: integer, minimum: 1, maximum: 120}
+                phone: {type: string, description: Kaspi phone; required if the profile has none.}
+                accepted_terms_version: {type: string}
+      responses:
+        '201':
+          description: Renewal payment created.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Payment'}
+        '400':
+          description: Bad months, missing Kaspi phone, or terms not accepted.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Error'
+                  - $ref: '#/components/schemas/TermsRequiredError'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/NotApproved'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '502': {$ref: '#/components/responses/BadGateway'}
+
+  # ---------------------------------------------------------------- payments
+  /payments:
+    post:
+      tags: [payments]
+      operationId: createPayment
+      summary: Pay for a held rental (Kaspi invoice)
+      description: |
+        **Who:** the logged-in owner of the hold. Requires `accepted_terms_version`
+        = current `resident_terms` (the contract is accepted next to the pay button).
+        The amount is computed on the server from the rental (never sent by the client).
+        Sends a Kaspi invoice via ApiPay and extends the hold to 10 minutes; the rental
+        becomes `active` when the webhook reports it paid. 409 if an invoice is already
+        pending or the hold expired.
+
+        In development (no ApiPay) the rental is activated immediately and the response
+        is `{message: "Тестовая оплата успешна", rental}`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rental_id, accepted_terms_version]
+              properties:
+                rental_id: {type: string}
+                phone: {type: string, description: Kaspi phone.}
+                accepted_terms_version: {type: string}
+      responses:
+        '200':
+          description: Invoice sent (production) or test payment applied (development).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    title: InvoiceSent
+                    properties:
+                      message: {type: string, examples: ['Счёт отправлен в Kaspi']}
+                      amount: {type: integer, format: int64}
+                  - type: object
+                    title: DevPayment
+                    properties:
+                      message: {type: string, examples: ['Тестовая оплата успешна']}
+                      rental: {$ref: '#/components/schemas/Rental'}
+        '400':
+          description: Missing rental, missing Kaspi phone, or terms not accepted.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Error'
+                  - $ref: '#/components/schemas/TermsRequiredError'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '502': {$ref: '#/components/responses/BadGateway'}
+  /payments/my:
+    get:
+      tags: [payments]
+      operationId: listMyPayments
+      summary: The caller's payments
+      description: "**Who:** any logged-in user; only their own payments."
+      responses:
+        '200':
+          description: Payments.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/PaymentResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /payments/jk/{jk_id}:
+    get:
+      tags: [payments]
+      operationId: listPaymentsByJK
+      summary: Payments of a ЖК
+      description: "**Who:** admin (ОСИ), own ЖК only. Optional period `from`/`to` (inclusive Kazakhstan days)."
+      parameters:
+        - $ref: '#/components/parameters/JKIdParam'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Payments.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/PaymentResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdminOrJK'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /payments/webhook:
+    post:
+      tags: [payments]
+      operationId: apiPayWebhook
+      summary: ApiPay invoice webhook
+      description: |
+        **Who:** ApiPay only — authenticated by HMAC, not by a user token.
+        `X-Webhook-Signature: sha256=<hex HMAC-SHA256(raw body, APIPAY_WEBHOOK_SECRET)>`.
+        Without a configured secret, unsigned calls are accepted only in development.
+        Only `invoice.status_changed` with an `external_order_id` is processed; sandbox
+        events are ignored when `APIPAY_LIVE=true`; unknown payments are acknowledged
+        with 200. A 5xx makes ApiPay retry. Body limit 1 MiB.
+      security:
+        - apiPaySignature: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ApiPayWebhookEvent'}
+      responses:
+        '200': {description: Acknowledged (empty body).}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401':
+          description: Invalid or missing signature.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+              example: {error: invalid signature}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  # ---------------------------------------------------------------- requests
+  /requests/my:
+    get:
+      tags: [requests]
+      operationId: listMyRequests
+      summary: The caller's requests (заявки)
+      description: "**Who:** any logged-in user; only their own requests."
+      responses:
+        '200':
+          description: Requests.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/TenantRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /requests/{id}/choice:
+    post:
+      tags: [requests]
+      operationId: chooseTariffOption
+      summary: Choose extend or refund for a tariff decrease
+      description: |
+        **Who:** the tenant who owns the `tariff_recalc` request (status `awaiting_choice`).
+        `extend` lengthens the paid period by the difference, `refund` asks the ОСИ for
+        money back. 409 if a choice was already made.
+      parameters: [{$ref: '#/components/parameters/IdPath'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [choice]
+              properties:
+                choice: {type: string, enum: [extend, refund]}
+      responses:
+        '200': {$ref: '#/components/responses/Message'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /requests/jk/{jk_id}:
+    get:
+      tags: [requests]
+      operationId: listRequestsByJK
+      summary: All requests of a ЖК
+      description: "**Who:** admin (ОСИ), own ЖК only."
+      parameters: [{$ref: '#/components/parameters/JKIdParam'}]
+      responses:
+        '200':
+          description: Requests.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/TenantRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdminOrJK'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /requests/open-count:
+    get:
+      tags: [requests]
+      operationId: countOpenRequests
+      summary: Number of open requests (nav badge)
+      description: "**Who:** admin (ОСИ); the admin's own ЖК."
+      responses:
+        '200':
+          description: Count.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  open: {type: integer, format: int64}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdmin'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /requests/{id}/resolve:
+    patch:
+      tags: [requests]
+      operationId: resolveRequest
+      summary: Approve or reject a request (ОСИ)
+      description: |
+        **Who:** admin (ОСИ), own ЖК (404 otherwise). `comment` is stored as the
+        resolution and shown to the tenant. 409 if already processed.
+      parameters: [{$ref: '#/components/parameters/IdPath'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: {type: string, enum: [approve, reject]}
+                comment: {type: string}
+      responses:
+        '200': {$ref: '#/components/responses/Message'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdmin'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  # ---------------------------------------------------------------- notifications
+  /notifications:
+    get:
+      tags: [notifications]
+      operationId: listNotifications
+      summary: The caller's latest notifications
+      description: "**Who:** any logged-in user. Up to 100, newest first."
+      responses:
+        '200':
+          description: Notifications.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/Notification'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /notifications/unread-count:
+    get:
+      tags: [notifications]
+      operationId: unreadNotifications
+      summary: Number of unread notifications
+      description: "**Who:** any logged-in user."
+      responses:
+        '200':
+          description: Count.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  unread: {type: integer, format: int64}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /notifications/read-all:
+    post:
+      tags: [notifications]
+      operationId: markAllNotificationsRead
+      summary: Mark all notifications read
+      description: "**Who:** any logged-in user; own notifications only."
+      responses:
+        '200': {$ref: '#/components/responses/Message'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /notifications/{id}/read:
+    post:
+      tags: [notifications]
+      operationId: markNotificationRead
+      summary: Mark one notification read
+      description: "**Who:** any logged-in user; only their own notification is affected."
+      parameters: [{$ref: '#/components/parameters/IdPath'}]
+      responses:
+        '200': {$ref: '#/components/responses/Message'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  # ---------------------------------------------------------------- residents
+  /residents/jk/{jk_id}:
+    get:
+      tags: [residents]
+      operationId: listResidents
+      summary: Residents of a ЖК
+      description: "**Who:** admin (ОСИ), own ЖК only. Optional filter by status."
+      parameters:
+        - $ref: '#/components/parameters/JKIdParam'
+        - name: status
+          in: query
+          schema: {$ref: '#/components/schemas/UserStatus'}
+      responses:
+        '200':
+          description: Residents.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/User'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdminOrJK'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /residents/pending-count:
+    get:
+      tags: [residents]
+      operationId: countPendingResidents
+      summary: Number of residents awaiting approval (nav badge)
+      description: "**Who:** admin (ОСИ); the admin's own ЖК."
+      responses:
+        '200':
+          description: Count.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pending: {type: integer, format: int64}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdmin'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /residents/{id}/{action}:
+    patch:
+      tags: [residents]
+      operationId: reviewResident
+      summary: Approve, reject or block a resident
+      description: |
+        **Who:** admin (ОСИ), resident of own ЖК (404 otherwise). Only property owners
+        may rent (agreement п. 2.1).
+        - `approve` → `active` (also unblocks; clears the comment).
+        - `reject` → `rejected`; `comment` is **required** (400) and shown to the user.
+        - `block` → `blocked`; existing rentals stay, no new bookings or renewals.
+        The resident is notified. An unknown action answers 404.
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - name: action
+          in: path
+          required: true
+          schema: {type: string, enum: [approve, reject, block]}
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment: {type: string}
+      responses:
+        '200': {$ref: '#/components/responses/Message'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdmin'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /residents/{id}/reset-password:
+    post:
+      tags: [residents]
+      operationId: resetResidentPassword
+      summary: Set a temporary password for a resident
+      description: |
+        **Who:** admin (ОСИ), resident of own ЖК (404 otherwise). Returns a 10-character
+        temporary password **once**, to hand over in person (never sent via notification
+        channels). The resident must change it after logging in (`must_change_password`).
+      parameters: [{$ref: '#/components/parameters/IdPath'}]
+      responses:
+        '200':
+          description: Temporary password.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  temporary_password: {type: string, minLength: 10, maxLength: 10}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/ForbiddenAdmin'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  # ---------------------------------------------------------------- me
+  /me/verification:
+    put:
+      tags: [me]
+      operationId: resubmitVerification
+      summary: Correct property data and ask the ОСИ again
+      description: |
+        **Who:** a logged-in `pending` or `rejected` user. Status goes back to `pending`.
+        409 if the account is already approved. If `premises_cadastral` is given it must
+        belong to the user's ЖК.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Verification'}
+      responses:
+        '200': {$ref: '#/components/responses/Message'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /me/phone:
+    put:
+      tags: [me]
+      summary: Change my phone (Kaspi invoices go to it)
+      description: |
+        **Who:** any signed-in user. The phone is normalized to `+7XXXXXXXXXX` (Kazakhstan mobile);
+        `8 (701) 555-44-33` and `+7 701 555 44 33` are accepted. The current password is required
+        (400 when missing, 403 when wrong), so a stolen session can't redirect Kaspi invoices.
+        Shares the per-IP rate limit of `/auth/*` (429). 409 when another account has the same
+        number in any spelling.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, current_password]
+              properties:
+                phone: {type: string, example: '+77015554433'}
+                current_password: {type: string, format: password}
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  phone: {type: string}
+                  message: {type: string}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403':
+          description: Wrong current password (`Текущий пароль указан неверно.`).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '429':
+          description: "Too many requests from this IP (`code: rate_limited`, `Retry-After` header)."
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+  /me/password:
+    put:
+      tags: [me]
+      operationId: changePassword
+      summary: Change own password
+      description: "**Who:** any logged-in user. 400 if the current password is wrong or the new one is shorter than 6 characters. Clears `must_change_password`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password]
+              properties:
+                current_password: {type: string, format: password}
+                new_password: {type: string, format: password, minLength: 6}
+      responses:
+        '200': {$ref: '#/components/responses/Message'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /me/channels:
+    get:
+      tags: [me]
+      operationId: myChannels
+      summary: Which notification channels reach me
+      description: "**Who:** any logged-in user."
+      responses:
+        '200':
+          description: Channel status.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ChannelStatus'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+  /me/telegram/link:
+    post:
+      tags: [me]
+      operationId: telegramLink
+      summary: Get a Telegram deep link to connect notifications
+      description: "**Who:** any logged-in user. Returns a one-time `t.me/<bot>?start=<token>` link. 503 if the bot is not configured."
+      responses:
+        '200':
+          description: Deep link.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: {type: string, format: uri}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+  /me/telegram:
+    delete:
+      tags: [me]
+      operationId: telegramUnlink
+      summary: Disconnect Telegram
+      description: "**Who:** any logged-in user."
+      responses:
+        '200': {$ref: '#/components/responses/Message'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  # ---------------------------------------------------------------- telegram
+  /telegram/webhook:
+    post:
+      tags: [telegram]
+      operationId: telegramWebhook
+      summary: Telegram bot updates
+      description: |
+        **Who:** Telegram only — authenticated by `X-Telegram-Bot-Api-Secret-Token`
+        (the secret set in `setWebhook`; constant-time compare). Missing/unknown secret
+        or no secret configured → 401. Handles `/start <token>` (links the chat to the
+        user) and bare `/start` (sends instructions); everything else is ignored with 200.
+      security:
+        - telegramSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TelegramUpdate'}
+      responses:
+        '200': {description: Acknowledged (empty body).}
+        '401': {description: Bad or missing secret token (empty body).}
+
+  /platform/jks:
+    get:
+      tags: [platform]
+      summary: List all ЖК with counts
+      description: Superadmin only. Newest first.
+      responses:
+        '200':
+          description: ЖК list
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/JKSummary'}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [platform]
+      summary: Create a ЖК together with its first ОСИ account
+      description: |
+        Superadmin only. One transaction: ОСИ user → ЖК (owner_id) → user.jk_id.
+        A temporary password (10 chars) is returned **once**; the ОСИ must change it at first login.
+        The new ЖК has no tariff until the ОСИ sets one.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/PlatformJKInput'
+                - type: object
+                  required: [admin]
+                  properties:
+                    admin: {$ref: '#/components/schemas/PlatformAccountInput'}
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jk: {$ref: '#/components/schemas/JKSummary'}
+                  admin: {$ref: '#/components/schemas/PlatformAdmin'}
+                  temporary_password: {type: string}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409':
+          description: Cadastral number, email or phone already used
+          content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+  /platform/jks/{id}:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string}}
+    get:
+      tags: [platform]
+      summary: One ЖК with counts
+      responses:
+        '200':
+          description: ЖК
+          content: {application/json: {schema: {$ref: '#/components/schemas/JKSummary'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    put:
+      tags: [platform]
+      summary: Edit name, address and cadastral number
+      description: An empty cadastral_number clears it (residents then cannot find the ЖК at registration).
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/PlatformJKInput'}}}
+      responses:
+        '200':
+          description: Updated ЖК
+          content: {application/json: {schema: {$ref: '#/components/schemas/JKSummary'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409':
+          description: Cadastral number used by another ЖК
+          content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+  /platform/jks/{id}/admins:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string}}
+    get:
+      tags: [platform]
+      summary: ОСИ admins of a ЖК
+      responses:
+        '200':
+          description: Admins
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/PlatformAdmin'}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    post:
+      tags: [platform]
+      summary: Add another ОСИ admin (temporary password)
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/PlatformAccountInput'}}}
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  admin: {$ref: '#/components/schemas/PlatformAdmin'}
+                  temporary_password: {type: string}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409':
+          description: Email or phone already used
+          content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+  /platform/admins/{id}/reset-password:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string}}
+    post:
+      tags: [platform]
+      summary: New temporary password for an ОСИ admin
+      description: Only users with role `admin`; anyone else → 404.
+      responses:
+        '200':
+          description: Temporary password (shown once)
+          content:
+            application/json:
+              schema: {type: object, properties: {temporary_password: {type: string}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: access_token
+      description: HttpOnly JWT session cookie set by login/register (name configurable with `COOKIE_NAME`, default `access_token`). Used by the website.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        `Authorization: Bearer <jwt>`. The Android app obtains the token by sending
+        `X-Kladovki-Client: native` on `POST /auth/login` or `/auth/register`, which adds
+        `access_token` to the response body. Takes precedence over the cookie.
+    apiPaySignature:
+      type: apiKey
+      in: header
+      name: X-Webhook-Signature
+      description: '`sha256=<hex HMAC-SHA256(raw request body, APIPAY_WEBHOOK_SECRET)>`.'
+    telegramSecret:
+      type: apiKey
+      in: header
+      name: X-Telegram-Bot-Api-Secret-Token
+      description: Secret configured in Telegram `setWebhook`.
+
+  headers:
+    SessionCookie:
+      description: '`access_token=<jwt>; Path=/; HttpOnly; SameSite=Lax` (+ `Secure` in production).'
+      schema: {type: string}
+
+  parameters:
+    ClientHeader:
+      name: X-Kladovki-Client
+      in: header
+      required: false
+      description: Send `native` (Android app) to receive `access_token` in the body.
+      schema: {type: string, enum: [native]}
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema: {type: string}
+    JKIdPath:
+      name: id
+      in: path
+      required: true
+      description: ЖК id; must be the caller's own ЖК.
+      schema: {type: string}
+    JKIdParam:
+      name: jk_id
+      in: path
+      required: true
+      description: ЖК id; must be the caller's own ЖК.
+      schema: {type: string}
+    FromDate:
+      name: from
+      in: query
+      description: First day, `YYYY-MM-DD` (Kazakhstan time, inclusive).
+      schema: {type: string, format: date}
+    ToDate:
+      name: to
+      in: query
+      description: Last day, `YYYY-MM-DD` (inclusive). Must not be before `from`.
+      schema: {type: string, format: date}
+    Period:
+      name: period
+      in: query
+      schema: {$ref: '#/components/schemas/DashboardPeriod'}
+
+  responses:
+    Message:
+      description: OK.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Message'}
+    CSV:
+      description: CSV file (UTF-8 BOM, `;`-separated) as an attachment.
+      headers:
+        Content-Disposition:
+          schema: {type: string}
+          description: '`attachment; filename="..."`'
+      content:
+        text/csv:
+          schema: {type: string}
+    BadRequest:
+      description: Invalid body or parameters.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+          example: {error: Некорректные данные}
+    Unauthorized:
+      description: Not logged in or invalid/expired token.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+          example: {error: unauthorized}
+    ForbiddenAdmin:
+      description: Caller is not an ОСИ admin.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+          example: {error: Доступ только для администратора ОСИ}
+    ForbiddenOtherJK:
+      description: Resource belongs to another ЖК (or the document is not for the caller's role).
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+          example: {error: Нет доступа к данным другого ЖК}
+    ForbiddenAdminOrJK:
+      description: Not an ОСИ admin (`Доступ только для администратора ОСИ`) or another ЖК (`Нет доступа к данным другого ЖК`).
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    Forbidden:
+      description: Not allowed.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+          example: {error: Только текущий арендатор может назначить нового владельца}
+    NotApproved:
+      description: Resident account is not approved by the ОСИ yet (or rejected/blocked).
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+          example: {error: Аккаунт ожидает подтверждения ОСИ. Бронирование станет доступно после проверки.}
+    NotFound:
+      description: Not found (also used for resources of another ЖК).
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    Conflict:
+      description: Business-rule conflict (state does not allow the action, duplicate, already done).
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    InternalError:
+      description: Unexpected server error.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    ServiceUnavailable:
+      description: Database or dependency unavailable.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+          example: {error: Сервер временно недоступен. Попробуйте позже.}
+    BadGateway:
+      description: ApiPay / Kaspi failed to create the invoice.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+          example: {error: Не удалось отправить счёт в Kaspi. Попробуйте ещё раз.}
+
+  schemas:
+    JKSummary:
+      type: object
+      properties:
+        id: {type: string}
+        name: {type: string}
+        address: {type: string}
+        cadastral_number: {type: string, example: '21:319:021:848:8'}
+        owner_id: {type: string}
+        created_at: {type: string, format: date-time}
+        storages_count: {type: integer}
+        admins_count: {type: integer}
+        residents_count: {type: integer}
+    PlatformJKInput:
+      type: object
+      required: [name, address]
+      properties:
+        name: {type: string, maxLength: 255}
+        address: {type: string, maxLength: 500}
+        cadastral_number: {type: string, description: 'ЖК number, digits separated by ":" (≥4 facets); unique'}
+    PlatformAccountInput:
+      type: object
+      required: [full_name, email, phone]
+      properties:
+        full_name: {type: string, maxLength: 255}
+        email: {type: string, format: email, maxLength: 255}
+        phone: {type: string, maxLength: 50}
+    PlatformAdmin:
+      type: object
+      properties:
+        id: {type: string}
+        full_name: {type: string}
+        email: {type: string}
+        phone: {type: string}
+        jk_id: {type: string}
+        created_at: {type: string, format: date-time}
+        must_change_password: {type: boolean}
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: {type: string, description: Human-readable message in Russian.}
+    TermsRequiredError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            terms_version:
+              type: string
+              description: Current `resident_terms` version the client must send.
+              examples: ['2026-09-21']
+    Message:
+      type: object
+      properties:
+        message: {type: string}
+
+    Role:
+      type: string
+      enum: [resident, admin, superadmin]
+    UserStatus:
+      type: string
+      enum: [pending, active, rejected, blocked]
+      description: New residents wait (`pending`) for the ОСИ to confirm property ownership.
+    OwnerType:
+      type: string
+      enum: [person, company]
+      description: '`person` — физическое лицо (incl. ИП); `company` — юридическое лицо represented by the user.'
+    PremisesKind:
+      type: string
+      enum: [flat, commercial]
+    Verification:
+      type: object
+      description: What a user declares about the property they own.
+      properties:
+        owner_type: {$ref: '#/components/schemas/OwnerType'}
+        premises_kind: {$ref: '#/components/schemas/PremisesKind'}
+        premises_number: {type: string}
+        company_bin: {type: string, pattern: '^\d{12}$', description: Required for `company`.}
+        company_name: {type: string, description: Required for `company`.}
+        premises_cadastral:
+          type: string
+          description: Full cadastral number of the premises; finds the ЖК and the unit number.
+          examples: ['21:319:021:848:8:154']
+    RegisterRequest:
+      allOf:
+        - type: object
+          required: [iin, full_name, phone, password]
+          properties:
+            iin: {type: string, pattern: '^\d{12}$'}
+            full_name: {type: string}
+            phone: {type: string}
+            password: {type: string, format: password, minLength: 6}
+            jk_id: {type: [string, 'null']}
+            accepted_terms_version: {type: string, description: Must equal the current `resident_terms` version.}
+        - $ref: '#/components/schemas/Verification'
+    UserProfile:
+      type: object
+      description: Profile returned by register, login and `/auth/me`.
+      properties:
+        id: {type: string}
+        full_name: {type: string}
+        phone: {type: string}
+        email: {type: string}
+        role: {$ref: '#/components/schemas/Role'}
+        jk_id: {type: [string, 'null']}
+        iin: {type: string}
+        status: {$ref: '#/components/schemas/UserStatus'}
+        review_comment: {type: string}
+        owner_type: {type: string, description: '`person` | `company` (may be empty for old accounts)'}
+        premises_kind: {type: string, description: '`flat` | `commercial`'}
+        premises_number: {type: string}
+        company_bin: {type: string}
+        company_name: {type: string}
+        must_change_password: {type: boolean}
+    Session:
+      allOf:
+        - $ref: '#/components/schemas/UserProfile'
+        - type: object
+          properties:
+            access_token:
+              type: string
+              description: "JWT; present only when the request had `X-Kladovki-Client: native`."
+    User:
+      type: object
+      description: Full user record (as returned by the residents list).
+      properties:
+        id: {type: string}
+        role: {$ref: '#/components/schemas/Role'}
+        full_name: {type: string}
+        phone: {type: string}
+        email: {type: string}
+        jk_id: {type: string}
+        created_at: {type: string, format: date-time}
+        iin: {type: string}
+        status: {$ref: '#/components/schemas/UserStatus'}
+        review_comment: {type: string}
+        owner_type: {type: string}
+        premises_kind: {type: string}
+        premises_number: {type: string}
+        company_bin: {type: string}
+        company_name: {type: string}
+        premises_cadastral: {type: string}
+        must_change_password: {type: boolean}
+
+    AgreementDoc:
+      type: string
+      enum: [resident_terms, osi_rules]
+    AgreementDocument:
+      type: object
+      properties:
+        doc: {$ref: '#/components/schemas/AgreementDoc'}
+        version: {type: string, examples: ['2026-09-21']}
+        lang: {type: string, enum: [ru, kk]}
+        title: {type: string}
+        text: {type: string}
+    AgreementStatus:
+      type: object
+      properties:
+        version: {type: string}
+        accepted: {type: boolean}
+
+    JK:
+      type: object
+      description: Residential complex. (`GET /jks/{id}` returns only id, name, created_at.)
+      properties:
+        id: {type: string}
+        name: {type: string}
+        address: {type: string}
+        owner_id: {type: string}
+        created_at: {type: string, format: date-time}
+        cadastral_number:
+          type: string
+          description: Cadastral number of the land/building; premises numbers start with it. Empty until set.
+          examples: ['21:319:021:848:8']
+    RentalSettings:
+      type: object
+      required: [lock_duration_minutes]
+      properties:
+        lock_duration_minutes: {type: integer, minimum: 1, maximum: 60}
+    TariffPreview:
+      type: object
+      properties:
+        affected_count: {type: integer, format: int64}
+        total_difference: {type: integer, format: int64}
+
+    StorageStatus:
+      type: string
+      enum: [free, occupied, locked]
+    Storage:
+      type: object
+      properties:
+        id: {type: string}
+        jk_id: {type: string}
+        number: {type: string}
+        area: {type: number, description: m²}
+        floor: {type: integer}
+        entrance: {type: integer}
+        status: {$ref: '#/components/schemas/StorageStatus'}
+        created_at: {type: string, format: date-time}
+        transfer_to_iin: {type: string, description: ИИН of the named successor (empty if none).}
+        transfer_until: {type: [string, 'null'], format: date-time}
+
+    RentalStatus:
+      type: string
+      enum: [locked, active, expired, cancelled]
+      description: '`locked` = held, unpaid; `active` = paid; `expired` / `cancelled` = ended.'
+    Termination:
+      type: object
+      description: Record of a forced release for debt (agreement п. 5.2).
+      properties:
+        reason: {type: string}
+        note: {type: string}
+        police: {type: boolean}
+        costs: {type: integer, format: int64}
+        created_at: {type: string, format: date-time}
+    Rental:
+      type: object
+      properties:
+        id: {type: string}
+        storage_id: {type: string}
+        storage_number: {type: string}
+        user_id: {type: string}
+        user_name: {type: string}
+        user_phone: {type: string}
+        jk_id: {type: string}
+        months: {type: integer}
+        price_per_month: {type: integer, format: int64}
+        total_paid: {type: integer, format: int64}
+        starts_at: {type: string, format: date-time}
+        ends_at: {type: string, format: date-time}
+        status: {$ref: '#/components/schemas/RentalStatus'}
+        created_at: {type: string, format: date-time}
+        refund_due: {type: integer, format: int64, description: Set when the ОСИ cancels a paid rental.}
+        termination: {$ref: '#/components/schemas/Termination'}
+
+    PaymentStatus:
+      type: string
+      enum: [pending, success, failed]
+    Payment:
+      type: object
+      properties:
+        id: {type: string}
+        rental_id: {type: string}
+        user_id: {type: string}
+        amount: {type: integer, format: int64}
+        provider: {type: string}
+        status: {$ref: '#/components/schemas/PaymentStatus'}
+        created_at: {type: string, format: date-time}
+    PaymentResponse:
+      allOf:
+        - $ref: '#/components/schemas/Payment'
+        - type: object
+          properties:
+            user_name: {type: string}
+            storage_number: {type: string}
+            company_name: {type: string}
+    ApiPayWebhookEvent:
+      type: object
+      properties:
+        event: {type: string, examples: [invoice.status_changed]}
+        is_sandbox: {type: boolean}
+        invoice:
+          type: object
+          properties:
+            external_order_id: {type: [string, 'null'], description: Our payment id.}
+            status: {type: string, examples: [paid]}
+
+    RequestType:
+      type: string
+      enum: [tariff_recalc, early_termination, payment_refund]
+      description: |
+        `tariff_recalc` — tariff went down, tenant chooses extend or refund;
+        `early_termination` — tenant ends early and gets the unused part back;
+        `payment_refund` — Kaspi payment arrived after the room was taken.
+    RequestStatus:
+      type: string
+      enum: [awaiting_choice, open, done, rejected, superseded]
+      description: '`awaiting_choice` = waiting for the tenant; `open` = waiting for the ОСИ; `superseded` = replaced by a newer tariff change.'
+    TenantRequest:
+      type: object
+      description: A заявка.
+      properties:
+        id: {type: string}
+        jk_id: {type: string}
+        user_id: {type: string}
+        user_name: {type: string}
+        user_phone: {type: string}
+        rental_id: {type: string}
+        storage_number: {type: string}
+        type: {$ref: '#/components/schemas/RequestType'}
+        status: {$ref: '#/components/schemas/RequestStatus'}
+        amount: {type: integer, format: int64}
+        choice: {type: string, description: '`extend` | `refund` | empty'}
+        old_price: {type: integer, format: int64}
+        new_price: {type: integer, format: int64}
+        comment: {type: string}
+        resolution: {type: string}
+        created_at: {type: string, format: date-time}
+        resolved_at: {type: [string, 'null'], format: date-time}
+
+    Notification:
+      type: object
+      properties:
+        id: {type: string}
+        kind:
+          type: string
+          description: e.g. payment_success, rental_expiring, rental_overdue, debt_warning, tariff_changed, tariff_recalc, request_new, request_resolved, refund_pending, resident_new, account_status, rental_cancelled, transfer_new.
+        title: {type: string}
+        body: {type: string}
+        link: {type: string, description: "In-app route, e.g. /app/profile."}
+        read: {type: boolean}
+        created_at: {type: string, format: date-time}
+    ChannelStatus:
+      type: object
+      properties:
+        email: {type: boolean}
+        telegram: {type: boolean, description: Telegram linked.}
+        sms: {type: boolean}
+        whatsapp: {type: boolean}
+        telegram_available: {type: boolean, description: Bot configured on the server.}
+        email_address: {type: string}
+    TelegramUpdate:
+      type: object
+      description: Subset of a Telegram Update the server reads.
+      properties:
+        message:
+          type: object
+          properties:
+            chat:
+              type: object
+              properties:
+                id: {type: integer, format: int64}
+            text: {type: string, examples: ['/start abc123']}
+
+    ChargeStatus:
+      type: string
+      enum: [paid, overdue, ended]
+    Charge:
+      type: object
+      properties:
+        rental_id: {type: string}
+        storage_number: {type: string}
+        user_name: {type: string}
+        user_phone: {type: string}
+        company_name: {type: string}
+        months: {type: integer}
+        price_per_month: {type: integer, format: int64}
+        starts_at: {type: string, format: date-time}
+        ends_at: {type: string, format: date-time, description: Paid until.}
+        paid: {type: integer, format: int64}
+        overdue_days: {type: integer}
+        debt: {type: integer, format: int64}
+        accrued: {type: integer, format: int64, description: paid + debt}
+        status: {$ref: '#/components/schemas/ChargeStatus'}
+
+    DashboardPeriod:
+      type: string
+      enum: [7d, 30d, quarter]
+      default: 30d
+    DashboardStats:
+      type: object
+      properties:
+        received: {type: integer, format: int64, description: Net of refunds paid out in the period.}
+        received_change: {type: number}
+        refunded: {type: integer, format: int64}
+        debt: {type: integer, format: int64}
+        debt_apartments: {type: integer}
+        occupied_storages: {type: integer}
+        total_storages: {type: integer}
+        active_rentals: {type: integer}
+        new_rentals: {type: integer}
+    RevenuePoint:
+      type: object
+      properties:
+        date: {type: string, format: date}
+        amount: {type: integer, format: int64}
+    DashboardRevenue:
+      type: object
+      properties:
+        points:
+          type: array
+          items: {$ref: '#/components/schemas/RevenuePoint'}
+    DashboardAttention:
+      type: object
+      properties:
+        type: {type: string, enum: [rental_expiring, storage_locked, rental_overdue]}
+        rental_id: {type: string}
+        storage_id: {type: string}
+        storage_number: {type: string}
+        user_id: {type: string}
+        full_name: {type: string}
+        phone: {type: string}
+        ends_at: {type: string, format: date-time}
+        days_left: {type: integer}
+        days_overdue: {type: integer}
+        debt: {type: integer, format: int64}
+    DashboardActivity:
+      type: object
+      properties:
+        id: {type: string}
+        type: {type: string, enum: [payment, rental, expired]}
+        user_id: {type: string}
+        full_name: {type: string}
+        storage_number: {type: string}
+        amount: {type: integer, format: int64}
+        rental_id: {type: string}
+        created_at: {type: string, format: date-time}
+    DashboardOccupancy:
+      type: object
+      properties:
+        total: {type: integer}
+        free: {type: integer}
+        occupied: {type: integer}
+        locked: {type: integer}
+
+    Lead:
+      type: object
+      properties:
+        id: {type: integer, format: int64}
+        full_name: {type: string}
+        phone: {type: string}
+        email: {type: string}
+        created_at: {type: string, format: date-time}

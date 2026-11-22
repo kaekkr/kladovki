@@ -11,15 +11,16 @@ import { agreementBlocks } from '../../../core/utils/agreement-format';
   template: `
     <div class="flex items-center justify-between gap-3">
       @if (agreement(); as a) {
-        <p class="text-[10px] text-brand-subtle">Редакция от {{ a.version }}</p>
+        <p class="text-xs text-brand-subtle">Редакция от {{ a.version }}</p>
       } @else {
         <span></span>
       }
-      <div class="flex overflow-hidden rounded-md border border-brand-line text-[11px]">
+      <div class="flex overflow-hidden rounded-md border border-brand-line text-xs">
         @for (l of langs; track l.key) {
           <button
             type="button"
             (click)="lang.set(l.key)"
+            [attr.aria-pressed]="lang() === l.key"
             class="px-2.5 py-1 transition-colors"
             [class]="lang() === l.key ? 'bg-brand-accent/15 text-brand-accent' : 'text-brand-muted hover:text-brand-text'"
           >

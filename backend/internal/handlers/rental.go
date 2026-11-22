@@ -280,6 +280,14 @@ func (h *Handler) LockStorage(c *gin.Context) {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 			return
 		}
+		if errors.Is(err, repository.ErrHoldLimit) {
+			c.JSON(http.StatusConflict, gin.H{"error": "У вас уже есть неоплаченная бронь. Оплатите её или дождитесь окончания, чтобы забронировать другую кладовку."})
+			return
+		}
+		if errors.Is(err, repository.ErrPreviousTenantDebt) {
+			c.JSON(http.StatusConflict, gin.H{"error": service.ErrPreviousTenantDebt.Error()})
+			return
+		}
 		if errors.Is(err, repository.ErrStorageAlreadyLocked) {
 			c.JSON(http.StatusConflict, gin.H{
 				"error": "Кладовка уже занята или забронирована",
@@ -327,6 +335,10 @@ func (h *Handler) ConfirmPayment(c *gin.Context) {
 			return
 		}
 
+		if errors.Is(err, service.ErrNotApproved) {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
 		if errors.Is(err, service.ErrLocked) {
 			c.JSON(http.StatusConflict, gin.H{
 				"error": "Срок бронирования истёк",

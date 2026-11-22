@@ -10,6 +10,18 @@ import { SettingsService } from '../../../../../core/services/settings';
 import { LegalService } from '../../../../../core/services/legal';
 import { PaymentService } from '../../../../../core/services/payment';
 import { ConsentCheckbox } from '../../../../../shared/components/consent-checkbox/consent-checkbox';
+import { KaspiPhone } from '../../../../../shared/components/kaspi-phone/kaspi-phone';
+import { LoadError } from '../../../../../shared/components/load-error/load-error';
+import { AuthService } from '../../../../../core/auth/auth.service';
+import { formatPhone, normalizePhone, phoneProblem } from '../../../../../core/utils/phone';
+import { formatRuDate, formatTenge } from '../../../../../core/utils/date-format';
+import {
+  pendingTariffRefund,
+  rentalDebt,
+  rentalPeriodLabel,
+} from '../../../../../core/utils/rental-money';
+import { TariffChoice } from './tariff-choice';
+import { TransferSuccessor } from './transfer-successor';
 import { TenantRequest } from '../../../../../core/models/request';
 import { requestStatusLabel, requestTitle } from '../../../../../core/utils/request-display';
 import {
@@ -25,7 +37,7 @@ import {
 @Component({
   selector: 'app-client-rental-details',
   standalone: true,
-  imports: [RouterLink, ConsentCheckbox],
+  imports: [RouterLink, ConsentCheckbox, KaspiPhone, LoadError, TariffChoice, TransferSuccessor],
   templateUrl: './rental-details.html',
 })
 export class ClientRentalDetails implements OnDestroy {
@@ -40,6 +52,10 @@ export class ClientRentalDetails implements OnDestroy {
   private termsVersion = toSignal(inject(LegalService).version('resident_terms'), { initialValue: '' });
   payConsent = signal(false);
   renewConsent = signal(false);
+
+  /** Kaspi number for the invoice (booking and renewal): the profile phone, editable. */
+  kaspiPhone = signal(formatPhone(inject(AuthService).currentUser()?.phone ?? ''));
+  kaspiError = signal<string | null>(null);
 
   // Renewal (продление): pay for more months on an active rental.
   canRenew = canRenew;
@@ -78,11 +94,26 @@ export class ClientRentalDetails implements OnDestroy {
 
   loading = signal(true);
   error = signal(false);
+  /** 404 → «Аренда не найдена»; anything else → «Повторить». */
+  notFound = signal(false);
   rental = signal<Rental | null>(null);
-  transferIIN = signal('');
-  transferLoading = signal(false);
-  transferMessage = signal<string | null>(null);
-  transferError = signal<string | null>(null);
+
+  /** Refund the ОСИ still owes (server field; older servers: from the open request). */
+  refundDue = computed(() => {
+    const r = this.rental();
+    if (!r) return 0;
+    return r.refund_pending ?? pendingTariffRefund(r.id, this.requests());
+  });
+  /** The server keeps total_paid whole until the ОСИ confirms the refund. */
+  paidTotal = computed(() => this.rental()?.total_paid ?? 0);
+  periodLabel = computed(() => {
+    const r = this.rental();
+    return r ? rentalPeriodLabel(r.starts_at, this.displayEndsAt(r)) : '—';
+  });
+  debt = computed(() => {
+    const r = this.rental();
+    return r ? rentalDebt(r) : 0;
+  });
 
   paying = signal(false); // Теперь это состояние "Ожидание оплаты в Kaspi"
   paymentError = signal<string | null>(null);
@@ -115,21 +146,8 @@ export class ClientRentalDetails implements OnDestroy {
     }
   }
 
-  formatMoney(value: number): string {
-    return (
-      new Intl.NumberFormat('ru-RU', {
-        maximumFractionDigits: 0,
-      }).format(value) + ' ₸'
-    );
-  }
-
-  formatDate(value: string): string {
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    }).format(new Date(value));
-  }
+  formatMoney = formatTenge;
+  formatDate = formatRuDate;
 
   formatTime(seconds: number): string {
     const minutes = Math.floor(seconds / 60);
@@ -138,30 +156,11 @@ export class ClientRentalDetails implements OnDestroy {
     return `${String(minutes).padStart(2, '0')}:${String(remaining).padStart(2, '0')}`;
   }
 
-  setTransfer() {
-    const rental = this.rental();
-    const iin = this.transferIIN().trim();
-
-    if (!rental || !/^\d{12}$/.test(iin)) {
-      this.transferError.set('ИИН должен содержать 12 цифр');
-      return;
-    }
-
-    this.transferLoading.set(true);
-    this.transferError.set(null);
-    this.transferMessage.set(null);
-
-    this.storageService.setTransfer(rental.storage_id, iin).subscribe({
-      next: () => {
-        this.transferMessage.set('Новый владелец указан успешно');
-        this.transferIIN.set('');
-        this.transferLoading.set(false);
-      },
-      error: (err) => {
-        this.transferError.set(err.error?.error || 'Не удалось указать нового владельца');
-        this.transferLoading.set(false);
-      },
-    });
+  /** Canonical Kaspi number, or null with the problem shown under the field. */
+  private validKaspiPhone(): string | null {
+    const problem = phoneProblem(this.kaspiPhone());
+    this.kaspiError.set(problem);
+    return problem ? null : normalizePhone(this.kaspiPhone());
   }
 
   canPay(): boolean {
@@ -174,12 +173,18 @@ export class ClientRentalDetails implements OnDestroy {
     if (!currentRental || !this.canPay()) {
       return;
     }
+    const phone = this.validKaspiPhone();
+    if (!phone) return;
 
     this.paying.set(true);
     this.paymentError.set(null);
 
     this.rentalService
-      .createPayment({ rental_id: currentRental.id, accepted_terms_version: this.termsVersion() })
+      .createPayment({
+        rental_id: currentRental.id,
+        phone,
+        accepted_terms_version: this.termsVersion(),
+      })
       .subscribe({
         next: () => {
           // Счет успешно отправлен в Kaspi, запускаем опрос (поллинг) статуса
@@ -283,7 +288,7 @@ export class ClientRentalDetails implements OnDestroy {
     }
   }
 
-  private load(): void {
+  load(): void {
     const rentalId = this.route.snapshot.paramMap.get('id');
 
     if (!rentalId) {
@@ -294,6 +299,7 @@ export class ClientRentalDetails implements OnDestroy {
 
     this.loading.set(true);
     this.error.set(false);
+    this.notFound.set(false);
     this.paymentError.set(null);
 
     this.rentalService.getById(rentalId).subscribe({
@@ -310,10 +316,11 @@ export class ClientRentalDetails implements OnDestroy {
           this.remainingSeconds.set(0);
         }
       },
-      error: () => {
+      error: (err) => {
         this.rental.set(null);
         this.loading.set(false);
         this.error.set(true);
+        this.notFound.set(err?.status === 404 || err?.status === 403);
         this.stopTimer();
       },
     });
@@ -381,12 +388,14 @@ export class ClientRentalDetails implements OnDestroy {
   renew(): void {
     const rental = this.rental();
     if (!rental || this.renewing()) return;
+    const phone = this.validKaspiPhone();
+    if (!phone) return;
     const previousEnd = rental.ends_at;
     this.renewing.set(true);
     this.renewError.set(null);
     this.renewMessage.set(null);
 
-    this.rentalService.renew(rental.id, this.renewMonths(), this.termsVersion()).subscribe({
+    this.rentalService.renew(rental.id, this.renewMonths(), this.termsVersion(), phone).subscribe({
       next: () => this.pollRenewal(rental.id, previousEnd),
       error: (err) => {
         this.renewing.set(false);

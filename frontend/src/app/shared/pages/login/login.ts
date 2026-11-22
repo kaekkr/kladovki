@@ -1,10 +1,12 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { homeFor, safeReturnUrl } from '../../../core/auth/return-url';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { classifyLogin } from '../../../core/utils/login-input';
+import { isNativeApp } from '../../../core/auth/native-start.guard';
 
 /**
  * Step 1: resident enters IIN (OSI admin — email). Step 2: password.
@@ -26,6 +28,8 @@ export class Login {
   isLoading = signal<boolean>(false);
   showPassword = signal<boolean>(false);
   step = signal<'identify' | 'password'>('identify');
+  /** Android app: no links to the marketing site. */
+  readonly native = isNativeApp();
 
   /** JK from the OSI's QR link, carried to first-login registration. */
   private jk = this.route.snapshot.queryParamMap.get('jk') ?? '';
@@ -35,13 +39,24 @@ export class Login {
     password: [''],
   });
 
+  /** Set by the HTTP interceptor when a 401 sent the user back here. */
+  readonly sessionExpired = this.route.snapshot.queryParamMap.get('expired') === '1';
+
+  private loginValue = toSignal(this.form.controls.login.valueChanges, {
+    initialValue: this.form.controls.login.value,
+  });
+  /** Only residents (ИИН) get the «обратитесь в ОСИ» hint; the ОСИ themselves don't. */
+  isResidentLogin = computed(() => classifyLogin(this.loginValue()) === 'iin');
+
   constructor() {
     if (this.form.controls.login.value) {
       this.step.set('password');
     }
   }
 
-  changeLogin(): void {
+  /** Typing a different login goes back to step 1 (the IIN must be checked again). */
+  onLoginEdited(): void {
+    if (this.step() !== 'password') return;
     this.step.set('identify');
     this.form.controls.password.setValue('');
     this.errorMessage.set(null);
@@ -60,7 +75,7 @@ export class Login {
     const login = this.form.controls.login.value.trim();
     const kind = classifyLogin(login);
     if (kind === 'invalid') {
-      this.errorMessage.set('Введите ИИН (12 цифр) или email');
+      this.errorMessage.set('Введите ИИН (12 цифр), телефон или email');
       return;
     }
     if (kind !== 'iin') {

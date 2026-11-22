@@ -1,0 +1,37 @@
+<!doctype html>
+<!--
+  Kladovki API — Swagger UI for openapi.yaml (same folder).
+
+  Usage (the spec is fetched over HTTP, so file:// will not work):
+    cd docs && python3 -m http.server 8088
+  then open http://localhost:8088/swagger.html
+
+  "Try it out" calls the server selected in the Servers dropdown. Cookie auth only
+  works same-origin; for other origins use the bearerAuth scheme (Authorize button)
+  with a token from POST /auth/login sent with header X-Kladovki-Client: native.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kladovki API</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui.css">
+  <style>
+    body { margin: 0; background: #fafafa; }
+  </style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui-bundle.js" crossorigin="anonymous"></script>
+  <script>
+    window.ui = SwaggerUIBundle({
+      url: 'openapi.yaml',
+      dom_id: '#swagger-ui',
+      deepLinking: true,
+      docExpansion: 'none',
+      persistAuthorization: true,
+      withCredentials: true,
+    });
+  </script>
+</body>
+</html>

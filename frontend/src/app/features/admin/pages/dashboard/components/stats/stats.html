@@ -42,11 +42,7 @@
   @if (loading()) {
     <div class="h-32 bg-brand-surface border border-brand-line rounded-lg animate-pulse"></div>
   } @else if (error()) {
-    <div
-      class="p-5 bg-brand-surface border border-brand-line rounded-lg text-sm text-status-overdue"
-    >
-      Не удалось загрузить статистику.
-    </div>
+    <app-load-error message="Не удалось загрузить статистику." (retry)="loadStats()" />
   } @else if (stats(); as data) {
     <div
       class="grid grid-cols-2 lg:grid-cols-4 border border-brand-line rounded-lg overflow-hidden"

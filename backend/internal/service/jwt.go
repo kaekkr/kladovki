@@ -18,6 +18,8 @@ type Claims struct {
 	Role   string `json:"role"`
 	JKID   string `json:"jk_id,omitempty"`
 	Email  string `json:"email,omitempty"`
+	// TokenVersion must equal users.token_version (checked on every request).
+	TokenVersion int `json:"tv"`
 	jwt.RegisteredClaims
 }
 
@@ -35,7 +37,7 @@ func NewTokenService(secret string, ttl time.Duration) *TokenService {
 	}
 }
 
-func (ts *TokenService) Generate(userID, role, jkID, email string) (string, time.Time, error) {
+func (ts *TokenService) Generate(userID, role, jkID, email string, tokenVersion int) (string, time.Time, error) {
 	now := time.Now()
 	expiresAt := now.Add(ts.ttl)
 
@@ -44,6 +46,8 @@ func (ts *TokenService) Generate(userID, role, jkID, email string) (string, time
 		Role:   role,
 		JKID:   jkID,
 		Email:  email,
+
+		TokenVersion: tokenVersion,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(now),

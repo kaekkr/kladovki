@@ -47,7 +47,7 @@
     </select>
   </div>
 
-  @if (updateError()) {
+  @if (updateError() && !selectedStorage()) {
     <div
       class="flex items-start justify-between gap-3 rounded-lg border border-status-overdue/20 bg-status-overdue/10 px-4 py-3 text-sm text-status-overdue"
     >
@@ -71,11 +71,7 @@
 
   <!-- Error -->
   @else if (error()) {
-    <div
-      class="p-5 bg-brand-surface border border-brand-line rounded-lg text-sm text-status-overdue"
-    >
-      Не удалось загрузить список кладовых.
-    </div>
+    <app-load-error message="Не удалось загрузить список кладовок." (retry)="loadStorages()" />
   }
 
   <!-- Table -->
@@ -156,6 +152,7 @@
 
 <app-admin-storage-details-modal
   [storage]="selectedStorage()"
+  [error]="updateError()"
   (closed)="closeStorage()"
   (saved)="updateStorage($event)"
   (deleteRequested)="openDelete($event)"
@@ -247,6 +244,7 @@
 @if (createModalOpen()) {
   <app-admin-storage-create-modal
     [saving]="creating()"
+    [serverError]="createError()"
     (closed)="closeCreate()"
     (created)="createStorage($event)"
   />

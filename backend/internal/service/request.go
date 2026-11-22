@@ -19,6 +19,14 @@ func mapRepoErr(err error) error {
 		return ErrInvalid
 	case errors.Is(err, repository.ErrLocked):
 		return ErrLocked
+	case errors.Is(err, repository.ErrRefundNotRejectable):
+		return ErrRefundNotRejectable
+	case errors.Is(err, repository.ErrRenewalPending):
+		return ErrRenewalPending
+	case errors.Is(err, repository.ErrTerminationPending):
+		return ErrTerminationPending
+	case errors.Is(err, repository.ErrTariffChoicePending):
+		return ErrTariffChoicePending
 	}
 	return err
 }
@@ -39,13 +47,24 @@ func (s *Service) ChooseTariffOption(ctx context.Context, requestID, userID, cho
 	if choice != "extend" && choice != "refund" {
 		return ErrInvalid
 	}
-	return mapRepoErr(s.repo.ApplyTariffChoice(ctx, requestID, userID, choice))
+	if err := s.repo.ApplyTariffChoice(ctx, requestID, userID, choice); err != nil {
+		if errors.Is(err, repository.ErrTerminationPending) {
+			return ErrTariffChoiceTerminating
+		}
+		return mapRepoErr(err)
+	}
+	if choice == "refund" {
+		if q, err := s.repo.GetRequestByID(ctx, requestID); err == nil {
+			s.notifyTariffRefundRequest(ctx, q)
+		}
+	}
+	return nil
 }
 
 func (s *Service) RequestEarlyTermination(ctx context.Context, rentalID, userID, comment string) (*models.Request, error) {
 	comment = strings.TrimSpace(comment)
-	if len(comment) > 1000 {
-		comment = comment[:1000]
+	if r := []rune(comment); len(r) > 1000 { // by characters: bytes would split a letter
+		comment = string(r[:1000])
 	}
 	q, err := s.repo.CreateEarlyTermination(ctx, rentalID, userID, comment)
 	if err != nil {

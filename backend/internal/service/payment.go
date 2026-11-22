@@ -56,6 +56,9 @@ func (s *Service) CreatePaymentInvoice(ctx context.Context, in CreatePaymentInpu
 		return nil, ErrInvalid
 	}
 
+	if err := s.requireApproved(ctx, in.UserID); err != nil {
+		return nil, err
+	}
 	phone, err := s.kaspiPhone(ctx, in.UserID, in.Phone)
 	if err != nil {
 		return nil, err
@@ -162,6 +165,9 @@ func (s *Service) PrepareRenewal(ctx context.Context, in RenewRentalInput) (*mod
 		return nil, fmt.Errorf("service.PrepareRenewal tariff not set for jk %s: %v", st.JKID, err)
 	}
 	price := int64(math.Round(st.Area * float64(tariff)))
+	if _, err := rentalTotal(price, in.Months); err != nil {
+		return nil, err
+	}
 
 	payment, err := s.repo.PrepareRenewalPayment(ctx, in.RentalID, in.UserID, in.Months, price)
 	switch {
@@ -171,6 +177,10 @@ func (s *Service) PrepareRenewal(ctx context.Context, in RenewRentalInput) (*mod
 		return nil, ErrLocked
 	case errors.Is(err, repository.ErrTransferPending):
 		return nil, ErrTransferPending
+	case errors.Is(err, repository.ErrTerminationPending):
+		return nil, ErrTerminationPending
+	case errors.Is(err, repository.ErrRenewalInvoicePending):
+		return nil, ErrRenewalInvoicePending
 	}
 	return payment, err
 }
@@ -179,6 +189,9 @@ func (s *Service) PrepareRenewal(ctx context.Context, in RenewRentalInput) (*mod
 func (s *Service) CreateRenewalInvoice(ctx context.Context, in RenewRentalInput, apipayKey, apipayBaseURL string) (*models.Payment, error) {
 	if in.Months < 1 || in.Months > MaxRentalMonths {
 		return nil, ErrInvalid
+	}
+	if err := s.requireApproved(ctx, in.UserID); err != nil {
+		return nil, err
 	}
 	phone, err := s.kaspiPhone(ctx, in.UserID, in.Phone)
 	if err != nil {
@@ -246,6 +259,10 @@ func formatPhoneNumber(phone string) string {
 func (s *Service) PayWithoutKaspi(ctx context.Context, rentalID, userID string) (*models.Payment, error) {
 	if rentalID == "" || userID == "" {
 		return nil, ErrInvalid
+	}
+	// Same rule as real payments: only accounts the ОСИ approved may pay.
+	if err := s.requireApproved(ctx, userID); err != nil {
+		return nil, err
 	}
 	payment, err := s.repo.PreparePayment(ctx, rentalID, userID, PaymentWindow)
 	switch {

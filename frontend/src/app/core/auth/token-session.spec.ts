@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { attachesToken, usesTokenAuth } from './token-session';
+import { attachesToken, rotatedToken, usesTokenAuth } from './token-session';
 
 describe('token session (mobile app)', () => {
   const api = 'https://kladovki.onrender.com/api/v1';
@@ -15,5 +15,12 @@ describe('token session (mobile app)', () => {
     expect(attachesToken(`${api}/rentals/my`, api)).toBe(true);
     expect(attachesToken('https://api.qrserver.com/v1/create-qr-code/', api)).toBe(false);
     expect(attachesToken('https://kladovki.onrender.com.evil.kz/api/v1/x', api)).toBe(false);
+  });
+
+  // A password change revokes every session; the server hands the app a new token.
+  it('keeps the fresh token after a password change only in the mobile app', () => {
+    expect(rotatedToken({ access_token: 'new' }, true)).toBe('new');
+    expect(rotatedToken({ access_token: 'new' }, false)).toBeNull();
+    expect(rotatedToken({}, true)).toBeNull();
   });
 });

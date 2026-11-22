@@ -84,6 +84,8 @@ func (h *Handler) CreatePayment(c *gin.Context) {
 		case err == nil:
 			h.recordConsent(c, userID, legal.ResidentTerms, "payment", req.RentalID)
 			c.JSON(http.StatusOK, gin.H{"message": "Тестовая оплата: аренда активирована", "amount": payment.Amount, "test_payment": true})
+		case errors.Is(err, service.ErrNotApproved):
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		case errors.Is(err, service.ErrNotFound):
 			c.JSON(http.StatusNotFound, gin.H{"error": "Аренда не найдена"})
 		case errors.Is(err, service.ErrPaymentPending):
@@ -103,6 +105,8 @@ func (h *Handler) CreatePayment(c *gin.Context) {
 		switch {
 		case errors.Is(err, service.ErrNotFound):
 			c.JSON(http.StatusNotFound, gin.H{"error": "Аренда не найдена"})
+		case errors.Is(err, service.ErrNotApproved):
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		case errors.Is(err, service.ErrPaymentPending):
 			c.JSON(http.StatusConflict, gin.H{"error": "Счёт уже отправлен в Kaspi. Подтвердите оплату в приложении Kaspi."})
 		case errors.Is(err, service.ErrLocked):
@@ -237,6 +241,8 @@ func (h *Handler) RenewRental(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Продлить можно только оплаченную аренду"})
 		case errors.Is(err, service.ErrNotApproved):
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		case errors.Is(err, service.ErrTerminationPending), errors.Is(err, service.ErrRenewalInvoicePending):
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		case errors.Is(err, service.ErrTransferPending):
 			c.JSON(http.StatusConflict, gin.H{"error": "Кладовка передаётся новому владельцу — продление недоступно"})
 		case errors.Is(err, service.ErrInvalid):

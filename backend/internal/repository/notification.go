@@ -141,8 +141,8 @@ func (r *Repo) FinishDelivery(ctx context.Context, id string, sendErr error, ski
 		return err
 	default:
 		msg := sendErr.Error()
-		if len(msg) > 500 {
-			msg = msg[:500]
+		if r := []rune(msg); len(r) > 500 { // by characters: a cut letter is invalid UTF-8 for Postgres
+			msg = string(r[:500])
 		}
 		_, err := r.db.ExecContext(ctx, `
 			UPDATE notification_deliveries

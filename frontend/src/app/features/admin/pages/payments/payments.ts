@@ -1,3 +1,4 @@
+import { LoadError } from '../../../../shared/components/load-error/load-error';
 import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe, UpperCasePipe } from '@angular/common';
 import { AuthService } from '../../../../core/auth/auth.service';
@@ -8,7 +9,7 @@ import { ReportService } from '../../../../core/services/report';
 @Component({
   selector: 'app-admin-payments',
   standalone: true,
-  imports: [DatePipe, UpperCasePipe],
+  imports: [LoadError, DatePipe, UpperCasePipe],
   templateUrl: './payments.html',
 })
 export class AdminPayments {

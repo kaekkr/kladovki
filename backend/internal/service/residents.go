@@ -26,11 +26,15 @@ var (
 
 // normalizeVerification validates what a user declares about their property.
 func normalizeVerification(v models.Verification) (models.Verification, error) {
+	if !cleanText(v.OwnerType, v.PremisesKind, v.PremisesNumber, v.CompanyBIN, v.CompanyName, v.PremisesCadastral) {
+		return v, ErrInvalidText
+	}
 	v.OwnerType = strings.TrimSpace(v.OwnerType)
 	v.PremisesKind = strings.TrimSpace(v.PremisesKind)
 	v.PremisesNumber = strings.TrimSpace(v.PremisesNumber)
 	v.CompanyBIN = strings.TrimSpace(v.CompanyBIN)
 	v.CompanyName = strings.TrimSpace(v.CompanyName)
+	v.PremisesCadastral = strings.TrimSpace(v.PremisesCadastral)
 
 	if v.OwnerType == "" {
 		v.OwnerType = models.OwnerPerson
@@ -60,16 +64,38 @@ func normalizeVerification(v models.Verification) (models.Verification, error) {
 	return v, nil
 }
 
-// requireApproved blocks booking and renewal for users the ОСИ has not confirmed.
+// approvalError is a status-specific variant of ErrNotApproved: errors.Is(err,
+// ErrNotApproved) holds for all of them, and Error() is the message to show.
+type approvalError struct{ msg string }
+
+func (e approvalError) Error() string        { return e.msg }
+func (e approvalError) Is(target error) bool { return target == ErrNotApproved }
+
+var (
+	ErrAccountRejected = approvalError{"ОСИ отклонил подтверждение аккаунта. Исправьте данные в профиле и отправьте их повторно — после проверки бронирование и оплата станут доступны."}
+	ErrAccountBlocked  = approvalError{"Аккаунт заблокирован ОСИ. Бронирование, продление и оплата недоступны — обратитесь в ОСИ."}
+)
+
+// requireApproved blocks booking, payment and renewal for users the ОСИ has
+// not confirmed (pending), rejected or blocked.
 func (s *Service) requireApproved(ctx context.Context, userID string) error {
 	u, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {
 		return err
 	}
-	if u.Role == models.RoleResident && u.Status != models.UserActive {
+	if u.Role != models.RoleResident {
+		return nil
+	}
+	switch u.Status {
+	case models.UserActive:
+		return nil
+	case models.UserRejected:
+		return ErrAccountRejected
+	case models.UserBlocked:
+		return ErrAccountBlocked
+	default:
 		return ErrNotApproved
 	}
-	return nil
 }
 
 func (s *Service) ListResidents(ctx context.Context, jkID, status string) ([]*models.User, error) {
@@ -130,8 +156,21 @@ func (s *Service) ReviewResident(ctx context.Context, jkID, adminID, userID, act
 }
 
 // ResubmitVerification lets a pending or rejected user correct their data and ask again.
-func (s *Service) ResubmitVerification(ctx context.Context, userID string, v models.Verification) error {
-	v, err := normalizeVerification(v)
+func (s *Service) ResubmitVerification(ctx context.Context, userID string, declared models.Verification) error {
+	declared, cadastralJK, err := s.resolvePremises(ctx, declared)
+	if err != nil {
+		return err
+	}
+	if cadastralJK != "" {
+		u, err := s.repo.GetUserByID(ctx, userID)
+		if err != nil {
+			return err
+		}
+		if u.JKID == nil || *u.JKID != cadastralJK {
+			return ErrCadastralOtherJK
+		}
+	}
+	v, err := normalizeVerification(declared)
 	if err != nil {
 		return err
 	}

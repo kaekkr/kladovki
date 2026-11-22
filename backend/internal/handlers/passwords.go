@@ -26,13 +26,33 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	err := h.svc.ChangePassword(c.Request.Context(), middleware.UserID(c), req.CurrentPassword, req.NewPassword)
 	switch {
 	case err == nil:
-		c.JSON(http.StatusOK, gin.H{"message": "Пароль изменён"})
-	case errors.Is(err, service.ErrWrongPassword), errors.Is(err, service.ErrWeakPassword):
+		h.freshSessionAfterPasswordChange(c)
+	case errors.Is(err, service.ErrWrongPassword), errors.Is(err, service.ErrWeakPassword),
+		errors.Is(err, service.ErrPasswordTooLong):
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	default:
 		log.Printf("ChangePassword: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось изменить пароль"})
 	}
+}
+
+// freshSessionAfterPasswordChange: the change revoked every session (other
+// devices are logged out); the caller gets a new cookie, and the mobile app
+// (X-Kladovki-Client: native) a new access_token, so it stays logged in.
+func (h *Handler) freshSessionAfterPasswordChange(c *gin.Context) {
+	out := gin.H{"message": "Пароль изменён"}
+	user, err := h.svc.Me(c.Request.Context(), middleware.UserID(c))
+	if err == nil {
+		var token string
+		if token, err = h.issueToken(c, user); err == nil && c.GetHeader("X-Kladovki-Client") == "native" {
+			out["access_token"] = token
+		}
+	}
+	if err != nil {
+		// The password did change; the user just has to log in again.
+		log.Printf("ChangePassword: new session: %v", err)
+	}
+	c.JSON(http.StatusOK, out)
 }
 
 // ResetResidentPassword: POST /residents/:id/reset-password (ОСИ, own ЖК).
@@ -46,5 +66,40 @@ func (h *Handler) ResetResidentPassword(c *gin.Context) {
 	default:
 		log.Printf("ResetResidentPassword: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось сбросить пароль"})
+	}
+}
+
+type updatePhoneRequest struct {
+	Phone           string `json:"phone"`
+	CurrentPassword string `json:"current_password"`
+}
+
+// UpdatePhone: PUT /me/phone — the user's own phone, where Kaspi invoices go.
+// The current password is required, so a stolen session can't redirect invoices.
+func (h *Handler) UpdatePhone(c *gin.Context) {
+	var req updatePhoneRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.Phone == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": service.ErrInvalidPhone.Error()})
+		return
+	}
+	if req.CurrentPassword == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Укажите текущий пароль"})
+		return
+	}
+	phone, err := h.svc.UpdatePhone(c.Request.Context(), middleware.UserID(c), req.CurrentPassword, req.Phone)
+	switch {
+	case err == nil:
+		c.JSON(http.StatusOK, gin.H{"phone": phone, "message": "Номер телефона сохранён"})
+	case errors.Is(err, service.ErrWrongPassword):
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+	case errors.Is(err, service.ErrInvalidPhone):
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	case errors.Is(err, service.ErrPhoneTaken):
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	case errors.Is(err, service.ErrNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": "Пользователь не найден"})
+	default:
+		log.Printf("UpdatePhone: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось сохранить номер"})
 	}
 }

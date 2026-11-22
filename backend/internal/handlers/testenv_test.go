@@ -69,8 +69,9 @@ type testEnv struct {
 
 func newTestEnv(t *testing.T) *testEnv { return newTestEnvWith(t, nil) }
 
-// newTestEnvWith lets a test adjust the server config (e.g. FakePayments).
-func newTestEnvWith(t *testing.T, adjust func(*config.Config)) *testEnv {
+// newTestEnvWith lets a test change the config (e.g. turn rate limits or FakePayments on).
+// The default test config has every rate limit disabled.
+func newTestEnvWith(t *testing.T, tweak func(*config.Config)) *testEnv {
 	t.Helper()
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
@@ -108,9 +109,8 @@ func newTestEnvWith(t *testing.T, adjust func(*config.Config)) *testEnv {
 		ApiPayWebhookSecret: webhookSecret,
 		ApiPayLive:          true,
 	}
-
-	if adjust != nil {
-		adjust(&cfg)
+	if tweak != nil {
+		tweak(&cfg)
 	}
 
 	tg := newFakeTelegram(t)
@@ -124,7 +124,7 @@ func newTestEnvWith(t *testing.T, adjust func(*config.Config)) *testEnv {
 	})
 	tokens := service.NewTokenService(cfg.JWTSecret, cfg.JWTAccessTTL)
 	r := gin.New()
-	New(svc, tokens, cfg, middleware.NewAuth(tokens, cfg)).Register(r)
+	New(svc, tokens, cfg, middleware.NewAuth(tokens, cfg, svc)).Register(r)
 
 	env := &testEnv{t: t, db: db, router: r, tokens: tokens, apipay: fake, cfg: cfg, svc: svc, telegram: tg}
 	env.seed()
@@ -190,10 +190,11 @@ func (e *testEnv) seed() {
 
 func (e *testEnv) token(userID string) string {
 	var role, jk string
-	if err := e.db.QueryRow(`SELECT role, COALESCE(jk_id,'') FROM users WHERE id=$1`, userID).Scan(&role, &jk); err != nil {
+	var version int
+	if err := e.db.QueryRow(`SELECT role, COALESCE(jk_id,''), token_version FROM users WHERE id=$1`, userID).Scan(&role, &jk, &version); err != nil {
 		e.t.Fatalf("token lookup: %v", err)
 	}
-	tok, _, err := e.tokens.Generate(userID, role, jk, userID+"@x.kz")
+	tok, _, err := e.tokens.Generate(userID, role, jk, userID+"@x.kz", version)
 	if err != nil {
 		e.t.Fatalf("token: %v", err)
 	}

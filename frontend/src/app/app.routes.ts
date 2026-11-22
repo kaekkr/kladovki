@@ -1,9 +1,12 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/auth/auth.guard';
+import { nativeStartGuard } from './core/auth/native-start.guard';
 
 export const routes: Routes = [
   {
     path: '',
+    pathMatch: 'full',
+    canActivate: [nativeStartGuard],
     loadChildren: () => import('./features/landing/landing.routes').then((m) => m.LANDING_ROUTES),
   },
   {
@@ -23,6 +26,13 @@ export const routes: Routes = [
     canActivate: [authGuard],
     data: { role: 'admin' },
     loadChildren: () => import('./features/admin/admin.routes').then((m) => m.ADMIN_ROUTES),
+  },
+  {
+    path: 'platform',
+    canActivate: [authGuard],
+    data: { role: 'superadmin' },
+    loadChildren: () =>
+      import('./features/platform/platform.routes').then((m) => m.PLATFORM_ROUTES),
   },
   {
     path: 'app',

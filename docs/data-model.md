@@ -10,14 +10,14 @@ IDs are UUID strings (`VARCHAR(36)`). Money is `BIGINT` whole tenge. Times are `
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| `jks` | Residential complexes | `name`, `address`, `owner_id → users`, `lock_minutes` (booking hold, default 2) |
-| `users` | Residents and ОСИ admins | `phone` UNIQUE, `iin` UNIQUE (when set), `email`, `password_hash` (bcrypt), `role` (`user_role`), `jk_id → jks`, `telegram_chat_id`, `status` (`pending`/`active`/`rejected`/`blocked`), `owner_type` (`person`/`company`), `premises_kind` (`flat`/`commercial`), `premises_number`, `company_bin`, `company_name`, `review_comment`, `reviewed_by`, `reviewed_at` |
+| `jks` | Residential complexes | `name`, `address`, `owner_id → users`, `lock_minutes` (booking hold, default 2), `cadastral_number` (e.g. `21:319:021:848:8`, unique when set) |
+| `users` | Residents, ОСИ admins and platform operators | `phone` UNIQUE, `iin` UNIQUE (when set), `email`, `password_hash` (bcrypt), `role` (`user_role`: `resident`/`admin`/`superadmin`), `premises_cadastral` (e.g. `…:ВП-2`), `must_change_password`, `jk_id → jks`, `telegram_chat_id`, `status` (`pending`/`active`/`rejected`/`blocked`), `owner_type` (`person`/`company`), `premises_kind` (`flat`/`commercial`), `premises_number`, `company_bin`, `company_name`, `review_comment`, `reviewed_by`, `reviewed_at` |
 | `storages` | Storage rooms | `jk_id`, `number` (unique per ЖК, case/space-insensitive), `area`, `floor`, `entrance`, `status` (`storage_status`), `locked_until`, `transfer_to_iin`, `transfer_until` |
 | `tariffs` | Current price per ЖК, **₸ per m² per month** | `jk_id`, `amount`, `updated_at` |
 | `tariff_history` | Every tariff change | `jk_id`, `amount`, `changed_at` |
 | `rentals` | One rental of one storage room | `storage_id`, `user_id`, `jk_id`, `months`, `price_per_month`, `total_paid`, `starts_at`, `ends_at`, `status` (`rental_status`) |
 | `payments` | Kaspi invoices | `rental_id`, `user_id`, `amount`, `provider` (`apipay`), `status` (`payment_status`), `kind` (`booking`/`renewal`), `months` (renewal length). `id` is sent to ApiPay as `external_order_id` |
-| `requests` | Заявки | `type`, `status`, `amount`, `choice`, `old_price`, `new_price`, `comment`, `resolution`, `resolved_at`, `resolved_by`, `rental_id`, `user_id`, `jk_id` |
+| `requests` | Заявки | `type`, `status`, `amount`, `choice`, `old_price`, `new_price`, `comment`, `resolution`, `resolved_at`, `resolved_by`, `rental_id`, `user_id`, `jk_id`, `refund_deducted` (tariff refund already taken off `total_paid`: legacy rows, see domain.md) |
 | `notifications` | In-app inbox | `user_id`, `kind`, `title`, `body`, `link`, `dedupe_key` (unique per user), `read_at` |
 | `notification_deliveries` | Outbox: one row per notification × channel | `channel`, `status` (`pending`/`sent`/`failed`/`skipped`), `attempts`, `next_attempt_at`, `last_error`, `sent_at` |
 | `telegram_link_tokens` | One-time tokens for linking a Telegram chat (1 day) | `token`, `user_id` |

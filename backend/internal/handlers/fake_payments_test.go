@@ -48,3 +48,18 @@ func TestFakePaymentsActivateWithoutKaspi(t *testing.T) {
 		t.Fatalf("no consent: %d", r.Code)
 	}
 }
+
+// Stage fake payments follow the same approval rule as real ones (QA 2026-11-22).
+func TestFakePaymentsRefusedForBlockedUser(t *testing.T) {
+	e := newTestEnvWith(t, func(c *config.Config) { c.FakePayments = true })
+	id := e.lockAs(e.resident, e.storageA, 1)
+	e.exec(`UPDATE users SET status = 'blocked' WHERE id = $1`, e.resident)
+
+	r := e.do(http.MethodPost, "/payments", e.resident, map[string]any{"rental_id": id, "accepted_terms_version": termsV})
+	if r.Code != http.StatusForbidden {
+		t.Fatalf("blocked user fake-pay: want 403, got %d %s", r.Code, r.Body)
+	}
+	if s := e.rentalState(id); s.Status == "active" {
+		t.Fatalf("rental must not be activated: %+v", s)
+	}
+}

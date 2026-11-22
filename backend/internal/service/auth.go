@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
+	"unicode/utf8"
+
+	"github.com/google/uuid"
 
 	"github.com/kaekkr/kladovki/internal/models"
 	"github.com/kaekkr/kladovki/internal/repository"
@@ -56,29 +60,52 @@ func (s *Service) IINRegistered(ctx context.Context, iin string) (bool, error) {
 	return s.repo.IINRegistered(ctx, iin)
 }
 
+// validateRegistration checks the typed fields (all answered with 400) and
+// returns the trimmed name, ИИН and canonical phone.
+func validateRegistration(in RegisterInput) (fullName, iin, phone string, err error) {
+	v := in.Verification
+	if !cleanText(in.FullName, in.Phone, in.IIN, in.Password, v.OwnerType, v.PremisesKind,
+		v.PremisesNumber, v.CompanyBIN, v.CompanyName, v.PremisesCadastral) {
+		return "", "", "", ErrInvalidText
+	}
+	fullName = strings.TrimSpace(in.FullName)
+	iin = strings.TrimSpace(in.IIN)
+	switch {
+	case !ValidIIN(iin):
+		return "", "", "", ErrInvalidIIN
+	case fullName == "" || strings.TrimSpace(in.Phone) == "":
+		return "", "", "", ErrMissingFields
+	case utf8.RuneCountInString(fullName) > maxNameLen:
+		return "", "", "", ErrNameTooLong
+	}
+	phone, ok := NormalizePhone(in.Phone)
+	if !ok {
+		return "", "", "", ErrInvalidPhone
+	}
+	if err := checkPassword(in.Password); err != nil {
+		return "", "", "", err
+	}
+	return fullName, iin, phone, nil
+}
+
 // Register creates a resident on first login. The JK comes from the OSI's
 // QR link; when the system has exactly one JK it is used automatically.
 func (s *Service) Register(ctx context.Context, in RegisterInput) (*models.User, error) {
-	fullName := strings.TrimSpace(in.FullName)
-	phone := strings.TrimSpace(in.Phone)
-	iin := strings.TrimSpace(in.IIN)
+	fullName, iin, phone, err := validateRegistration(in)
+	if err != nil {
+		return nil, err
+	}
 	password := in.Password
-
-	if !ValidIIN(iin) {
-		return nil, ErrInvalidIIN
+	declared, cadastralJK, err := s.resolvePremises(ctx, in.Verification)
+	if err != nil {
+		return nil, err
 	}
-	if fullName == "" || phone == "" {
-		return nil, ErrMissingFields
-	}
-	if len([]rune(password)) < minPasswordLen {
-		return nil, ErrWeakPassword
-	}
-	verification, err := normalizeVerification(in.Verification)
+	verification, err := normalizeVerification(declared)
 	if err != nil {
 		return nil, err
 	}
 
-	jkID, err := s.resolveRegistrationJK(ctx, in.JKID)
+	jkID, err := s.registrationJK(ctx, in.JKID, cadastralJK)
 	if err != nil {
 		return nil, err
 	}
@@ -113,12 +140,26 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (*models.User,
 		PremisesNumber: verification.PremisesNumber,
 		CompanyBIN:     verification.CompanyBIN,
 		CompanyName:    verification.CompanyName,
+
+		PremisesCadastral: verification.PremisesCadastral,
 	}
 	if err := s.repo.CreateUser(ctx, user); err != nil {
 		return nil, err
 	}
 	s.notifyResidentNew(ctx, user)
 	return user, nil
+}
+
+// registrationJK: the ЖК of the premises cadastral number wins; an old QR link
+// (jk_id) must agree with it. Without a cadastral number the QR / single-ЖК rule applies.
+func (s *Service) registrationJK(ctx context.Context, requested *string, cadastralJK string) (string, error) {
+	if cadastralJK == "" {
+		return s.resolveRegistrationJK(ctx, requested)
+	}
+	if requested != nil && strings.TrimSpace(*requested) != "" && strings.TrimSpace(*requested) != cadastralJK {
+		return "", ErrCadastralOtherJK
+	}
+	return cadastralJK, nil
 }
 
 func (s *Service) resolveRegistrationJK(ctx context.Context, requested *string) (string, error) {
@@ -150,6 +191,9 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*models.User, error
 	user, err := s.GetUserByLogin(ctx, login)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
+			// Same bcrypt cost as a real check, so response time doesn't tell
+			// whether an ИИН / phone / email is registered.
+			CheckPassword(dummyHash(), password)
 			return nil, ErrInvalidCredentials
 		}
 		return nil, err
@@ -180,6 +224,15 @@ func (s *Service) Me(ctx context.Context, userID string) (*models.User, error) {
 }
 
 // ---------- Password Helpers ----------
+
+// dummyHash is a bcrypt hash of a random value, computed once.
+var dummyHash = sync.OnceValue(func() string {
+	h, err := HashPassword(uuid.NewString())
+	if err != nil {
+		return "$2a$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinv"
+	}
+	return h
+})
 
 func HashPassword(pw string) (string, error) {
 	b, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)

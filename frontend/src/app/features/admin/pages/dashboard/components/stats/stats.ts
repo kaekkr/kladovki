@@ -1,8 +1,10 @@
+import { LoadError } from '../../../../../../shared/components/load-error/load-error';
 import { Component, computed, inject, signal } from '@angular/core';
 import { DashboardService } from '../../../../../../core/services/dashboard';
 import { DashboardPeriod, DashboardStats } from '../../../../../../core/models/dashboard';
 
 @Component({
+  imports: [LoadError],
   selector: 'app-admin-stats',
   standalone: true,
   templateUrl: './stats.html',
@@ -43,7 +45,7 @@ export class AdminStats {
     this.loadStats();
   }
 
-  private loadStats(): void {
+  loadStats(): void {
     this.loading.set(true);
     this.error.set(false);
 

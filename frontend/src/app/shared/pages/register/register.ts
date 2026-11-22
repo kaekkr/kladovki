@@ -1,11 +1,20 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
-import { OwnerType, PremisesKind, RegisterPayload } from '../../../core/auth/auth.models';
+import { OwnerType, RegisterPayload } from '../../../core/auth/auth.models';
 import { passwordsProblem } from '../../../core/utils/login-input';
+import { normalizePhone, phoneProblem } from '../../../core/utils/phone';
 import { verificationProblem } from '../../../core/utils/resident-display';
+import {
+  CADASTRAL_EXAMPLE,
+  CADASTRAL_HINT,
+  CADASTRAL_PROBLEM,
+  parsePremisesCadastral,
+  premisesFields,
+  premisesPlaceLabel,
+} from '../../../core/utils/cadastral';
 import { LegalService } from '../../../core/services/legal';
 import { ConsentCheckbox } from '../../components/consent-checkbox/consent-checkbox';
 
@@ -30,8 +39,12 @@ export class Register {
 
   // Property in this ЖК — only owners may rent; the ОСИ checks it.
   ownerType = signal<OwnerType>('person');
-  premisesKind = signal<PremisesKind>('flat');
-  premisesNumber = signal('');
+  /** Premises cadastral number: the server finds the ЖК from it (no QR needed). */
+  cadastral = signal('');
+  premises = computed(() => parsePremisesCadastral(this.cadastral()));
+  readonly cadastralExample = CADASTRAL_EXAMPLE;
+  readonly cadastralHint = CADASTRAL_HINT;
+  placeLabel = premisesPlaceLabel;
   companyBin = signal('');
   companyName = signal('');
   iin = signal(this.route.snapshot.queryParamMap.get('iin') ?? '');
@@ -42,6 +55,15 @@ export class Register {
   loading = signal(false);
   errorMessage = signal('');
 
+  /** The error sits next to the submit button; bring it into view on a phone. */
+  private errorBox = viewChild<ElementRef<HTMLElement>>('errorBox');
+  private revealError = effect(() => {
+    const el = this.errorBox()?.nativeElement;
+    if (!this.errorMessage() || !el) return;
+    el.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    el.focus({ preventScroll: true });
+  });
+
   /** Version of the agreement shown in the checkbox — sent as proof of consent. */
   private termsVersion = toSignal(inject(LegalService).version('resident_terms'), { initialValue: '' });
 
@@ -50,23 +72,28 @@ export class Register {
 
   setOwnerType(t: OwnerType): void {
     this.ownerType.set(t);
-    if (t === 'company') this.premisesKind.set('commercial');
   }
 
   private property() {
     const company = this.ownerType() === 'company';
+    const premises = this.premises();
     return {
       owner_type: this.ownerType(),
-      premises_kind: this.premisesKind(),
-      premises_number: this.premisesNumber().trim(),
+      ...(premises ? premisesFields(premises) : { premises_kind: 'flat' as const, premises_number: '' }),
       company_bin: company ? this.companyBin().trim() : undefined,
       company_name: company ? this.companyName().trim() : undefined,
     };
   }
 
   register(): void {
-    if (!this.fullName().trim() || !this.phone().trim()) {
-      this.errorMessage.set('Заполните ФИО и номер телефона');
+    if (!this.fullName().trim()) {
+      this.errorMessage.set('Заполните ФИО');
+      return;
+    }
+
+    const phoneIssue = phoneProblem(this.phone());
+    if (phoneIssue) {
+      this.errorMessage.set(phoneIssue);
       return;
     }
 
@@ -81,6 +108,10 @@ export class Register {
       return;
     }
 
+    if (!this.premises()) {
+      this.errorMessage.set(CADASTRAL_PROBLEM);
+      return;
+    }
     const property = this.property();
     const propertyProblem = verificationProblem(property);
     if (propertyProblem) {
@@ -97,8 +128,8 @@ export class Register {
     this.errorMessage.set('');
 
     const payload: RegisterPayload = {
-      full_name: this.fullName(),
-      phone: this.phone(),
+      full_name: this.fullName().trim(),
+      phone: normalizePhone(this.phone()) ?? this.phone(),
       password: this.password(),
       jk_id: this.jkId() || undefined,
       iin: this.iin(),

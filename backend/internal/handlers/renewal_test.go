@@ -148,8 +148,8 @@ func TestLockDurationSetting(t *testing.T) {
 		LockMinutes int `json:"lock_duration_minutes"`
 	}
 	e.do(http.MethodGet, path, e.resident, nil).json(t, &s)
-	if s.LockMinutes != 2 {
-		t.Fatalf("default = %d, want 2", s.LockMinutes)
+	if s.LockMinutes != 5 { // new ЖК default since 2026-11-22 (was 2)
+		t.Fatalf("default = %d, want 5", s.LockMinutes)
 	}
 	if r := e.do(http.MethodPut, path, e.resident, map[string]any{"lock_duration_minutes": 5}); r.Code != http.StatusForbidden {
 		t.Fatalf("resident: %d", r.Code)

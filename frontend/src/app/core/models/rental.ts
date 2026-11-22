@@ -15,6 +15,8 @@ export interface Rental {
   months: number;
   price_per_month: number;
   total_paid: number;
+  /** Money the ОСИ still has to return (tariff refund chosen, not yet paid back). total_paid is not reduced until then. */
+  refund_pending?: number;
 
   starts_at: string;
   ends_at: string;
