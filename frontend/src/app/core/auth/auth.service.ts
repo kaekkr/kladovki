@@ -14,7 +14,9 @@ export class AuthService {
 
   /** Mobile app (API on another origin): ask for a bearer token, see token-session.ts. */
   private tokenMode = usesTokenAuth(this.baseUrl, window.location.origin);
-  private sessionHeaders = this.tokenMode ? new HttpHeaders({ 'X-Kladovki-Client': 'native' }) : undefined;
+  private sessionHeaders = this.tokenMode
+    ? new HttpHeaders({ 'X-Kladovki-Client': 'native' })
+    : undefined;
 
   /** Keeps the token (mobile app only) and stores the user without it. */
   private startSession = (user: User & { access_token?: string }) => {

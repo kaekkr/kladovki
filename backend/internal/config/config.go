@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -32,6 +33,38 @@ type Config struct {
 	// RateLimits: the zero value disables every limit (tests rely on that);
 	// Load() fills in DefaultRateLimits().
 	RateLimits RateLimits
+
+	// AppBaseURL (APP_BASE_URL) is the site's public URL; its origin is allowed by CORS.
+	AppBaseURL string
+	// CORSOrigins (CORS_ORIGINS, comma-separated) are extra exact origins.
+	CORSOrigins []string
+	// TrustedProxies: CIDRs/IPs whose X-Forwarded-For is believed for c.ClientIP().
+	// Empty = trust no proxy (ClientIP is the TCP peer). See resolveTrustedProxies.
+	TrustedProxies []string
+}
+
+// privateNetworks are the ranges a platform load balancer (Render) reaches the app from.
+var privateNetworks = []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "::1/128", "fc00::/7"}
+
+// resolveTrustedProxies: TRUSTED_PROXIES (comma-separated CIDRs/IPs), plus the
+// private ranges when TRUST_RENDER_PROXY=true. Nothing set → trust nobody.
+func resolveTrustedProxies(list string, trustRender bool) []string {
+	out := splitList(list)
+	if trustRender {
+		out = append(out, privateNetworks...)
+	}
+	return out
+}
+
+// splitList splits a comma-separated env value, dropping blanks.
+func splitList(v string) []string {
+	var out []string
+	for _, s := range strings.Split(v, ",") {
+		if s = strings.TrimSpace(s); s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // RateLimit allows Requests events per Window; Requests <= 0 disables it.
@@ -214,5 +247,9 @@ func Load() Config {
 		SuperadminPassword: os.Getenv("SUPERADMIN_PASSWORD"),
 
 		RateLimits: DefaultRateLimits(),
+
+		AppBaseURL:     os.Getenv("APP_BASE_URL"),
+		CORSOrigins:    splitList(os.Getenv("CORS_ORIGINS")),
+		TrustedProxies: resolveTrustedProxies(os.Getenv("TRUSTED_PROXIES"), os.Getenv("TRUST_RENDER_PROXY") == "true"),
 	}
 }

@@ -35,7 +35,8 @@ Env files are loaded in this order: `.env.local` â†’ `/etc/secrets/.env.local` â
 | `JWT_TTL_HOURS` | | `24` | Session length |
 | `COOKIE_SECURE`, `COOKIE_NAME` | | auto / `access_token` | |
 | `API_PREFIX` | | `/api/v1` | |
-| `APP_BASE_URL` | for links + Telegram | | e.g. `https://kladovki.onrender.com` |
+| `APP_BASE_URL` | **prod** | | e.g. `https://kladovki.onrender.com`. Links, Telegram webhook, and the CORS allow-list (its origin) |
+| `CORS_ORIGINS` | optional | | Extra exact origins allowed by CORS, comma-separated (e.g. a custom domain). No wildcards |
 | `APIPAY_KEY` | for payments | | ApiPay API key |
 | `APIPAY_WEBHOOK_SECRET` | for payments | | Webhook signature secret |
 | `APIPAY_BASE_URL` | | `https://api.apipay.kz/api` | |

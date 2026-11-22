@@ -10,6 +10,10 @@
 - **Temporary passwords are enforced by the server.** While `must_change_password` is set, only `GET /auth/me`, `PUT /me/password`, `GET /legal/status`, `POST /legal/accept` (plus public routes like `POST /auth/logout`, `GET /legal/:doc`) work; everything else behind login answers 403 `{"error":"Сначала смените временный пароль","code":"password_change_required"}`.
 - `APP_ENV` unset means **production** (fail closed). The server refuses to start without `JWT_SECRET` unless `APP_ENV=development` exactly, and refuses any other `APP_ENV` value. The public fallback secret exists only for development.
 
+## CORS
+
+`middleware.CORS` allows credentials, so the allow-list is **exact** (no wildcards, no `*.onrender.com`): the origin of `APP_BASE_URL`, the Capacitor app (`https://localhost` on Android — Capacitor 8's default `androidScheme: "https"` — and `capacitor://localhost` on iOS), any origins in `CORS_ORIGINS`, and `http://localhost:4200` / `http://127.0.0.1:4200` only with `APP_ENV=development`. `http://localhost` is not allowed (Capacitor 8 doesn't use it). Same-origin requests from the website and non-browser clients are not affected. Tests: `internal/middleware/cors_test.go`.
+
 ## Rate limits
 
 In-memory, per process (`internal/ratelimit`, fixed window, expired keys swept once per window). Defaults are in `config.DefaultRateLimits()`; the zero config (used by tests) disables them.

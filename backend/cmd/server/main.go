@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/kaekkr/kladovki/internal/config"
 	"github.com/kaekkr/kladovki/internal/database"
@@ -57,34 +56,8 @@ func main() {
 	// 3. Router & Handlers
 	r := gin.Default()
 
-	r.Use(cors.New(cors.Config{
-		AllowOriginFunc: func(origin string) bool {
-			return origin == "http://localhost:4200" ||
-				origin == "http://127.0.0.1:4200" || // local cross-site testing (like the mobile app)
-				origin == "https://localhost" || // Capacitor Android
-				origin == "capacitor://localhost" || // Capacitor iOS
-				strings.HasSuffix(origin, ".onrender.com")
-		},
-		AllowMethods: []string{
-			"GET",
-			"POST",
-			"PUT",
-			"PATCH",
-			"DELETE",
-			"OPTIONS",
-		},
-		AllowHeaders: []string{
-			"Origin",
-			"Content-Type",
-			"Accept",
-			"Authorization",
-			"X-Requested-With",
-			"X-Kladovki-Client", // mobile app asks for a bearer token
-		},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
-	}))
+	// Exact allow-list: APP_BASE_URL, Capacitor app, CORS_ORIGINS (+ ng serve in development).
+	r.Use(middleware.CORS(cfg))
 
 	h := handlers.New(svc, tokens, cfg, mw)
 	h.Register(r)
