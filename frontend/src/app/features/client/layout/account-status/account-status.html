@@ -4,12 +4,12 @@
       <p class="text-xs font-semibold text-brand-text">
         <i class="fas fa-user-clock mr-1 text-status-locked"></i> Заявка на проверке у ОСИ
       </p>
-      <p class="mt-1 text-[10px] leading-4 text-brand-muted">
+      <p class="mt-1 text-xs leading-4 text-brand-muted">
         Арендовать кладовки могут только собственники. Когда ОСИ подтвердит ваши данные, бронирование
         станет доступно. Пока можно смотреть кладовки.
       </p>
       @if (property()) {
-        <p class="mt-1 text-[10px] text-brand-text">Указано: {{ property() }}</p>
+        <p class="mt-1 text-xs text-brand-text">Указано: {{ property() }}</p>
       }
     </section>
   }
@@ -17,7 +17,7 @@
     <section class="mb-4 rounded-2xl border border-status-overdue/30 bg-status-overdue/5 px-4 py-3">
       <p class="text-xs font-semibold text-status-overdue">Заявка на доступ отклонена</p>
       @if (user()?.review_comment) {
-        <p class="mt-1 text-[11px] text-brand-text">Причина: {{ user()?.review_comment }}</p>
+        <p class="mt-1 text-xs text-brand-text">Причина: {{ user()?.review_comment }}</p>
       }
       @if (!editing()) {
         <button type="button" (click)="startEdit()" class="mt-2 text-xs font-semibold text-brand-accent">
@@ -31,14 +31,14 @@
           </select>
           <input [ngModel]="cadastral()" (ngModelChange)="cadastral.set($event)" autocapitalize="characters" [placeholder]="'Кадастровый номер, напр. ' + cadastralExample" class="w-full rounded-md border border-brand-line bg-brand-elevated/30 px-3 py-2 text-xs text-brand-text outline-none focus:border-brand-accent" />
           @if (premises(); as p) {
-            <p class="text-[11px] text-brand-accent">{{ placeLabel(p) }}</p>
+            <p class="text-xs text-brand-accent">{{ placeLabel(p) }}</p>
           }
           @if (ownerType() === 'company') {
             <input [ngModel]="companyName()" (ngModelChange)="companyName.set($event)" placeholder="Название компании" class="w-full rounded-md border border-brand-line bg-brand-elevated/30 px-3 py-2 text-xs text-brand-text outline-none focus:border-brand-accent" />
             <input [ngModel]="companyBin()" (ngModelChange)="companyBin.set($event)" inputmode="numeric" maxlength="12" placeholder="БИН — 12 цифр" class="w-full rounded-md border border-brand-line bg-brand-elevated/30 px-3 py-2 text-xs text-brand-text outline-none focus:border-brand-accent" />
           }
           @if (error()) {
-            <p class="text-[11px] text-status-overdue">{{ error() }}</p>
+            <p class="text-xs text-status-overdue">{{ error() }}</p>
           }
           <div class="flex gap-2">
             <button type="button" (click)="editing.set(false)" class="h-9 flex-1 rounded-xl border border-brand-line text-xs text-brand-muted">
@@ -55,7 +55,7 @@
   @case ('blocked') {
     <section class="mb-4 rounded-2xl border border-status-overdue/30 bg-status-overdue/5 px-4 py-3">
       <p class="text-xs font-semibold text-status-overdue">ОСИ ограничил доступ к бронированию</p>
-      <p class="mt-1 text-[10px] leading-4 text-brand-muted">
+      <p class="mt-1 text-xs leading-4 text-brand-muted">
         @if (user()?.review_comment) { Причина: {{ user()?.review_comment }}. }
         Ваши текущие аренды сохраняются. По вопросам обратитесь в ОСИ.
       </p>

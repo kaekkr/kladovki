@@ -1,7 +1,7 @@
 <div class="space-y-4">
   @if (unreadCount()) {
     <div class="flex justify-end">
-      <button type="button" (click)="markAll()" class="text-[11px] font-medium text-brand-accent">
+      <button type="button" (click)="markAll()" class="text-xs font-medium text-brand-accent">
         Прочитать все
       </button>
     </div>
@@ -43,8 +43,8 @@
                 <span class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-accent"></span>
               }
             </div>
-            <p class="mt-1 text-[11px] leading-5 text-brand-muted">{{ n.body }}</p>
-            <p class="mt-2 text-[10px] text-brand-subtle">{{ n.created_at | date: 'd MMMM y, HH:mm' }}</p>
+            <p class="mt-1 text-xs leading-5 text-brand-muted">{{ n.body }}</p>
+            <p class="mt-2 text-xs text-brand-subtle">{{ n.created_at | date: 'd MMMM y, HH:mm' }}</p>
           </div>
         </button>
       }

@@ -52,7 +52,7 @@
             >
               <div class="flex items-start justify-between gap-3">
                 <div>
-                  <p class="text-[10px] text-brand-subtle">Кладовка</p>
+                  <p class="text-xs text-brand-subtle">Кладовка</p>
 
                   <h3 class="mt-1 text-lg font-semibold text-brand-text">
                     №{{ rental.storage_number }}
@@ -69,7 +69,7 @@
 
               <div class="mt-4 grid grid-cols-2 gap-3">
                 <div>
-                  <p class="text-[10px] text-brand-subtle">До</p>
+                  <p class="text-xs text-brand-subtle">До</p>
 
                   <p class="mt-1 text-xs font-medium text-brand-text">
                     {{ formatDate(displayEndsAt(rental)) }}
@@ -77,7 +77,7 @@
                 </div>
 
                 <div class="text-right">
-                  <p class="text-[10px] text-brand-subtle">Цена в месяц</p>
+                  <p class="text-xs text-brand-subtle">Цена в месяц</p>
 
                   <p class="mt-1 text-xs font-medium text-brand-text">
                     {{ formatMoney(rental.price_per_month) }}
@@ -86,13 +86,13 @@
               </div>
 
               <div class="mt-4 flex items-center justify-between border-t border-brand-line pt-3">
-                <span class="text-[10px] text-brand-muted">
+                <span class="text-xs text-brand-muted">
                   Срок: {{ periodLabel(rental.starts_at, displayEndsAt(rental)) }}
                 </span>
 
-                <span class="text-[10px] font-medium text-brand-accent">
+                <span class="text-xs font-medium text-brand-accent">
                   Подробнее
-                  <i class="fas fa-arrow-right ml-1 text-[9px]" aria-hidden="true"></i>
+                  <i class="fas fa-arrow-right ml-1 text-xs" aria-hidden="true"></i>
                 </span>
               </div>
             </a>
@@ -113,7 +113,7 @@
             >
               <div class="flex items-start justify-between gap-3">
                 <div>
-                  <p class="text-[10px] text-brand-subtle">Кладовка</p>
+                  <p class="text-xs text-brand-subtle">Кладовка</p>
 
                   <h3 class="mt-1 text-base font-semibold text-brand-text">
                     №{{ rental.storage_number }}
@@ -121,7 +121,7 @@
                 </div>
 
                 <span
-                  class="rounded-full px-2.5 py-1 text-[10px] font-medium"
+                  class="rounded-full px-2.5 py-1 text-xs font-medium"
                   [class]="statusClass(rental.status)"
                 >
                   {{ statusLabel(rental) }}
@@ -129,13 +129,13 @@
               </div>
 
               <div class="mt-3 flex items-center justify-between">
-                <span class="text-[10px] text-brand-muted">
+                <span class="text-xs text-brand-muted">
                   {{ formatDate(rental.starts_at) }}
                   —
                   {{ formatDate(displayEndsAt(rental)) }}
                 </span>
 
-                <span class="text-[10px] text-brand-muted">
+                <span class="text-xs text-brand-muted">
                   {{ formatMoney(totalCost(rental)) }}
                 </span>
               </div>

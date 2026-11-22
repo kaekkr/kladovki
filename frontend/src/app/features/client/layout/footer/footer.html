@@ -1,39 +1,24 @@
-<footer class="pointer-events-none fixed inset-x-0 bottom-0 z-40 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
+<!--
+  Bottom nav. Phone in landscape (height ≤ 500px): a low bar with icon and label
+  side by side, so it doesn't cover a third of the screen.
+-->
+<footer
+  class="pointer-events-none fixed inset-x-0 bottom-0 z-40 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] [@media(max-height:500px)]:pt-0 [@media(max-height:500px)]:pb-[max(0.25rem,env(safe-area-inset-bottom))]"
+>
   <nav
-    class="pointer-events-auto mx-auto flex h-14 max-w-[22rem] items-stretch justify-between rounded-2xl border border-brand-line bg-brand-surface/90 px-2 shadow-lg shadow-black/20 backdrop-blur-md"
+    aria-label="Основное меню"
+    class="pointer-events-auto mx-auto flex h-14 max-w-[22rem] items-stretch justify-between rounded-2xl border border-brand-line bg-brand-surface/90 px-2 shadow-lg shadow-black/20 backdrop-blur-md [@media(max-height:500px)]:h-10 [@media(max-height:500px)]:max-w-xl"
   >
-    <a
-      routerLink="/app"
-      routerLinkActive="text-brand-accent"
-      [routerLinkActiveOptions]="{ exact: true }"
-      class="flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] text-brand-muted transition-colors"
-    >
-      <i class="fas fa-house text-[13px]"></i>
-      <span>Главная</span>
-    </a>
-    <a
-      routerLink="/app/storages"
-      routerLinkActive="text-brand-accent"
-      class="flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] text-brand-muted transition-colors"
-    >
-      <i class="fas fa-th text-[13px]"></i>
-      <span>Кладовые</span>
-    </a>
-    <a
-      routerLink="/app/rentals"
-      routerLinkActive="text-brand-accent"
-      class="flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] text-brand-muted transition-colors"
-    >
-      <i class="fas fa-file-contract text-[13px]"></i>
-      <span>Аренды</span>
-    </a>
-    <a
-      routerLink="/app/payments"
-      routerLinkActive="text-brand-accent"
-      class="flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] text-brand-muted transition-colors"
-    >
-      <i class="fas fa-wallet text-[13px]"></i>
-      <span>Платежи</span>
-    </a>
+    @for (item of items; track item.link) {
+      <a
+        [routerLink]="item.link"
+        routerLinkActive="text-brand-accent"
+        [routerLinkActiveOptions]="{ exact: item.exact }"
+        class="flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl text-xs text-brand-muted transition-colors [@media(max-height:500px)]:flex-row [@media(max-height:500px)]:gap-1.5"
+      >
+        <i class="fas text-[13px]" [class]="item.icon" aria-hidden="true"></i>
+        <span>{{ item.label }}</span>
+      </a>
+    }
   </nav>
 </footer>
