@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ChangePassword } from '../../../../shared/components/change-password/change-password';
@@ -23,11 +23,15 @@ export class AdminSettingsPage {
   saving = signal(false);
   saveMessage = signal('');
   saveError = signal('');
+  /** How many tenants were asked to choose extend/refund by the last save. */
+  recalcSent = signal(0);
 
   // Form state
   jkId = signal('');
   jkName = signal('');
   jkAddress = signal('');
+  /** Set by the platform operator; residents' premises numbers start with it. */
+  jkCadastral = signal('');
   tariffAmount = signal(0);
   initialTariffAmount = signal(0); // Для отслеживания уменьшения
   lockMinutes = signal(2);
@@ -36,33 +40,10 @@ export class AdminSettingsPage {
   userName = signal('');
   userPhone = signal('');
 
-  // Состояние для копирования ссылки
-  copied = signal(false);
-
   // Модальное окно перерасчета при уменьшении тарифа
   showRecalculateModal = signal(false);
   affectedRentalsCount = signal(0);
   totalDifferenceAmount = signal(0);
-
-  registrationLink = computed(() => {
-    const id = this.jkId();
-    if (!id) return '';
-    const origin = window.location.origin;
-    return `${origin}/login?jk=${id}`;
-  });
-
-  getQrCodeUrl(): string {
-    const link = this.registrationLink();
-    return `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(link)}`;
-  }
-
-  copyLink() {
-    const link = this.registrationLink();
-    if (!link) return;
-    navigator.clipboard.writeText(link);
-    this.copied.set(true);
-    setTimeout(() => this.copied.set(false), 2000);
-  }
 
   constructor() {
     this.load();
@@ -88,6 +69,7 @@ export class AdminSettingsPage {
       next: (s: AdminSettings) => {
         this.jkName.set(s.jk.name);
         this.jkAddress.set(s.jk.address ?? '');
+        this.jkCadastral.set(s.jk.cadastral_number ?? '');
         this.tariffAmount.set(s.tariff.amount);
         this.initialTariffAmount.set(s.tariff.amount); // Сохраняем оригинал
         this.lockMinutes.set(s.rental.lock_duration_minutes);
@@ -156,12 +138,14 @@ export class AdminSettingsPage {
             this.saving.set(false);
             this.initialTariffAmount.set(amount); // Обновляем базовый тариф
             this.lockMinutes.set(lock);
+            this.recalcSent.set(res.recalc_requests);
             this.saveMessage.set(
               res.recalc_requests > 0
-                ? `Тариф сохранён. Запрос на перерасчёт отправлен арендаторам: ${res.recalc_requests}`
+                ? `Тариф сохранён. Запрос на перерасчёт отправлен арендаторам: ${res.recalc_requests}.`
                 : 'Настройки сохранены',
             );
-            setTimeout(() => this.saveMessage.set(''), 3000);
+            // A plain confirmation fades; the recalculation notice stays so the link can be used.
+            if (res.recalc_requests === 0) setTimeout(() => this.saveMessage.set(''), 3000);
           },
           error: (err) => {
             this.saving.set(false);

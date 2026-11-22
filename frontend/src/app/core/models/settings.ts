@@ -2,6 +2,7 @@ export interface JKSettings {
   id: string;
   name: string;
   address?: string;
+  cadastral_number?: string;
 }
 
 export interface TariffSettings {

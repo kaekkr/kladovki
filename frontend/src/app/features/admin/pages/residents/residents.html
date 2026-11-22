@@ -53,6 +53,9 @@
                 }
               </div>
               <p class="mt-1 text-xs text-brand-text">{{ property(u) }}</p>
+              @if (u.premises_cadastral) {
+                <p class="mt-0.5 font-mono text-[10px] text-brand-subtle">Кадастровый № {{ u.premises_cadastral }}</p>
+              }
               <p class="mt-1 text-xs text-brand-muted">ИИН {{ u.iin || '—' }} · {{ u.phone }}</p>
               @if (u.review_comment) {
                 <p class="mt-2 text-xs text-brand-muted">Комментарий ОСИ: {{ u.review_comment }}</p>

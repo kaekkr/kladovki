@@ -23,6 +23,11 @@
         class="px-4 py-3 rounded-lg border border-brand-line bg-brand-surface text-sm text-brand-text"
       >
         {{ saveMessage() }}
+        @if (recalcSent() > 0) {
+          <a routerLink="/admin/requests" class="ml-1 font-medium text-brand-accent hover:underline">
+            Следить за ответами в «Заявках» →
+          </a>
+        }
       </div>
     }
     @if (saveError()) {
@@ -62,55 +67,24 @@
       </div>
     </section>
 
-    <!-- Приглашение для жителей -->
+    <!-- Регистрация жителей (QR скрыт: ЖК определяется по кадастровому номеру) -->
     <section class="rounded-lg border border-brand-line bg-brand-surface overflow-hidden">
       <div class="px-5 py-4 border-b border-brand-line">
-        <h2 class="text-sm font-medium text-brand-text">Приглашение для жителей</h2>
+        <h2 class="text-sm font-medium text-brand-text">Регистрация жителей</h2>
         <p class="mt-0.5 text-xs text-brand-muted">
-          Ссылка и QR-код для регистрации собственников в вашем ЖК
+          Житель входит по ИИН и указывает кадастровый номер своей квартиры или помещения — приложение
+          само находит ваш ЖК. Вы подтверждаете собственника в разделе «Жители».
         </p>
       </div>
-      <div class="px-5 py-4 space-y-4">
-        <div>
-          <label class="block text-xs text-brand-muted mb-1.5">Прямая ссылка для регистрации</label>
-          <div class="flex gap-2">
-            <input
-              type="text"
-              readonly
-              [value]="registrationLink()"
-              class="w-full px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-xs text-brand-text outline-none"
-            />
-            <button
-              type="button"
-              (click)="copyLink()"
-              class="px-4 py-2 bg-brand-accent text-brand-bg text-xs font-semibold rounded-md shrink-0 hover:opacity-90 transition-opacity"
-            >
-              @if (copied()) {
-                Скопировано!
-              } @else {
-                Копировать
-              }
-            </button>
-          </div>
-          <p class="mt-1.5 text-xs text-brand-muted">
-            Передайте эту ссылку председателю ОСИ или разместите в чате дома. Перейдя по ней, житель
-            автоматически привяжется к вашему ЖК.
+      <div class="px-5 py-4">
+        <p class="text-xs text-brand-muted">Кадастровый номер ЖК</p>
+        @if (jkCadastral()) {
+          <p class="mt-1 font-mono text-sm text-brand-text">{{ jkCadastral() }}</p>
+        } @else {
+          <p class="mt-1 text-xs text-status-overdue">
+            Не задан — жители не смогут найти ваш ЖК. Попросите администратора платформы указать его.
           </p>
-        </div>
-
-        <!-- QR-код -->
-        <div class="flex items-center gap-4 pt-2">
-          <div class="p-3 bg-white rounded-xl border border-brand-line shrink-0">
-            <img [src]="getQrCodeUrl()" alt="QR код" class="w-24 h-24" />
-          </div>
-          <div>
-            <p class="text-xs font-medium text-brand-text">QR-код для печати</p>
-            <p class="text-xs text-brand-muted mt-0.5">
-              Вы можете распечатать этот QR-код и повесить на информационный стенд в подъезде, чтобы
-              жители могли быстро зарегистрироваться через смартфон.
-            </p>
-          </div>
-        </div>
+        }
       </div>
     </section>
 

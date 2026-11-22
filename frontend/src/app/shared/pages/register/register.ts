@@ -1,11 +1,19 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
-import { OwnerType, PremisesKind, RegisterPayload } from '../../../core/auth/auth.models';
+import { OwnerType, RegisterPayload } from '../../../core/auth/auth.models';
 import { passwordsProblem } from '../../../core/utils/login-input';
 import { verificationProblem } from '../../../core/utils/resident-display';
+import {
+  CADASTRAL_EXAMPLE,
+  CADASTRAL_HINT,
+  CADASTRAL_PROBLEM,
+  parsePremisesCadastral,
+  premisesFields,
+  premisesPlaceLabel,
+} from '../../../core/utils/cadastral';
 import { LegalService } from '../../../core/services/legal';
 import { ConsentCheckbox } from '../../components/consent-checkbox/consent-checkbox';
 
@@ -30,8 +38,12 @@ export class Register {
 
   // Property in this ЖК — only owners may rent; the ОСИ checks it.
   ownerType = signal<OwnerType>('person');
-  premisesKind = signal<PremisesKind>('flat');
-  premisesNumber = signal('');
+  /** Premises cadastral number: the server finds the ЖК from it (no QR needed). */
+  cadastral = signal('');
+  premises = computed(() => parsePremisesCadastral(this.cadastral()));
+  readonly cadastralExample = CADASTRAL_EXAMPLE;
+  readonly cadastralHint = CADASTRAL_HINT;
+  placeLabel = premisesPlaceLabel;
   companyBin = signal('');
   companyName = signal('');
   iin = signal(this.route.snapshot.queryParamMap.get('iin') ?? '');
@@ -50,15 +62,14 @@ export class Register {
 
   setOwnerType(t: OwnerType): void {
     this.ownerType.set(t);
-    if (t === 'company') this.premisesKind.set('commercial');
   }
 
   private property() {
     const company = this.ownerType() === 'company';
+    const premises = this.premises();
     return {
       owner_type: this.ownerType(),
-      premises_kind: this.premisesKind(),
-      premises_number: this.premisesNumber().trim(),
+      ...(premises ? premisesFields(premises) : { premises_kind: 'flat' as const, premises_number: '' }),
       company_bin: company ? this.companyBin().trim() : undefined,
       company_name: company ? this.companyName().trim() : undefined,
     };
@@ -81,6 +92,10 @@ export class Register {
       return;
     }
 
+    if (!this.premises()) {
+      this.errorMessage.set(CADASTRAL_PROBLEM);
+      return;
+    }
     const property = this.property();
     const propertyProblem = verificationProblem(property);
     if (propertyProblem) {

@@ -73,12 +73,16 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (*models.User,
 	if len([]rune(password)) < minPasswordLen {
 		return nil, ErrWeakPassword
 	}
-	verification, err := normalizeVerification(in.Verification)
+	declared, cadastralJK, err := s.resolvePremises(ctx, in.Verification)
+	if err != nil {
+		return nil, err
+	}
+	verification, err := normalizeVerification(declared)
 	if err != nil {
 		return nil, err
 	}
 
-	jkID, err := s.resolveRegistrationJK(ctx, in.JKID)
+	jkID, err := s.registrationJK(ctx, in.JKID, cadastralJK)
 	if err != nil {
 		return nil, err
 	}
@@ -113,12 +117,26 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (*models.User,
 		PremisesNumber: verification.PremisesNumber,
 		CompanyBIN:     verification.CompanyBIN,
 		CompanyName:    verification.CompanyName,
+
+		PremisesCadastral: verification.PremisesCadastral,
 	}
 	if err := s.repo.CreateUser(ctx, user); err != nil {
 		return nil, err
 	}
 	s.notifyResidentNew(ctx, user)
 	return user, nil
+}
+
+// registrationJK: the ЖК of the premises cadastral number wins; an old QR link
+// (jk_id) must agree with it. Without a cadastral number the QR / single-ЖК rule applies.
+func (s *Service) registrationJK(ctx context.Context, requested *string, cadastralJK string) (string, error) {
+	if cadastralJK == "" {
+		return s.resolveRegistrationJK(ctx, requested)
+	}
+	if requested != nil && strings.TrimSpace(*requested) != "" && strings.TrimSpace(*requested) != cadastralJK {
+		return "", ErrCadastralOtherJK
+	}
+	return cadastralJK, nil
 }
 
 func (s *Service) resolveRegistrationJK(ctx context.Context, requested *string) (string, error) {

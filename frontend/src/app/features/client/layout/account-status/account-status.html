@@ -25,17 +25,14 @@
         </button>
       } @else {
         <div class="mt-3 space-y-2">
-          <div class="grid grid-cols-2 gap-2">
-            <select [ngModel]="ownerType()" (ngModelChange)="ownerType.set($event)" class="w-full rounded-md border border-brand-line bg-brand-elevated/30 px-3 py-2 text-xs text-brand-text outline-none focus:border-brand-accent">
-              <option value="person">Физическое лицо</option>
-              <option value="company">Компания</option>
-            </select>
-            <select [ngModel]="premisesKind()" (ngModelChange)="premisesKind.set($event)" class="w-full rounded-md border border-brand-line bg-brand-elevated/30 px-3 py-2 text-xs text-brand-text outline-none focus:border-brand-accent">
-              <option value="flat">Квартира</option>
-              <option value="commercial">Коммерческое</option>
-            </select>
-          </div>
-          <input [ngModel]="premisesNumber()" (ngModelChange)="premisesNumber.set($event)" placeholder="Номер квартиры / помещения" class="w-full rounded-md border border-brand-line bg-brand-elevated/30 px-3 py-2 text-xs text-brand-text outline-none focus:border-brand-accent" />
+          <select [ngModel]="ownerType()" (ngModelChange)="ownerType.set($event)" class="w-full rounded-md border border-brand-line bg-brand-elevated/30 px-3 py-2 text-xs text-brand-text outline-none focus:border-brand-accent">
+            <option value="person">Физическое лицо</option>
+            <option value="company">Компания</option>
+          </select>
+          <input [ngModel]="cadastral()" (ngModelChange)="cadastral.set($event)" autocapitalize="characters" [placeholder]="'Кадастровый номер, напр. ' + cadastralExample" class="w-full rounded-md border border-brand-line bg-brand-elevated/30 px-3 py-2 text-xs text-brand-text outline-none focus:border-brand-accent" />
+          @if (premises(); as p) {
+            <p class="text-[11px] text-brand-accent">{{ placeLabel(p) }}</p>
+          }
           @if (ownerType() === 'company') {
             <input [ngModel]="companyName()" (ngModelChange)="companyName.set($event)" placeholder="Название компании" class="w-full rounded-md border border-brand-line bg-brand-elevated/30 px-3 py-2 text-xs text-brand-text outline-none focus:border-brand-accent" />
             <input [ngModel]="companyBin()" (ngModelChange)="companyBin.set($event)" inputmode="numeric" maxlength="12" placeholder="БИН — 12 цифр" class="w-full rounded-md border border-brand-line bg-brand-elevated/30 px-3 py-2 text-xs text-brand-text outline-none focus:border-brand-accent" />

@@ -244,7 +244,8 @@ func userJSON(user *models.User) gin.H {
 }
 
 func isVerificationError(err error) bool {
-	for _, e := range []error{service.ErrPremisesRequired, service.ErrPremisesKind, service.ErrInvalidBIN, service.ErrCompanyName} {
+	for _, e := range []error{service.ErrPremisesRequired, service.ErrPremisesKind, service.ErrInvalidBIN, service.ErrCompanyName,
+		service.ErrCadastralInvalid, service.ErrCadastralUnknownJK, service.ErrCadastralOtherJK} {
 		if errors.Is(err, e) {
 			return true
 		}

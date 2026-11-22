@@ -31,6 +31,7 @@ func normalizeVerification(v models.Verification) (models.Verification, error) {
 	v.PremisesNumber = strings.TrimSpace(v.PremisesNumber)
 	v.CompanyBIN = strings.TrimSpace(v.CompanyBIN)
 	v.CompanyName = strings.TrimSpace(v.CompanyName)
+	v.PremisesCadastral = strings.TrimSpace(v.PremisesCadastral)
 
 	if v.OwnerType == "" {
 		v.OwnerType = models.OwnerPerson
@@ -130,8 +131,21 @@ func (s *Service) ReviewResident(ctx context.Context, jkID, adminID, userID, act
 }
 
 // ResubmitVerification lets a pending or rejected user correct their data and ask again.
-func (s *Service) ResubmitVerification(ctx context.Context, userID string, v models.Verification) error {
-	v, err := normalizeVerification(v)
+func (s *Service) ResubmitVerification(ctx context.Context, userID string, declared models.Verification) error {
+	declared, cadastralJK, err := s.resolvePremises(ctx, declared)
+	if err != nil {
+		return err
+	}
+	if cadastralJK != "" {
+		u, err := s.repo.GetUserByID(ctx, userID)
+		if err != nil {
+			return err
+		}
+		if u.JKID == nil || *u.JKID != cadastralJK {
+			return ErrCadastralOtherJK
+		}
+	}
+	v, err := normalizeVerification(declared)
 	if err != nil {
 		return err
 	}

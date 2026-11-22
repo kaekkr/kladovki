@@ -110,35 +110,28 @@
         </div>
       }
 
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label for="reg-premisesKind" class="block text-xs text-brand-muted mb-1.5">Помещение</label>
-          <select
-            [ngModel]="premisesKind()"
-            (ngModelChange)="premisesKind.set($event)"
-            name="premisesKind"
-            id="reg-premisesKind"
-            class="w-full px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent"
-          >
-            <option value="flat">Квартира</option>
-            <option value="commercial">Коммерческое</option>
-          </select>
-        </div>
-        <div>
-          <label for="reg-premisesNumber" class="block text-xs text-brand-muted mb-1.5">Номер</label>
-          <input
-            type="text"
-            [ngModel]="premisesNumber()"
-            (ngModelChange)="premisesNumber.set($event)"
-            name="premisesNumber"
-            id="reg-premisesNumber"
-            placeholder="Например, 45"
-            class="w-full px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent"
-          />
-        </div>
+      <div>
+        <label for="reg-cadastral" class="block text-xs text-brand-muted mb-1.5">Кадастровый номер вашей квартиры или помещения</label>
+        <input
+          type="text"
+          [ngModel]="cadastral()"
+          (ngModelChange)="cadastral.set($event)"
+          name="cadastral"
+          id="reg-cadastral"
+          autocomplete="off"
+          autocapitalize="characters"
+          [placeholder]="cadastralExample"
+          class="w-full px-3 py-2 bg-brand-elevated/30 border border-brand-line rounded-md text-sm text-brand-text outline-none focus:border-brand-accent"
+        />
+        @if (premises(); as p) {
+          <p class="mt-1 text-[11px] text-brand-accent">{{ placeLabel(p) }}</p>
+        } @else {
+          <p class="mt-1 text-[10px] leading-4 text-brand-subtle">{{ cadastralHint }}</p>
+        }
       </div>
       <p class="-mt-2 text-[10px] leading-4 text-brand-subtle">
-        Арендовать кладовки могут только собственники. ОСИ проверит данные и откроет доступ.
+        Арендовать кладовки могут только собственники. По кадастровому номеру мы найдём ваш ЖК, а ОСИ
+        проверит данные и откроет доступ.
       </p>
 
       <!-- Пароль ×2 -->
