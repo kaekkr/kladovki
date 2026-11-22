@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { TenantRequest } from '../models/request';
-import { requestStatusLabel, requestTitle, needsOsiAction } from './request-display';
+import { isTenantQuery, requestStatusLabel, requestTitle, needsOsiAction } from './request-display';
 
 function req(overrides: Partial<TenantRequest> = {}): TenantRequest {
   return {
@@ -17,6 +17,19 @@ describe('requestTitle', () => {
     expect(requestTitle(req())).toBe('Перерасчёт после снижения тарифа');
     expect(requestTitle(req({ type: 'early_termination' }))).toBe('Досрочное завершение аренды');
     expect(requestTitle(req({ type: 'payment_refund' }))).toBe('Возврат оплаты');
+  });
+
+  it('turns an answered tariff query into the tenant\'s own заявка', () => {
+    expect(requestTitle(req({ status: 'open', choice: 'refund' }))).toBe('Возврат разницы после снижения тарифа');
+    expect(requestTitle(req({ status: 'done', choice: 'extend' }))).toBe('Продление срока после снижения тарифа');
+  });
+});
+
+describe('isTenantQuery', () => {
+  it('is a question still waiting for the tenant, not a заявка', () => {
+    expect(isTenantQuery(req())).toBe(true);
+    expect(isTenantQuery(req({ status: 'open', choice: 'refund' }))).toBe(false);
+    expect(isTenantQuery(req({ type: 'early_termination', status: 'open' }))).toBe(false);
   });
 });
 

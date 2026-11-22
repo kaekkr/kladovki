@@ -5,12 +5,13 @@ import { AuthService } from '../../../../core/auth/auth.service';
 import { TenantRequest } from '../../../../core/models/request';
 import { RequestService } from '../../../../core/services/request';
 import {
+  isTenantQuery,
   needsOsiAction,
   requestStatusLabel,
   requestTitle,
 } from '../../../../core/utils/request-display';
 
-type Filter = 'open' | 'awaiting_choice' | 'closed' | 'all';
+type Filter = 'open' | 'closed' | 'all';
 
 /** OSI request monitor: early terminations, refunds after tariff decrease, late payments. */
 @Component({
@@ -39,17 +40,19 @@ export class AdminRequests {
   statusLabel = requestStatusLabel;
   needsAction = needsOsiAction;
 
-  counts = computed(() => {
-    const list = this.requests();
-    return {
-      open: list.filter((r) => r.status === 'open').length,
-      awaiting: list.filter((r) => r.status === 'awaiting_choice').length,
-    };
-  });
+  /** Questions to tenants after a tariff decrease that are not answered yet. */
+  queries = computed(() => this.requests().filter(isTenantQuery));
+
+  /** The tenants' заявки: answered queries, early terminations, payment refunds. */
+  private claims = computed(() => this.requests().filter((r) => !isTenantQuery(r)));
+
+  counts = computed(() => ({
+    open: this.claims().filter((r) => r.status === 'open').length,
+  }));
 
   visible = computed(() => {
     const f = this.filter();
-    return this.requests().filter((r) => {
+    return this.claims().filter((r) => {
       if (f === 'all') return true;
       if (f === 'closed') return r.status === 'done' || r.status === 'rejected';
       return r.status === f;
