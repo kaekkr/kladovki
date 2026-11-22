@@ -6,13 +6,17 @@ import { Storage } from '../../../../core/models/storage';
 import { StorageService } from '../../../../core/services/storage';
 import { SettingsService } from '../../../../core/services/settings';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { formatArea } from '../../../../core/utils/area';
+import { formatTenge } from '../../../../core/utils/date-format';
+import { renewalPrice } from '../../../../core/utils/rental-display';
+import { LoadError } from '../../../../shared/components/load-error/load-error';
 
 type StorageFilter = 'all' | 'free';
 
 @Component({
   selector: 'app-client-storages',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, LoadError],
   templateUrl: './storages.html',
 })
 export class ClientStorages {
@@ -81,23 +85,19 @@ export class ClientStorages {
     this.filter.set(filter);
   }
 
+  /** Same as the server: round(area × tariff). */
   pricePerMonth(storage: Storage): number {
-    return storage.area * this.tariff();
+    return renewalPrice(storage.area, this.tariff(), 1);
   }
 
-  formatMoney(value: number): string {
-    return (
-      new Intl.NumberFormat('ru-RU', {
-        maximumFractionDigits: 0,
-      }).format(value) + ' ₸'
-    );
-  }
+  formatMoney = formatTenge;
+  area = formatArea;
 
   statusLabel = storageStatusLabel;
 
   floorLabel = floorLabel;
 
-  private load(): void {
+  load(): void {
     const user = this.auth.currentUser();
     const jkId = user?.jk_id;
 

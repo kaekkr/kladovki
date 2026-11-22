@@ -16,7 +16,9 @@ import { Component, ElementRef, afterNextRender, inject, input, output } from '@
         aria-labelledby="confirm-dialog-title"
         class="w-full max-w-sm rounded-2xl border border-brand-line bg-brand-surface p-5 shadow-2xl"
       >
-        <h2 id="confirm-dialog-title" class="text-base font-semibold text-brand-text">{{ title() }}</h2>
+        <h2 id="confirm-dialog-title" class="text-base font-semibold text-brand-text">
+          {{ title() }}
+        </h2>
         <div class="mt-2 text-sm leading-6 text-brand-muted"><ng-content /></div>
         <div class="mt-5 grid grid-cols-2 gap-2">
           <button

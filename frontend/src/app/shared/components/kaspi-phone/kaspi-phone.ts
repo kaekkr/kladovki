@@ -29,7 +29,8 @@ import { formatPhone, normalizePhone } from '../../../core/utils/phone';
       <p role="alert" class="mt-1 text-xs text-status-overdue">{{ error() }}</p>
     } @else if (target()) {
       <p class="mt-1 text-xs text-brand-muted">
-        Счёт придёт в Kaspi на номер <span class="font-semibold text-brand-text">{{ target() }}</span>
+        Счёт придёт в Kaspi на номер
+        <span class="font-semibold text-brand-text">{{ target() }}</span>
       </p>
     } @else {
       <p class="mt-1 text-xs text-brand-subtle">Номер, к которому привязан ваш Kaspi</p>

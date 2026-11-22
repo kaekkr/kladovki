@@ -46,27 +46,7 @@
       <div class="h-20 animate-pulse rounded-2xl bg-brand-surface"></div>
     </div>
   } @else if (error()) {
-    <!-- Error -->
-    <section class="rounded-3xl border border-brand-line bg-brand-surface p-6 text-center">
-      <div
-        class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-elevated text-brand-muted"
-      >
-        <i class="fas fa-credit-card text-sm"></i>
-      </div>
-
-      <h2 class="mt-4 text-base font-semibold text-brand-text">Не удалось загрузить платежи</h2>
-
-      <p class="mx-auto mt-1 max-w-xs text-xs leading-5 text-brand-muted">
-        Попробуйте обновить страницу немного позже.
-      </p>
-
-      <a
-        routerLink="/app"
-        class="mt-5 flex h-11 w-full items-center justify-center rounded-xl bg-brand-accent text-xs font-semibold text-brand-bg"
-      >
-        На главную
-      </a>
-    </section>
+    <app-load-error message="Не удалось загрузить платежи." (retry)="load()" />
   } @else {
     <!-- Summary -->
     <section
@@ -179,7 +159,7 @@
                   </p>
 
                   <span
-                    class="mt-1 inline-flex rounded-full px-2 py-1 text-[9px] font-medium"
+                    class="mt-1 inline-flex rounded-full px-2 py-1 text-xs font-medium"
                     [class]="statusClass(payment.status)"
                   >
                     {{ statusLabel(payment.status) }}

@@ -10,9 +10,7 @@
   @if (loading()) {
     <div class="h-24 animate-pulse rounded-2xl bg-brand-surface"></div>
   } @else if (error()) {
-    <section class="rounded-2xl border border-brand-line bg-brand-surface p-6 text-center text-xs text-status-overdue">
-      Не удалось загрузить уведомления. Попробуйте позже.
-    </section>
+    <app-load-error message="Не удалось загрузить уведомления." (retry)="load()" />
   } @else if (!items().length) {
     <section class="rounded-2xl border border-brand-line bg-brand-surface p-6 text-center">
       <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-elevated text-brand-muted">
@@ -46,7 +44,7 @@
               }
             </div>
             <p class="mt-1 text-[11px] leading-5 text-brand-muted">{{ n.body }}</p>
-            <p class="mt-2 text-[10px] text-brand-subtle">{{ n.created_at | date: 'd MMMM, HH:mm' }}</p>
+            <p class="mt-2 text-[10px] text-brand-subtle">{{ n.created_at | date: 'd MMMM y, HH:mm' }}</p>
           </div>
         </button>
       }

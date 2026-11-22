@@ -16,18 +16,23 @@ import { StorageService } from '../../../../../core/services/storage';
     <section class="rounded-2xl border border-brand-line bg-brand-surface px-4 py-4">
       <p class="text-sm font-semibold text-brand-text">Передать кладовку новому владельцу</p>
       <p class="mt-1 text-xs leading-5 text-brand-muted">
-        Например, при продаже квартиры. Укажите ИИН нового собственника — после окончания вашей аренды он
-        сможет оформить её в течение 14 дней. ОСИ получит уведомление.
+        Например, при продаже квартиры. Укажите ИИН нового собственника — после окончания вашей
+        аренды он сможет оформить её в течение 14 дней. ОСИ получит уведомление.
       </p>
 
       @if (currentIIN()) {
-        <div class="mt-3 rounded-xl border border-brand-accent/30 bg-brand-accent/5 px-3 py-2.5 text-sm">
+        <div
+          class="mt-3 rounded-xl border border-brand-accent/30 bg-brand-accent/5 px-3 py-2.5 text-sm"
+        >
           <p class="text-brand-text">
             <i class="fas fa-user-check mr-1 text-brand-accent" aria-hidden="true"></i>
-            Новый владелец указан: ИИН <span class="font-semibold tabular-nums">{{ currentIIN() }}</span>
+            Новый владелец указан: ИИН
+            <span class="font-semibold tabular-nums">{{ currentIIN() }}</span>
           </p>
           @if (until()) {
-            <p class="mt-0.5 text-xs text-brand-muted">Может оформить аренду до {{ until() | date: 'd MMMM y' }}</p>
+            <p class="mt-0.5 text-xs text-brand-muted">
+              Может оформить аренду до {{ until() | date: 'd MMMM y' }}
+            </p>
           }
         </div>
       }

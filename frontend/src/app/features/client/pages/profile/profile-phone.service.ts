@@ -16,11 +16,13 @@ export class ProfilePhoneService {
   private auth = inject(AuthService);
 
   updatePhone(phone: string) {
-    return this.http.put<{ phone?: string; message?: string }>(`${environment.apiUrl}/me/phone`, { phone }).pipe(
-      tap((res) => {
-        const user = this.auth.currentUser();
-        if (user) this.auth.currentUser.set({ ...user, phone: res?.phone || phone });
-      }),
-    );
+    return this.http
+      .put<{ phone?: string; message?: string }>(`${environment.apiUrl}/me/phone`, { phone })
+      .pipe(
+        tap((res) => {
+          const user = this.auth.currentUser();
+          if (user) this.auth.currentUser.set({ ...user, phone: res?.phone || phone });
+        }),
+      );
   }
 }

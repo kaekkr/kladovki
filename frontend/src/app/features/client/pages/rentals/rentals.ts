@@ -9,11 +9,15 @@ import {
   rentalStatusLabel,
   rentalTotalCost,
 } from '../../../../core/utils/rental-display';
+import { canBook } from '../../../../core/utils/resident-display';
+import { formatRuDate, formatTenge } from '../../../../core/utils/date-format';
+import { overdueDays, rentalPeriodLabel } from '../../../../core/utils/rental-money';
+import { LoadError } from '../../../../shared/components/load-error/load-error';
 
 @Component({
   selector: 'app-client-rentals',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, LoadError],
   templateUrl: './rentals.html',
 })
 export class ClientRentals {
@@ -35,6 +39,9 @@ export class ClientRentals {
   }
 
   statusLabel = rentalStatusLabel;
+  periodLabel = rentalPeriodLabel;
+  bookable = computed(() => canBook(this.auth.currentUser()));
+  isOverdue = (rental: Rental) => overdueDays(rental) > 0;
   displayEndsAt = rentalDisplayEndsAt;
   totalCost = rentalTotalCost;
 
@@ -55,23 +62,10 @@ export class ClientRentals {
     }
   }
 
-  formatMoney(value: number): string {
-    return (
-      new Intl.NumberFormat('ru-RU', {
-        maximumFractionDigits: 0,
-      }).format(value) + ' ₸'
-    );
-  }
+  formatMoney = formatTenge;
+  formatDate = formatRuDate;
 
-  formatDate(value: string): string {
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    }).format(new Date(value));
-  }
-
-  private load(): void {
+  load(): void {
     const user = this.auth.currentUser();
     const jkId = user?.jk_id;
     const userId = user?.id;

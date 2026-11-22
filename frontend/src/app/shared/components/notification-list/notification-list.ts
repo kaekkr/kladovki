@@ -9,12 +9,13 @@ import {
   notificationTone,
   toneClass,
 } from '../../../core/utils/notification-display';
+import { LoadError } from '../load-error/load-error';
 
 /** Notification feed used by both the resident app and the OSI panel. */
 @Component({
   selector: 'app-notification-list',
   standalone: true,
-  imports: [DatePipe],
+  imports: [DatePipe, LoadError],
   templateUrl: './notification-list.html',
 })
 export class NotificationList {
@@ -30,6 +31,12 @@ export class NotificationList {
   tone = (n: AppNotification) => toneClass[notificationTone(n.kind)];
 
   constructor() {
+    this.load();
+  }
+
+  load(): void {
+    this.loading.set(true);
+    this.error.set(false);
     this.service.list().subscribe({
       next: (list) => {
         this.items.set(list);

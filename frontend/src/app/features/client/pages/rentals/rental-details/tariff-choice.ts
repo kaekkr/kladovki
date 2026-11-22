@@ -20,8 +20,8 @@ type Choice = 'extend' | 'refund';
       <p class="text-sm font-semibold text-brand-text">Тариф снижен — выберите, что вам удобнее</p>
       <p class="mt-1 text-xs leading-5 text-brand-muted">
         Цена кладовки снизилась с {{ request().old_price | number: '1.0-0' }} ₸ до
-        {{ request().new_price | number: '1.0-0' }} ₸ в месяц. Выберите один вариант — изменить выбор потом
-        нельзя.
+        {{ request().new_price | number: '1.0-0' }} ₸ в месяц. Выберите один вариант — изменить
+        выбор потом нельзя.
       </p>
       <div class="mt-3 grid grid-cols-1 gap-2">
         <button
@@ -42,8 +42,8 @@ type Choice = 'extend' | 'refund';
         </button>
       </div>
       <p class="mt-2 text-xs leading-5 text-brand-subtle">
-        Сейчас аренда до {{ endsAt() | date: 'd MMMM y' }}. Деньги возвращает ОСИ самостоятельно (на счёт,
-        наличными и т.д.).
+        Сейчас аренда до {{ endsAt() | date: 'd MMMM y' }}. Деньги возвращает ОСИ самостоятельно (на
+        счёт, наличными и т.д.).
       </p>
     </section>
 
@@ -56,11 +56,12 @@ type Choice = 'extend' | 'refund';
         (cancelled)="pending.set(null)"
       >
         @if (p === 'extend') {
-          Аренда продлится до <b class="text-brand-text">{{ newEndsAt() | date: 'd MMMM y' }}</b> без оплаты.
-          Деньги при этом не возвращаются.
+          Аренда продлится до
+          <b class="text-brand-text">{{ newEndsAt() | date: 'd MMMM y' }}</b> без оплаты. Деньги при
+          этом не возвращаются.
         } @else {
-          ОСИ вернёт вам <b class="text-brand-text">{{ request().amount | number: '1.0-0' }} ₸</b>. Срок аренды
-          не изменится — до {{ endsAt() | date: 'd MMMM y' }}.
+          ОСИ вернёт вам <b class="text-brand-text">{{ request().amount | number: '1.0-0' }} ₸</b>.
+          Срок аренды не изменится — до {{ endsAt() | date: 'd MMMM y' }}.
         }
       </app-confirm-dialog>
     }

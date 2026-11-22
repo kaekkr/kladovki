@@ -46,19 +46,7 @@
 
   <!-- Error -->
   @else if (error()) {
-    <section class="rounded-3xl border border-brand-line bg-brand-surface p-6 text-center">
-      <div
-        class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-elevated text-brand-muted"
-      >
-        <i class="fas fa-triangle-exclamation"></i>
-      </div>
-
-      <h2 class="mt-4 text-base font-semibold text-brand-text">Не удалось загрузить кладовки</h2>
-
-      <p class="mx-auto mt-1 max-w-xs text-xs leading-5 text-brand-muted">
-        Попробуйте обновить страницу немного позже.
-      </p>
-    </section>
+    <app-load-error message="Не удалось загрузить кладовки." (retry)="load()" />
   }
 
   <!-- Content -->
@@ -69,6 +57,7 @@
         <button
           type="button"
           (click)="setFilter('all')"
+          [attr.aria-pressed]="filter() === 'all'"
           class="flex h-9 flex-1 items-center justify-center gap-2 rounded-xl text-[11px] font-medium transition-colors"
           [class.bg-brand-elevated]="filter() === 'all'"
           [class.text-brand-text]="filter() === 'all'"
@@ -88,6 +77,7 @@
         <button
           type="button"
           (click)="setFilter('free')"
+          [attr.aria-pressed]="filter() === 'free'"
           class="flex h-9 flex-1 items-center justify-center gap-2 rounded-xl text-[11px] font-medium transition-colors"
           [class.bg-brand-elevated]="filter() === 'free'"
           [class.text-brand-text]="filter() === 'free'"
@@ -210,7 +200,7 @@
                 <div class="mt-6">
                   <p class="text-[10px] text-brand-subtle">Площадь</p>
 
-                  <p class="mt-1 text-sm font-medium text-brand-text">{{ storage.area }} м²</p>
+                  <p class="mt-1 text-sm font-medium text-brand-text">{{ area(storage.area) }}</p>
                 </div>
 
                 <!-- Price -->

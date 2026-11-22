@@ -2,7 +2,13 @@ import { registerLocaleData } from '@angular/common';
 import localeRu from '@angular/common/locales/ru';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { formatRuDate, formatRuDayMonth, formatTenge } from './date-format';
+import {
+  formatRuDate,
+  formatRuDayMonth,
+  formatRuTime,
+  formatTenge,
+  paymentProviderLabel,
+} from './date-format';
 
 beforeAll(() => registerLocaleData(localeRu));
 
@@ -20,6 +26,19 @@ describe('formatRuDate', () => {
 
   it('has a short day-month form', () => {
     expect(formatRuDayMonth('2027-03-24T10:00:00Z')).toBe('24 марта');
+  });
+});
+
+describe('formatRuTime / paymentProviderLabel', () => {
+  it('shows Almaty time', () => {
+    expect(formatRuTime('2027-03-24T09:05:00Z')).toBe('14:05');
+  });
+
+  it('calls the gateway «Kaspi»', () => {
+    expect(paymentProviderLabel('APIPAY')).toBe('Kaspi');
+    expect(paymentProviderLabel('kaspi')).toBe('Kaspi');
+    expect(paymentProviderLabel('card')).toBe('Банковская карта');
+    expect(paymentProviderLabel('other')).toBe('other');
   });
 });
 

@@ -5,11 +5,18 @@ import { AuthService } from '../../../../core/auth/auth.service';
 import { Payment, PaymentStatus } from '../../../../core/models/payment';
 import { PaymentService } from '../../../../core/services/payment';
 import { downloadFile, inPeriod, toCsv } from '../../../../core/utils/csv';
+import {
+  formatRuDate,
+  formatRuTime,
+  formatTenge,
+  paymentProviderLabel,
+} from '../../../../core/utils/date-format';
+import { LoadError } from '../../../../shared/components/load-error/load-error';
 
 @Component({
   selector: 'app-client-payments',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, LoadError],
   templateUrl: './payments.html',
 })
 export class ClientPayments {
@@ -102,47 +109,16 @@ export class ClientPayments {
     }
   }
 
-  providerLabel(provider: string): string {
-    switch (provider.toLowerCase()) {
-      case 'kaspi':
-        return 'Kaspi';
-
-      case 'card':
-        return 'Банковская карта';
-
-      default:
-        return provider;
-    }
-  }
-
-  formatMoney(value: number): string {
-    return (
-      new Intl.NumberFormat('ru-RU', {
-        maximumFractionDigits: 0,
-      }).format(value) + ' ₸'
-    );
-  }
-
-  formatDate(value: string): string {
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    }).format(new Date(value));
-  }
-
-  formatTime(value: string): string {
-    return new Intl.DateTimeFormat('ru-RU', {
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(value));
-  }
+  providerLabel = paymentProviderLabel;
+  formatMoney = formatTenge;
+  formatDate = formatRuDate;
+  formatTime = formatRuTime;
 
   trackByPayment(_: number, payment: Payment): string {
     return payment.id;
   }
 
-  private load(): void {
+  load(): void {
     const user = this.auth.currentUser();
     const jkId = user?.jk_id;
     const userId = user?.id;

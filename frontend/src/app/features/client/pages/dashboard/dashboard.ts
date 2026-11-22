@@ -10,11 +10,14 @@ import { Storage } from '../../../../core/models/storage';
 import { StorageService } from '../../../../core/services/storage';
 import { RequestService } from '../../../../core/services/request';
 import { TenantRequest } from '../../../../core/models/request';
+import { canBook } from '../../../../core/utils/resident-display';
+import { rentalDebt } from '../../../../core/utils/rental-money';
+import { LoadError } from '../../../../shared/components/load-error/load-error';
 
 @Component({
   selector: 'app-client-dashboard',
   standalone: true,
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, LoadError],
   templateUrl: './dashboard.html',
 })
 export class ClientDashboard {
@@ -40,6 +43,24 @@ export class ClientDashboard {
   private touchEndX = 0;
 
   userName = computed(() => this.auth.currentUser()?.full_name || 'Житель');
+
+  /** Pending / rejected / blocked residents can't book — no «Найти кладовку» for them. */
+  bookable = computed(() => canBook(this.auth.currentUser()));
+  notBookableText = computed(() => {
+    switch (this.auth.currentUser()?.status) {
+      case 'pending':
+        return 'ОСИ проверяет, что вы собственник. Как только данные подтвердят, здесь можно будет арендовать кладовку.';
+      case 'rejected':
+        return 'ОСИ не подтвердил ваши данные. Исправьте их по подсказке вверху экрана и отправьте снова.';
+      case 'blocked':
+        return 'Аккаунт заблокирован ОСИ — новые аренды недоступны. Обратитесь в ОСИ вашего ЖК.';
+      default:
+        return 'Аренда пока недоступна. Обратитесь в ОСИ вашего ЖК.';
+    }
+  });
+
+  /** ≈ debt of an overdue rental, same formula as the ОСИ ledger. */
+  debt = (rental: Rental) => rentalDebt(rental);
 
   greeting = computed(() => {
     const hour = new Date().getHours();

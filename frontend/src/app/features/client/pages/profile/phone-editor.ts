@@ -12,15 +12,25 @@ import { ProfilePhoneService } from './profile-phone.service';
   imports: [FormsModule],
   template: `
     <div class="flex items-center gap-3 px-4 py-4">
-      <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-elevated text-brand-muted">
+      <div
+        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-elevated text-brand-muted"
+      >
         <i class="fas fa-phone text-xs" aria-hidden="true"></i>
       </div>
       <div class="min-w-0 flex-1">
         <p class="text-xs text-brand-subtle">Телефон (на него приходит счёт Kaspi)</p>
-        <p class="mt-0.5 truncate text-sm font-medium text-brand-text">{{ phone() ? display(phone()) : 'Не указан' }}</p>
+        <p class="mt-0.5 truncate text-sm font-medium text-brand-text">
+          {{ phone() ? display(phone()) : 'Не указан' }}
+        </p>
       </div>
       @if (!editing()) {
-        <button type="button" (click)="open()" class="shrink-0 text-sm font-semibold text-brand-accent">Изменить</button>
+        <button
+          type="button"
+          (click)="open()"
+          class="shrink-0 text-sm font-semibold text-brand-accent"
+        >
+          Изменить
+        </button>
       }
     </div>
     @if (saved()) {
@@ -44,10 +54,18 @@ import { ProfilePhoneService } from './profile-phone.service';
           <p role="alert" class="text-xs text-status-overdue">{{ error() }}</p>
         }
         <div class="flex gap-2">
-          <button type="button" (click)="editing.set(false)"
-            class="h-10 flex-1 rounded-xl border border-brand-line text-sm text-brand-muted">Отмена</button>
-          <button type="submit" [disabled]="saving()"
-            class="h-10 flex-1 rounded-xl bg-brand-accent text-sm font-semibold text-brand-bg disabled:opacity-40">
+          <button
+            type="button"
+            (click)="editing.set(false)"
+            class="h-10 flex-1 rounded-xl border border-brand-line text-sm text-brand-muted"
+          >
+            Отмена
+          </button>
+          <button
+            type="submit"
+            [disabled]="saving()"
+            class="h-10 flex-1 rounded-xl bg-brand-accent text-sm font-semibold text-brand-bg disabled:opacity-40"
+          >
             {{ saving() ? 'Сохранение…' : 'Сохранить' }}
           </button>
         </div>
