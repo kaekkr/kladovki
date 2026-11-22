@@ -260,4 +260,13 @@ var migrations = []string{
 
 	// Set when the ОСИ resets a resident's password: they must choose a new one.
 	`ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT false`,
+
+	// Cadastral numbers (tester, 2026-11-22): a premises 21:319:021:848:8:ВП-2 belongs to
+	// the ЖК 21:319:021:848:8. Used to find a resident's ЖК at registration (no QR needed).
+	`ALTER TABLE jks ADD COLUMN IF NOT EXISTS cadastral_number VARCHAR(64) NOT NULL DEFAULT ''`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_jks_cadastral ON jks(cadastral_number) WHERE cadastral_number <> ''`,
+	`ALTER TABLE users ADD COLUMN IF NOT EXISTS premises_cadastral VARCHAR(80) NOT NULL DEFAULT ''`,
+
+	// Platform operator who creates ЖК and their ОСИ accounts (super-admin panel).
+	`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'superadmin'`,
 }

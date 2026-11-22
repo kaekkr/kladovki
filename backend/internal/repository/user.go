@@ -12,7 +12,8 @@ import (
 )
 
 const userColumns = `id, full_name, phone, email, password_hash, role, jk_id, created_at, iin,
-	status, review_comment, owner_type, premises_kind, premises_number, company_bin, company_name, must_change_password`
+	status, review_comment, owner_type, premises_kind, premises_number, company_bin, company_name, must_change_password,
+	premises_cadastral`
 
 func (r *Repo) CreateUser(ctx context.Context, u *models.User) error {
 	if u.ID == "" {
@@ -23,9 +24,10 @@ func (r *Repo) CreateUser(ctx context.Context, u *models.User) error {
     INSERT INTO users (
         id, full_name, phone, email, password_hash,
         role, jk_id, created_at, iin,
-        status, owner_type, premises_kind, premises_number, company_bin, company_name
+        status, owner_type, premises_kind, premises_number, company_bin, company_name,
+        premises_cadastral
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
     RETURNING created_at
 	`
 	now := time.Now().UTC()
@@ -52,6 +54,7 @@ func (r *Repo) CreateUser(ctx context.Context, u *models.User) error {
 		now,
 		u.IIN,
 		u.Status, u.OwnerType, u.PremisesKind, u.PremisesNumber, u.CompanyBIN, u.CompanyName,
+		u.PremisesCadastral,
 	).Scan(&u.CreatedAt)
 }
 
@@ -89,6 +92,7 @@ func (r *Repo) scanUser(s rowScanner) (*models.User, error) {
 		&iin,
 		&u.Status, &u.ReviewComment, &u.OwnerType, &u.PremisesKind, &u.PremisesNumber, &u.CompanyBIN, &u.CompanyName,
 		&u.MustChangePassword,
+		&u.PremisesCadastral,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -169,9 +173,10 @@ func (r *Repo) SetResidentStatus(ctx context.Context, userID, jkID string, statu
 func (r *Repo) ResubmitVerification(ctx context.Context, userID string, v models.Verification) error {
 	res, err := r.db.ExecContext(ctx, `
 		UPDATE users SET status = 'pending', review_comment = '',
-		       owner_type = $2, premises_kind = $3, premises_number = $4, company_bin = $5, company_name = $6
+		       owner_type = $2, premises_kind = $3, premises_number = $4, company_bin = $5, company_name = $6,
+		       premises_cadastral = $7
 		WHERE id = $1 AND role = 'resident' AND status IN ('pending', 'rejected')`,
-		userID, v.OwnerType, v.PremisesKind, v.PremisesNumber, v.CompanyBIN, v.CompanyName)
+		userID, v.OwnerType, v.PremisesKind, v.PremisesNumber, v.CompanyBIN, v.CompanyName, v.PremisesCadastral)
 	if err != nil {
 		return fmt.Errorf("repository.ResubmitVerification: %w", err)
 	}
