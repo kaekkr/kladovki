@@ -73,7 +73,7 @@ Password reset: the ОСИ sets a temporary password on «Жители», and th
 | Invoice | `POST /payments` with `rental_id` (+ optional Kaspi phone). The amount is `price_per_month × months`, **computed on the server**. The hold is extended to **10 minutes** (`service.PaymentWindow`) |
 | Paid | The webhook sets the rental to `active`, `starts_at = now`, `ends_at = now + months`, `total_paid = amount`, and the storage room to `occupied`. Repeated webhooks are no-ops |
 | Paid late | If the hold expired but the storage room is still free, the rental is activated anyway |
-| Paid, room taken | Someone else rents the room (an **overdue** tenant included — a late webhook never evicts anyone) or holds a live booking. The rental is not activated. A **payment_refund** request is opened for the ОСИ. Exception: a handover to the payer by ИИН while the current paid period is still running |
+| Paid, room taken | Someone else rents the room (an **overdue** tenant included — a late webhook never evicts anyone) or holds a live booking. The rental is not activated. A **payment_refund** request is opened for the ОСИ. Exception: a handover to the payer by ИИН while the current paid period is still running (a payer with no ИИН on file never matches a handover) |
 | Not paid | Invoice `cancelled` / `expired` / `error` → payment `failed`. The hold runs out → storage room `free` |
 
 ## Rental lifecycle

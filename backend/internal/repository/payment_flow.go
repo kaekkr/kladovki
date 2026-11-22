@@ -275,18 +275,18 @@ func (r *Repo) ActivatePaidRental(ctx context.Context, paymentID string) error {
 	// Taken: someone else rents the storage (overdue included — a very late
 	// webhook must not evict them) or holds a live booking. The only exception
 	// is a handover to this payer by ИИН while the current tenant's paid period
-	// is still running (an overdue tenant must pay the debt first).
+	// is still running (an overdue tenant must pay the debt first). A NULL in
+	// that test (payer without ИИН, no transfer) means "no handover": taken.
 	var taken bool
 	err = tx.QueryRowContext(ctx, `
 		SELECT EXISTS (
 			SELECT 1 FROM rentals o
 			JOIN storages s ON s.id = o.storage_id
-			JOIN users payer ON payer.id = (SELECT user_id FROM rentals WHERE id = $2)
+			LEFT JOIN users payer ON payer.id = (SELECT user_id FROM rentals WHERE id = $2)
 			WHERE o.storage_id = $1 AND o.id <> $2
 			  AND ((o.status = 'locked' AND o.ends_at > $3)
-			       OR (o.status = 'active' AND NOT (
-			           o.ends_at > $3 AND s.transfer_until > $3
-			           AND s.transfer_to_iin IS NOT NULL AND s.transfer_to_iin = payer.iin)))
+			       OR (o.status = 'active' AND NOT COALESCE(
+			           o.ends_at > $3 AND s.transfer_until > $3 AND s.transfer_to_iin = payer.iin, false)))
 		)`, storageID, rentalID, now).Scan(&taken)
 	if err != nil {
 		return fmt.Errorf("repository.ActivatePaidRental check storage: %w", err)
