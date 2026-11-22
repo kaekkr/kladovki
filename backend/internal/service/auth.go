@@ -60,15 +60,18 @@ func (s *Service) IINRegistered(ctx context.Context, iin string) (bool, error) {
 // QR link; when the system has exactly one JK it is used automatically.
 func (s *Service) Register(ctx context.Context, in RegisterInput) (*models.User, error) {
 	fullName := strings.TrimSpace(in.FullName)
-	phone := strings.TrimSpace(in.Phone)
 	iin := strings.TrimSpace(in.IIN)
 	password := in.Password
 
 	if !ValidIIN(iin) {
 		return nil, ErrInvalidIIN
 	}
-	if fullName == "" || phone == "" {
+	if fullName == "" || strings.TrimSpace(in.Phone) == "" {
 		return nil, ErrMissingFields
+	}
+	phone, ok := NormalizePhone(in.Phone)
+	if !ok {
+		return nil, ErrInvalidPhone
 	}
 	if len([]rune(password)) < minPasswordLen {
 		return nil, ErrWeakPassword

@@ -61,16 +61,19 @@ func (s *Service) GetUserByID(ctx context.Context, id string) (*models.User, err
 	return user, nil
 }
 
+// GetUserByLogin looks the identifier up by its type only, so one user's
+// phone can never shadow another user's ИИН or email:
+// 12 digits → ИИН; contains "@" → email; anything else → phone.
 func (s *Service) GetUserByLogin(ctx context.Context, login string) (*models.User, error) {
 	login = strings.TrimSpace(login)
-	if login == "" {
+	switch {
+	case login == "":
 		return nil, ErrInvalid
+	case ValidIIN(login):
+		return s.repo.GetUserByIIN(ctx, login)
+	case strings.Contains(login, "@"):
+		return s.repo.GetUserByEmail(ctx, login)
 	}
-
-	user, err := s.repo.GetUserByLogin(ctx, login)
-	if err != nil {
-		return nil, err
-	}
-
-	return user, nil
+	canonical, _ := NormalizePhone(login)
+	return s.repo.GetUserByPhoneLogin(ctx, canonical, login)
 }

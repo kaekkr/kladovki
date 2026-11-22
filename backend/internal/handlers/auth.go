@@ -54,7 +54,7 @@ func (h *Handler) RegisterResident(c *gin.Context) {
 		switch {
 		case errors.Is(err, service.ErrIINTaken), errors.Is(err, service.ErrPhoneTaken):
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-		case errors.Is(err, service.ErrInvalidIIN), errors.Is(err, service.ErrWeakPassword),
+		case errors.Is(err, service.ErrInvalidIIN), errors.Is(err, service.ErrWeakPassword), errors.Is(err, service.ErrInvalidPhone),
 			errors.Is(err, service.ErrJKRequired), errors.Is(err, service.ErrMissingFields),
 			isVerificationError(err):
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

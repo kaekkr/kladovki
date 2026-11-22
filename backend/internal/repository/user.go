@@ -68,12 +68,22 @@ func (r *Repo) GetUserByPhone(ctx context.Context, phone string) (*models.User, 
 	return r.scanUser(r.db.QueryRowContext(ctx, query, phone))
 }
 
-func (r *Repo) GetUserByLogin(ctx context.Context, login string) (*models.User, error) {
+// GetUserByIIN finds a user by ИИН (unique).
+func (r *Repo) GetUserByIIN(ctx context.Context, iin string) (*models.User, error) {
+	query := fmt.Sprintf(`SELECT %s FROM users WHERE iin = $1`, userColumns)
+	return r.scanUser(r.db.QueryRowContext(ctx, query, iin))
+}
+
+// GetUserByPhoneLogin finds a user by the canonical phone (+7XXXXXXXXXX) or,
+// for rows stored before phones were normalized, by the raw input. The
+// superadmin placeholder phone (superadmin:…) is never a login.
+func (r *Repo) GetUserByPhoneLogin(ctx context.Context, canonical, raw string) (*models.User, error) {
 	query := fmt.Sprintf(`
-		SELECT %s FROM users 
-		WHERE phone = $1 OR (email IS NOT NULL AND lower(email) = lower($1)) OR (iin IS NOT NULL AND iin = $1)
-	`, userColumns)
-	return r.scanUser(r.db.QueryRowContext(ctx, query, login))
+		SELECT %s FROM users
+		WHERE ($1 <> '' AND phone = $1) OR (phone = $2 AND phone NOT LIKE 'superadmin:%%')
+		ORDER BY (phone = $1) DESC
+		LIMIT 1`, userColumns)
+	return r.scanUser(r.db.QueryRowContext(ctx, query, canonical, raw))
 }
 
 func (r *Repo) scanUser(s rowScanner) (*models.User, error) {

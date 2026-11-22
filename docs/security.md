@@ -2,7 +2,8 @@
 
 ## Authentication
 
-- Passwords are hashed with **bcrypt**. Login accepts ИИН, phone or email.
+- Passwords are hashed with **bcrypt**. Login accepts ИИН, phone or email, looked up **by type only**: 12 digits → `iin`; contains `@` → `email`; anything else → `phone`. So nobody can register a phone equal to someone else's ИИН or email and take over (or lock out) their login.
+- Phones are validated at registration and when the platform creates an ОСИ: Kazakhstan numbers `+7XXXXXXXXXX`, `8XXXXXXXXXX` or `7XXXXXXXXXX` (spaces, dashes, parentheses allowed) are stored as `+7XXXXXXXXXX`; anything else is a 400. Phone login matches the canonical form, and the raw input for rows created before this rule. The superadmin placeholder phone `superadmin:…` is never a login.
 - The JWT (HS256, `JWT_SECRET`, TTL `JWT_TTL_HOURS`, default 24 h) holds `user_id`, `role` and `jk_id`. It is sent as an **HTTP-only** cookie (`Secure` in production), or as `Authorization: Bearer` from the Android app.
 - `APP_ENV` unset means **production** (fail closed). The server refuses to start without `JWT_SECRET` unless `APP_ENV=development` exactly, and refuses any other `APP_ENV` value. The public fallback secret exists only for development.
 
