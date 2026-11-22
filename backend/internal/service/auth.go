@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
+
+	"github.com/google/uuid"
 
 	"github.com/kaekkr/kladovki/internal/models"
 	"github.com/kaekkr/kladovki/internal/repository"
@@ -171,6 +174,9 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*models.User, error
 	user, err := s.GetUserByLogin(ctx, login)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
+			// Same bcrypt cost as a real check, so response time doesn't tell
+			// whether an ИИН / phone / email is registered.
+			CheckPassword(dummyHash(), password)
 			return nil, ErrInvalidCredentials
 		}
 		return nil, err
@@ -201,6 +207,15 @@ func (s *Service) Me(ctx context.Context, userID string) (*models.User, error) {
 }
 
 // ---------- Password Helpers ----------
+
+// dummyHash is a bcrypt hash of a random value, computed once.
+var dummyHash = sync.OnceValue(func() string {
+	h, err := HashPassword(uuid.NewString())
+	if err != nil {
+		return "$2a$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinv"
+	}
+	return h
+})
 
 func HashPassword(pw string) (string, error) {
 	b, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)

@@ -10,6 +10,7 @@ import (
 	"github.com/kaekkr/kladovki/internal/legal"
 	"github.com/kaekkr/kladovki/internal/middleware"
 	"github.com/kaekkr/kladovki/internal/models"
+	"github.com/kaekkr/kladovki/internal/ratelimit"
 	"github.com/kaekkr/kladovki/internal/service"
 )
 
@@ -92,12 +93,20 @@ func (h *Handler) Login(c *gin.Context) {
 		loginIdentifier = req.Phone
 	}
 
+	key := service.LoginKey(loginIdentifier)
+	if h.limits.loginFailures.Blocked(key) {
+		ratelimit.TooMany(c, h.limits.loginFailures.RetryAfter(key),
+			"Слишком много попыток входа. Попробуйте через несколько минут.")
+		return
+	}
+
 	user, err := h.svc.Login(c.Request.Context(), service.LoginInput{
 		Login:    loginIdentifier,
 		Password: req.Password,
 	})
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidCredentials) || errors.Is(err, service.ErrInvalid) {
+			h.limits.loginFailures.Add(key)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Неверный логин или пароль"})
 			return
 		}
@@ -105,6 +114,7 @@ func (h *Handler) Login(c *gin.Context) {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Сервер временно недоступен. Попробуйте позже."})
 		return
 	}
+	h.limits.loginFailures.Reset(key)
 
 	// issueToken internally invokes h.setAuthCookie using h.cfg properties
 	token, err := h.issueToken(c, user)

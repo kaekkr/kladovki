@@ -29,6 +29,36 @@ type Config struct {
 	// at startup (both must be set). The password is never logged.
 	SuperadminEmail    string
 	SuperadminPassword string
+	// RateLimits: the zero value disables every limit (tests rely on that);
+	// Load() fills in DefaultRateLimits().
+	RateLimits RateLimits
+}
+
+// RateLimit allows Requests events per Window; Requests <= 0 disables it.
+type RateLimit struct {
+	Requests int
+	Window   time.Duration
+}
+
+type RateLimits struct {
+	// Auth: per client IP, shared by /auth/login, /auth/iin-status, /auth/register.
+	Auth RateLimit
+	// Lead: per client IP, POST /lead (landing page form).
+	Lead RateLimit
+	// Lock: per client IP, POST /rentals/lock (holds a storage room).
+	Lock RateLimit
+	// LoginFailures: failed passwords per login identifier, then 429.
+	LoginFailures RateLimit
+}
+
+// DefaultRateLimits are generous for people and tight for scripts.
+func DefaultRateLimits() RateLimits {
+	return RateLimits{
+		Auth:          RateLimit{Requests: 30, Window: time.Minute},
+		Lead:          RateLimit{Requests: 10, Window: time.Hour},
+		Lock:          RateLimit{Requests: 20, Window: 10 * time.Minute},
+		LoginFailures: RateLimit{Requests: 10, Window: 15 * time.Minute},
+	}
 }
 
 // envFiles are read in order; a value from an earlier file wins, and real
@@ -182,5 +212,7 @@ func Load() Config {
 
 		SuperadminEmail:    os.Getenv("SUPERADMIN_EMAIL"),
 		SuperadminPassword: os.Getenv("SUPERADMIN_PASSWORD"),
+
+		RateLimits: DefaultRateLimits(),
 	}
 }

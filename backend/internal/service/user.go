@@ -61,6 +61,22 @@ func (s *Service) GetUserByID(ctx context.Context, id string) (*models.User, err
 	return user, nil
 }
 
+// LoginKey is the identifier in one canonical spelling, so the failed-login
+// counter is shared by "87001234567" and "+7 700 123 45 67".
+func LoginKey(login string) string {
+	login = strings.TrimSpace(login)
+	if ValidIIN(login) {
+		return "iin:" + login
+	}
+	if strings.Contains(login, "@") {
+		return "email:" + strings.ToLower(login)
+	}
+	if p, ok := NormalizePhone(login); ok {
+		return "phone:" + p
+	}
+	return "raw:" + login
+}
+
 // GetUserByLogin looks the identifier up by its type only, so one user's
 // phone can never shadow another user's ИИН or email:
 // 12 digits → ИИН; contains "@" → email; anything else → phone.

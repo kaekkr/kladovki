@@ -7,6 +7,20 @@
 - The JWT (HS256, `JWT_SECRET`, TTL `JWT_TTL_HOURS`, default 24 h) holds `user_id`, `role` and `jk_id`. It is sent as an **HTTP-only** cookie (`Secure` in production), or as `Authorization: Bearer` from the Android app.
 - `APP_ENV` unset means **production** (fail closed). The server refuses to start without `JWT_SECRET` unless `APP_ENV=development` exactly, and refuses any other `APP_ENV` value. The public fallback secret exists only for development.
 
+## Rate limits
+
+In-memory, per process (`internal/ratelimit`, fixed window, expired keys swept once per window). Defaults are in `config.DefaultRateLimits()`; the zero config (used by tests) disables them.
+
+| What | Key | Default | Answer |
+|---|---|---|---|
+| `/auth/login`, `/auth/iin-status`, `/auth/register` (one shared budget) | client IP | 30 / min | 429 `{"error":"Слишком много запросов…","code":"rate_limited"}` + `Retry-After` |
+| `POST /lead` | client IP | 10 / hour | same |
+| `POST /rentals/lock` | client IP | 20 / 10 min | same |
+| failed passwords on `/auth/login` | login identifier (canonical ИИН / email / phone) | 10 / 15 min | 429 «Слишком много попыток входа…», even with the right password, until the window ends; a successful login resets the counter |
+
+- When the user is not found, login still runs one bcrypt compare against a dummy hash, so response time doesn't reveal which ИИН are registered (`/auth/iin-status` tells that by design; it is rate-limited).
+- Trade-offs: counters reset on restart and are not shared between instances. The per-identifier limit lets someone who knows a victim's ИИН keep that account locked for 15 minutes at a time; the ОСИ password reset does not lift it (the counter is in memory). Per-IP limits only work when the client IP is real — see «Trusted proxies» in [operations.md](operations.md).
+
 ## Authorization: two layers
 
 1. **Route level** (`router.go`): `Require()` means logged in. `RequireAdmin()` means role `admin`. `RequireSuperadmin()` means role `superadmin` (platform operator, `/platform/...`). A superadmin has no ЖК and does **not** pass `RequireAdmin`, so it can't read any ЖК's rentals, payments or residents.

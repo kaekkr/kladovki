@@ -69,6 +69,13 @@ type testEnv struct {
 
 func newTestEnv(t *testing.T) *testEnv {
 	t.Helper()
+	return newTestEnvWith(t, nil)
+}
+
+// newTestEnvWith lets a test change the config (e.g. turn rate limits on).
+// The default test config has every rate limit disabled.
+func newTestEnvWith(t *testing.T, tweak func(*config.Config)) *testEnv {
+	t.Helper()
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
 		t.Skip("TEST_DATABASE_URL not set; skipping integration test")
@@ -104,6 +111,9 @@ func newTestEnv(t *testing.T) *testEnv {
 		ApiPayBaseURL:       apiSrv.URL,
 		ApiPayWebhookSecret: webhookSecret,
 		ApiPayLive:          true,
+	}
+	if tweak != nil {
+		tweak(&cfg)
 	}
 
 	tg := newFakeTelegram(t)
