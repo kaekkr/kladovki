@@ -30,10 +30,6 @@ type Config struct {
 	// (STAGE BRANCH: on unless FAKE_PAYMENTS=false). Never merge this default
 	// into main — production must take real payments.
 	FakePayments bool
-	// SuperadminEmail/SuperadminPassword bootstrap the first platform operator
-	// at startup (both must be set). The password is never logged.
-	SuperadminEmail    string
-	SuperadminPassword string
 	// RateLimits: the zero value disables every limit (tests rely on that);
 	// Load() fills in DefaultRateLimits().
 	RateLimits RateLimits
@@ -247,9 +243,6 @@ func Load() Config {
 		ApiPayWebhookSecret: apiPayWebhookSecret,
 		ApiPayLive:          os.Getenv("APIPAY_LIVE") == "true",
 		FakePayments:        fakePayments(),
-
-		SuperadminEmail:    os.Getenv("SUPERADMIN_EMAIL"),
-		SuperadminPassword: os.Getenv("SUPERADMIN_PASSWORD"),
 
 		RateLimits: DefaultRateLimits(),
 

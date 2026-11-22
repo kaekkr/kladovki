@@ -37,7 +37,6 @@ func main() {
 
 	repo := repository.New(db)
 	svc := service.New(repo)
-	bootstrapSuperadmin(svc, cfg)
 
 	notifyCfg := notify.ConfigFromEnv()
 	svc.SetNotifier(notifyCfg)
@@ -170,30 +169,4 @@ func main() {
 	}
 
 	log.Println("Server exiting")
-}
-
-// bootstrapSuperadmin creates the first platform operator from
-// SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD. It never logs the password and
-// never stops the server: a bad value only produces a warning.
-func bootstrapSuperadmin(svc *service.Service, cfg config.Config) {
-	if cfg.SuperadminEmail == "" && cfg.SuperadminPassword == "" {
-		return
-	}
-	if cfg.SuperadminEmail == "" || cfg.SuperadminPassword == "" {
-		log.Println("WARNING: set both SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD to bootstrap a superadmin")
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	res, err := svc.EnsureSuperadmin(ctx, cfg.SuperadminEmail, cfg.SuperadminPassword)
-	switch {
-	case err != nil:
-		log.Printf("WARNING: superadmin bootstrap failed: %v", err)
-	case res == service.SuperadminCreated:
-		log.Println("superadmin bootstrap: created the platform operator account")
-	case res == service.SuperadminConflict:
-		log.Println("WARNING: superadmin bootstrap: SUPERADMIN_EMAIL belongs to a user with another role; nothing changed")
-	default:
-		log.Println("superadmin bootstrap: account already exists")
-	}
 }
