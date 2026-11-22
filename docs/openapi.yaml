@@ -1449,6 +1449,35 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '409': {$ref: '#/components/responses/Conflict'}
         '500': {$ref: '#/components/responses/InternalError'}
+  /me/phone:
+    put:
+      tags: [me]
+      summary: Change my phone (Kaspi invoices go to it)
+      description: |
+        **Who:** any signed-in user. The phone is normalized to `+7XXXXXXXXXX` (Kazakhstan mobile);
+        `8 (701) 555-44-33` and `+7 701 555 44 33` are accepted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone: {type: string, example: '+77015554433'}
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  phone: {type: string}
+                  message: {type: string}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '409': {$ref: '#/components/responses/Conflict'}
   /me/password:
     put:
       tags: [me]
