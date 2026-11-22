@@ -23,6 +23,10 @@ type Config struct {
 	ApiPayWebhookSecret string
 	// ApiPayLive: real money mode — sandbox webhook events are then ignored.
 	ApiPayLive bool
+	// SuperadminEmail/SuperadminPassword bootstrap the first platform operator
+	// at startup (both must be set). The password is never logged.
+	SuperadminEmail    string
+	SuperadminPassword string
 }
 
 // envFiles are read in order; a value from an earlier file wins, and real
@@ -142,5 +146,8 @@ func Load() Config {
 
 		ApiPayWebhookSecret: apiPayWebhookSecret,
 		ApiPayLive:          os.Getenv("APIPAY_LIVE") == "true",
+
+		SuperadminEmail:    os.Getenv("SUPERADMIN_EMAIL"),
+		SuperadminPassword: os.Getenv("SUPERADMIN_PASSWORD"),
 	}
 }

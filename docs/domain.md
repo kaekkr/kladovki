@@ -26,6 +26,8 @@
 
 Users of one ЖК can never see or change anything in another ЖК. See [security.md](security.md).
 
+The **platform operator** (`superadmin`) belongs to no ЖК. In the super-admin panel (`/platform`) they list all ЖК with counts, create a ЖК together with its first ОСИ account, edit a ЖК's name, address and cadastral number, add more ОСИ accounts and reset an ОСИ's password. They see no rentals, payments or residents' data. The first superadmin comes from env (see [operations.md](operations.md)).
+
 ## User agreement (consent)
 
 - The product owner wrote two agreements in Russian and Kazakh: **«Пользовательское соглашение и правила аренды кладовых»** for residents, and **«Регламент использования сервиса для ОСИ»**. They live in `backend/internal/legal/texts/`, can be read at `/terms/resident_terms` and `/terms/osi_rules`, and are linked from the profile and from Настройки.

@@ -41,7 +41,19 @@ Env files are loaded in this order: `.env.local` → `/etc/secrets/.env.local` �
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | optional | port `587` | Email channel |
 | `MOBIZON_API_KEY` (`MOBIZON_API_BASE`) | optional | | SMS channel |
 | `GREENAPI_INSTANCE_ID`, `GREENAPI_TOKEN` (`GREENAPI_BASE`) | optional | | WhatsApp channel |
+| `SUPERADMIN_EMAIL`, `SUPERADMIN_PASSWORD` | optional | | Bootstrap the first platform operator at startup (see below). Password ≥ 10 characters |
 | `TEST_DATABASE_URL` | tests only | | Postgres used by integration tests. **The tests wipe it** |
+
+## First superadmin (platform operator)
+
+The super-admin panel (`/platform`) creates ЖК and their ОСИ accounts. Its first account is created from env at startup:
+
+1. Set `SUPERADMIN_EMAIL` and `SUPERADMIN_PASSWORD` (≥ 10 characters) on Render (Environment or the `.env.local` Secret File) and redeploy.
+2. On boot the server makes sure a user with that email exists with role `superadmin` (no ЖК; the phone is a placeholder `superadmin:<email>`). The log says `superadmin bootstrap: created …` or `… already exists`. The password is never logged.
+3. Log in at `/login` with that email and password; you land on `/platform`.
+4. Optionally remove `SUPERADMIN_PASSWORD` afterwards. Later boots never change an existing account's password, and an email that belongs to an ОСИ or resident is **never** promoted (a warning is logged instead).
+
+Creating a ЖК or an ОСИ account (or resetting an ОСИ password) shows a temporary password **once**. Hand it over in person; the ОСИ must choose a new password at first login. A new ЖК has no tariff: the ОСИ sets it in Настройки before residents can book.
 
 ## Tests
 

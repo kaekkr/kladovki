@@ -153,6 +153,18 @@ func RequireAdmin() gin.HandlerFunc {
 	}
 }
 
+// RequireSuperadmin must run after Require(); it lets only the platform
+// operator through. A superadmin has no ЖК and does NOT pass RequireAdmin.
+func RequireSuperadmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if Role(c) != "superadmin" {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Доступ только для оператора платформы"})
+			return
+		}
+		c.Next()
+	}
+}
+
 // IsAdmin reports whether the authenticated user is an OSI admin.
 func IsAdmin(c *gin.Context) bool { return Role(c) == "admin" }
 
