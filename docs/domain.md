@@ -6,6 +6,8 @@
 |---|---|
 | **ЖК** (`jks`) | Residential complex. Everything (storage rooms, tariff, users, requests) belongs to exactly one ЖК |
 | **ОСИ** | Building owners' association, the **admin** role. One ОСИ admin manages one ЖК |
+| **Оператор платформы** | The **superadmin** role (us). Creates ЖК and their ОСИ accounts in `/platform`; has no ЖК and can't use ОСИ pages |
+| **Кадастровый номер** | ЖК: `21:319:021:848:8`. Premises: the ЖК number + `:unit`, e.g. `21:319:021:848:8:ВП-2`. Used to find a resident's ЖК |
 | **Житель** | Resident, the **resident** role. Rents storage rooms in their own ЖК |
 | **Кладовка** (`storages`) | A storage room: number, area (м²), floor, entrance |
 | **Аренда** (`rentals`) | A rental of one storage room by one resident for N months at a fixed monthly price |
@@ -47,14 +49,17 @@ Per the user agreement (п. 2.1), only **owners of a flat or commercial premises
 
 ## Registration & login (IIN flow)
 
-1. The ОСИ prints the QR code from **Настройки**. It links to `/login?jk=<jk_id>`.
-2. The resident types their ИИН. The app calls `POST /auth/iin-status`.
+1. The resident types their ИИН (an ОСИ or the platform operator types an email). The app calls `POST /auth/iin-status`.
    - **Known ИИН**: ask for the password.
-   - **Unknown ИИН**: go to `/auth/register?iin=…&jk=…`, the "Вы впервые входите в систему. Придумайте пароль." screen. It asks for name, phone, password and the password again.
-3. The ЖК comes from the QR link. If there is no `jk` and the system has exactly one ЖК, that one is used.
+   - **Unknown ИИН**: go to `/auth/register?iin=…`, the "Вы впервые входите в систему. Придумайте пароль." screen. It asks for name, phone, owner type, the **cadastral number of the premises**, and the password twice.
+2. **The ЖК is found from the cadastral number** (since 2026-11-22; the QR code was removed from Настройки). For a premises `21:319:021:848:8:ВП-2`, the ЖК is the one whose `jks.cadastral_number` is `21:319:021:848:8`. The last facet is the unit: digits mean a flat (`154`), anything else a non-residential premises (`ВП-2`, `НП-14`). The rules live in `backend/internal/cadastral`.
+   - A wrong format, a ЖК that isn't connected, or an old QR link (`jk_id`) pointing to another ЖК → 400 with a Russian message.
+   - Older clients may still send `jk_id` + `premises_number` without a cadastral number. Then the QR / single-ЖК rule applies.
+3. Ownership is **still confirmed by the ОСИ** (see "Who may rent"). The egov check via Smart Bridge will later replace the manual step, using the same cadastral numbers.
 4. Validation: the ИИН must be exactly 12 digits (the checksum is not verified yet), the password at least 6 characters, and the phone and ИИН unique. Errors are in Russian.
+5. **Android app**: opens on the login screen (or the user's home if a session is stored). The marketing landing is website-only.
 
-No password-reset flow exists yet. The login page tells residents to contact the ОСИ.
+Password reset: the ОСИ sets a temporary password on «Жители», and the resident must change it at the next login.
 
 ## Booking & payment
 
@@ -104,6 +109,7 @@ remaining value = total_paid × (time left until ends_at / whole paid period)
 - **Decrease**: before saving, the ОСИ sees a preview: how many rentals are affected and the total difference (`GET /jks/:id/tariff/preview?amount=`). When saved, each active rental with time left gets a **tariff_recalc** request in status `awaiting_choice`. Older unanswered ones become `superseded`. The resident picks one of two options:
   - **extend**: the remaining time is stretched to the new price, `ends_at += remaining_time × (old/new − 1)`. Applied immediately, request `done`.
   - **refund**: `price_per_month = new`, `total_paid −= remaining value × (1 − new/old)`. The request becomes `open`, and the ОСИ returns the money and marks it done.
+- **How the ОСИ sees it:** «Заявки» shows unanswered requests (`awaiting_choice`) in a separate block, «Ждут ответа арендатора». Once the tenant answers, the item leaves that block and appears as the tenant's заявка: «Возврат разницы после снижения тарифа» (to act on) or «Продление срока после снижения тарифа» (already applied, closed). It is the same DB row, shown differently.
 
 ## Early termination
 
@@ -123,5 +129,5 @@ remaining value = total_paid × (time left until ends_at / whole paid period)
 
 ## Known gaps
 
-- Password reset and eGov/GBD ownership checks aren't built yet.
+- The eGov/GBD ownership check (via Smart Bridge) isn't built yet. Until then the ОСИ confirms owners and blocks ex-owners by hand.
 - Refunds are tracked as requests. The money itself is returned manually by the ОСИ; ApiPay refund isn't automated.

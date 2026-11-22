@@ -10,8 +10,8 @@ IDs are UUID strings (`VARCHAR(36)`). Money is `BIGINT` whole tenge. Times are `
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| `jks` | Residential complexes | `name`, `address`, `owner_id → users`, `lock_minutes` (booking hold, default 2) |
-| `users` | Residents and ОСИ admins | `phone` UNIQUE, `iin` UNIQUE (when set), `email`, `password_hash` (bcrypt), `role` (`user_role`), `jk_id → jks`, `telegram_chat_id`, `status` (`pending`/`active`/`rejected`/`blocked`), `owner_type` (`person`/`company`), `premises_kind` (`flat`/`commercial`), `premises_number`, `company_bin`, `company_name`, `review_comment`, `reviewed_by`, `reviewed_at` |
+| `jks` | Residential complexes | `name`, `address`, `owner_id → users`, `lock_minutes` (booking hold, default 2), `cadastral_number` (e.g. `21:319:021:848:8`, unique when set) |
+| `users` | Residents, ОСИ admins and platform operators | `phone` UNIQUE, `iin` UNIQUE (when set), `email`, `password_hash` (bcrypt), `role` (`user_role`: `resident`/`admin`/`superadmin`), `premises_cadastral` (e.g. `…:ВП-2`), `must_change_password`, `jk_id → jks`, `telegram_chat_id`, `status` (`pending`/`active`/`rejected`/`blocked`), `owner_type` (`person`/`company`), `premises_kind` (`flat`/`commercial`), `premises_number`, `company_bin`, `company_name`, `review_comment`, `reviewed_by`, `reviewed_at` |
 | `storages` | Storage rooms | `jk_id`, `number` (unique per ЖК, case/space-insensitive), `area`, `floor`, `entrance`, `status` (`storage_status`), `locked_until`, `transfer_to_iin`, `transfer_until` |
 | `tariffs` | Current price per ЖК, **₸ per m² per month** | `jk_id`, `amount`, `updated_at` |
 | `tariff_history` | Every tariff change | `jk_id`, `amount`, `changed_at` |
