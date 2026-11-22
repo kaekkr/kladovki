@@ -4,11 +4,14 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/kaekkr/kladovki/internal/models"
+	"github.com/kaekkr/kladovki/internal/repository"
 )
 
 type CreateUserInput struct {
@@ -114,7 +117,13 @@ func (s *Service) GetUserByLogin(ctx context.Context, login string) (*models.Use
 		return s.repo.GetUserByEmail(ctx, login)
 	}
 	canonical, _ := NormalizePhone(login)
-	return s.repo.GetUserByPhoneLogin(ctx, canonical, login)
+	u, err := s.repo.GetUserByPhoneLogin(ctx, canonical, login)
+	if errors.Is(err, repository.ErrAmbiguousPhone) {
+		// Legacy duplicates of one number: refuse rather than guess the account.
+		log.Printf("login: phone matches several users; refused (fix the duplicate phones in users)")
+		return nil, repository.ErrNotFound
+	}
+	return u, err
 }
 
 // SessionUser re-reads what authorization needs for one request.

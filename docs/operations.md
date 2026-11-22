@@ -131,6 +131,7 @@ Every user's password is `test1234`; the logins are listed at the top of the fil
 | Paid in Kaspi but the rental is still "Ожидает оплаты" | Webhook rejected (401: secret mismatch) or not delivered | ApiPay dashboard → webhook log; check `APIPAY_WEBHOOK_SECRET`; check `APIPAY_LIVE` isn't `true` while using sandbox |
 | Invoice not created (502) | Wrong or missing `APIPAY_KEY`, or ApiPay down | Render logs: `apipay request failed` |
 | Telegram not delivering | Bot token wrong, webhook not registered, user blocked the bot | Startup log `telegram webhook` line; `SELECT last_error FROM notification_deliveries WHERE channel='telegram' ORDER BY created_at DESC LIMIT 5` |
+| A resident can't log in by phone; log says `login: phone matches several users` | Two legacy rows hold the same number in different spellings (the boot migration leaves such pairs alone) | List every such pair: `SELECT right(regexp_replace(phone,'\D','','g'),10) AS num, array_agg(id || ' ' || phone) FROM users WHERE phone NOT LIKE 'superadmin:%' GROUP BY 1 HAVING count(*) > 1`; give one of them another phone (or merge the accounts), then the next boot normalizes the rest |
 | Storage room stuck in "locked" | A hold is still alive (≤ 10 min) | Wait, or use admin **force-release** |
 
 ## Database backups

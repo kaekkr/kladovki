@@ -219,7 +219,7 @@ func insertUserTx(ctx context.Context, tx *sql.Tx, u *models.User, role models.R
 	var emailTaken, phoneTaken bool
 	if err := tx.QueryRowContext(ctx, `
 		SELECT EXISTS (SELECT 1 FROM users WHERE email IS NOT NULL AND lower(email) = lower($1)),
-		       EXISTS (SELECT 1 FROM users WHERE phone = $2)`, u.Email, u.Phone).Scan(&emailTaken, &phoneTaken); err != nil {
+		       EXISTS (SELECT 1 FROM users WHERE `+samePhoneSQL("phone", "$2")+`)`, u.Email, u.Phone).Scan(&emailTaken, &phoneTaken); err != nil {
 		return fmt.Errorf("repository.insertUser check: %w", err)
 	}
 	if emailTaken {

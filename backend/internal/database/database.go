@@ -290,4 +290,27 @@ var migrations = []string{
 	// statements are no-ops on re-run.
 	`ALTER TABLE requests ADD COLUMN IF NOT EXISTS refund_deducted BOOLEAN NOT NULL DEFAULT true`,
 	`ALTER TABLE requests ALTER COLUMN refund_deducted SET DEFAULT false`,
+
+	// Legacy phones (87001234567, "8 (700) 123-45-67") → +77001234567, but only
+	// where no other user has the same number in any spelling (key = digits,
+	// leading 8 → 7). Colliding rows stay as they are for a person to resolve;
+	// login refuses an ambiguous number. Re-running finds nothing more to do.
+	`WITH legacy AS (
+		SELECT id, regexp_replace(phone, '[ ()-]', '', 'g') AS compact,
+		       regexp_replace(phone, '\D', '', 'g') AS digits
+		FROM users
+		WHERE phone NOT LIKE 'superadmin:%' AND phone !~ '^\+7[0-9]{10}$'
+	), fixable AS (
+		SELECT l.id, '+7' || right(l.digits, 10) AS canonical, '7' || right(l.digits, 10) AS key
+		FROM legacy l
+		WHERE l.compact ~ '^(\+7|7|8)[0-9]{10}$'
+	)
+	UPDATE users u SET phone = f.canonical
+	FROM fixable f
+	WHERE u.id = f.id AND NOT EXISTS (
+		SELECT 1 FROM users o
+		WHERE o.id <> u.id AND o.phone NOT LIKE 'superadmin:%'
+		  AND (CASE WHEN regexp_replace(o.phone, '\D', '', 'g') ~ '^8[0-9]{10}$'
+		            THEN '7' || substr(regexp_replace(o.phone, '\D', '', 'g'), 2)
+		            ELSE regexp_replace(o.phone, '\D', '', 'g') END) = f.key)`,
 }

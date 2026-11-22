@@ -75,16 +75,43 @@ func (r *Repo) GetUserByIIN(ctx context.Context, iin string) (*models.User, erro
 	return r.scanUser(r.db.QueryRowContext(ctx, query, iin))
 }
 
-// GetUserByPhoneLogin finds a user by the canonical phone (+7XXXXXXXXXX) or,
-// for rows stored before phones were normalized, by the raw input. The
-// superadmin placeholder phone (superadmin:…) is never a login.
+// ErrAmbiguousPhone: more than one account holds this number (legacy rows).
+var ErrAmbiguousPhone = errors.New("phone matches several users")
+
+// GetUserByPhoneLogin finds a user by phone number: a valid KZ number
+// (canonical non-empty) matches every stored spelling of it by digit key;
+// anything else matches the raw text exactly. Two matching accounts (legacy
+// duplicates) → ErrAmbiguousPhone: never pick one arbitrarily. The superadmin
+// placeholder phone (superadmin:…) is never a login.
 func (r *Repo) GetUserByPhoneLogin(ctx context.Context, canonical, raw string) (*models.User, error) {
-	query := fmt.Sprintf(`
-		SELECT %s FROM users
-		WHERE ($1 <> '' AND phone = $1) OR (phone = $2 AND phone NOT LIKE 'superadmin:%%')
-		ORDER BY (phone = $1) DESC
-		LIMIT 1`, userColumns)
-	return r.scanUser(r.db.QueryRowContext(ctx, query, canonical, raw))
+	where, arg := `phone = $1`, raw
+	if canonical != "" {
+		where, arg = samePhoneSQL("phone", "$1"), canonical
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT `+userColumns+` FROM users
+		WHERE phone NOT LIKE 'superadmin:%' AND `+where+` LIMIT 2`, arg)
+	if err != nil {
+		return nil, fmt.Errorf("repository.GetUserByPhoneLogin: %w", err)
+	}
+	defer rows.Close()
+	var found []*models.User
+	for rows.Next() {
+		u, err := r.scanUser(rows)
+		if err != nil {
+			return nil, fmt.Errorf("repository.GetUserByPhoneLogin scan: %w", err)
+		}
+		found = append(found, u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("repository.GetUserByPhoneLogin rows: %w", err)
+	}
+	switch len(found) {
+	case 0:
+		return nil, ErrNotFound
+	case 1:
+		return found[0], nil
+	}
+	return nil, ErrAmbiguousPhone
 }
 
 func (r *Repo) scanUser(s rowScanner) (*models.User, error) {
@@ -135,7 +162,7 @@ func (r *Repo) IINRegistered(ctx context.Context, iin string) (bool, error) {
 
 func (r *Repo) PhoneRegistered(ctx context.Context, phone string) (bool, error) {
 	var ok bool
-	err := r.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM users WHERE phone = $1)`, phone).Scan(&ok)
+	err := r.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM users WHERE `+samePhoneSQL("phone", "$1")+`)`, phone).Scan(&ok)
 	return ok, err
 }
 
@@ -259,7 +286,7 @@ func (r *Repo) RevokeSessions(ctx context.Context, userID string, version int) e
 func (r *Repo) UpdatePhone(ctx context.Context, userID, phone string) error {
 	var taken bool
 	if err := r.db.QueryRowContext(ctx,
-		`SELECT EXISTS (SELECT 1 FROM users WHERE phone = $1 AND id <> $2)`, phone, userID).Scan(&taken); err != nil {
+		`SELECT EXISTS (SELECT 1 FROM users WHERE `+samePhoneSQL("phone", "$1")+` AND id <> $2)`, phone, userID).Scan(&taken); err != nil {
 		return fmt.Errorf("repository.UpdatePhone check: %w", err)
 	}
 	if taken {
